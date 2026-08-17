@@ -149,14 +149,12 @@ async function inicializar() {
   atualizarInterfaceAuth();
 
   if (!currentUser) {
-    // Modo Visitante / Demonstração
     if (footer) footer.textContent = "👀 Modo Visitante (Alterações locais de teste — não afetam o banco)";
     state = JSON.parse(JSON.stringify(DADOS_DEMO));
     render();
     return;
   }
 
-  // Modo Administrador
   try {
     if (footer) footer.textContent = "☁️ Carregando dados da nuvem...";
 
@@ -189,7 +187,6 @@ async function save() {
   render();
   const footer = document.getElementById("statusFooter");
 
-  // Se não estiver logado, não grava na nuvem
   if (!currentUser) {
     if (footer) footer.textContent = "👀 Modo Visitante (Alterações locais temporárias)";
     return;
@@ -487,14 +484,17 @@ function render() {
 function atualizarCamposItens() {
   const qtd = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
   const box = document.getElementById("itensExtras");
+  const singleItem = document.getElementById("singleItemContainer");
   if (!box) return;
 
   if (qtd <= 1) {
     box.innerHTML = "";
     box.style.display = "none";
+    if (singleItem) singleItem.style.display = "flex";
     return;
   }
 
+  if (singleItem) singleItem.style.display = "none";
   box.style.display = "grid";
   box.innerHTML = Array.from(
     { length: qtd },
@@ -512,7 +512,7 @@ function obterItensDaVenda() {
   const extras = [...document.querySelectorAll(".item-extra")].map(i => i.value.trim()).filter(Boolean);
   const principal = document.getElementById("itemInput").value.trim();
 
-  if (qtd === 1) return principal ? [principal] : [];
+  if (qtd <= 1) return principal ? [principal] : [];
   return extras;
 }
 
@@ -531,7 +531,6 @@ function adicionarVenda() {
   const valor = parseFloat(document.getElementById("valorInput").value);
   const cliente = document.getElementById("clienteInput").value.trim();
   const nickCliente = document.getElementById("nickClienteInput").value.trim();
-  const item = document.getElementById("itemInput").value.trim();
   const quantidade = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
   const itens = obterItensDaVenda();
 
@@ -540,9 +539,13 @@ function adicionarVenda() {
   if (!Number.isInteger(quantidade) || quantidade < 1) { alert("A quantidade deve ser pelo menos 1."); return; }
   if (!cliente) { alert("Digite o nome do cliente."); return; }
   if (!nickCliente) { alert("Digite o Nick do cliente."); return; }
-  if (quantidade === 1 && !item) { alert("Digite o item vendido."); return; }
+  
+  if (quantidade === 1 && itens.length === 0) {
+    alert("Digite o item vendido.");
+    return;
+  }
   if (quantidade > 1 && itens.length !== quantidade) {
-    alert(`Digite o nome dos ${quantidade} itens vendidos.`);
+    alert(`Digite o nome de todos os ${quantidade} itens vendidos.`);
     return;
   }
 
