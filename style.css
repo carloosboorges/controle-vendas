@@ -346,19 +346,74 @@ button:hover {
   margin-top: 8px;
 }
 
-/* Gerenciar Contas */
+/* =======================================================
+   GERENCIAR CONTAS (ALINHAMENTO EM LINHA LIMPA)
+   ======================================================= */
+.section-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 16px;
+}
+
+#contas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .account-row {
-  display: grid;
-  grid-template-columns: minmax(170px, 1fr) 130px minmax(360px, auto);
-  gap: 12px;
+  display: flex;
   align-items: center;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border);
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--panel-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  transition: border-color 0.2s;
+}
+
+.account-row:hover {
+  border-color: var(--accent-light);
+}
+
+.account-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.account-header-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.account-name {
+  font-weight: 800;
+  font-size: 16px;
+  color: #fff;
+}
+
+.account-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  margin-left: auto;
+}
+
+.account-actions button {
+  padding: 8px 13px;
+  font-size: 12px;
+  border-radius: 9px;
+  white-space: nowrap;
 }
 
 .badge {
   display: inline-flex;
-  padding: 5px 10px;
+  padding: 4px 10px;
   border-radius: 99px;
   font-size: 11px;
   font-weight: 800;
@@ -373,20 +428,9 @@ button:hover {
   border: 1px solid rgba(255, 51, 102, 0.3);
 }
 
-.account-name {
-  font-weight: 800;
-  font-size: 15px;
-}
-
 .small {
   font-size: 12px;
   color: var(--muted);
-}
-
-.section-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin: 0 0 14px;
 }
 
 /* Painel de Valor Base */
@@ -418,9 +462,7 @@ button:hover {
   color: var(--accent-light);
 }
 
-/* =======================================================
-   HISTÓRICO DE VENDAS (BARRA SUPERIOR DIREITA FIXA)
-   ======================================================= */
+/* Histórico de Vendas */
 .history-top-bar {
   display: flex !important;
   flex-direction: row !important;
@@ -714,7 +756,17 @@ footer {
 /* Responsividade */
 @media (max-width: 850px) {
   .account-row {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .account-actions {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+  .account-actions button {
+    flex: 1;
   }
   .history-periods {
     grid-template-columns: repeat(2, 1fr);

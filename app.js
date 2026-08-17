@@ -345,19 +345,23 @@ function render() {
     })
     .join("");
 
+  // Gerenciar Contas com alinhamento limpo e sem a mensagem longa
   document.getElementById("contas").innerHTML = (state.contas || [])
     .map(
       (c, i) => `
     <div class="account-row">
-      <div>
-        <div class="account-name">${esc(c.nome)}</div>
-        <div class="small">${c.ativa ? "Conta disponível para registrar vendas" : "Conta desativada — ative quando começar a usar"}</div>
+      <div class="account-info">
+        <div class="account-header-line">
+          <div class="account-name">${esc(c.nome)}</div>
+          <span class="badge ${c.ativa ? "" : "off"}">${c.ativa ? "🟢 ATIVA" : "⚫ DESATIVADA"}</span>
+        </div>
+        <div class="small">${c.ativa ? "Disponível para registrar vendas" : "Desativada — ative para utilizar"}</div>
       </div>
-      <div class="account-status"><span class="badge ${c.ativa ? "" : "off"}">${c.ativa ? "🟢 ATIVA" : "⚫ DESATIVADA"}</span></div>
-      <div class="actions">
-        <button type="button" class="btn-gray" onclick="editarNomeConta(${i})">✏️ Editar nome</button><button type="button" class="btn-danger" onclick="removerConta(${i})">🗑️ Remover</button><button type="button" class="btn-gray" onclick="editarVBucks(${i})">🪙 Editar V-Bucks</button>
-        <span class="small">⏱️ Vagas controladas automaticamente</span>
+      <div class="account-actions">
+        <button type="button" class="btn-gray" onclick="editarNomeConta(${i})">✏️ Editar nome</button>
+        <button type="button" class="btn-gray" onclick="editarVBucks(${i})">🪙 Editar V-Bucks</button>
         <button type="button" class="${c.ativa ? "btn-gray" : "btn-green"}" onclick="toggleConta(${i})">${c.ativa ? "Desativar" : "Ativar"}</button>
+        <button type="button" class="btn-danger" onclick="removerConta(${i})">🗑️ Remover</button>
       </div>
     </div>`
     )
@@ -840,7 +844,7 @@ function marcarMetasRetiradas() {
   save();
 }
 
-// Limpeza segura validando credenciais em tempo real no Supabase
+// Limpeza segura validando credenciais no Supabase
 async function limparHistorico() {
   if (!state.historicoVendas || !state.historicoVendas.length) {
     alert("O histórico já está vazio.");
