@@ -11,6 +11,8 @@ const DADOS_DEMO = {
       id: "demo-1",
       conta: "Conta Demo 01",
       valor: 20,
+      vbucks: 800,
+      valorBaseMomento: 2.5,
       quantidade: 1,
       cliente: "Visitante",
       nickCliente: "PlayerDemo",
@@ -27,6 +29,8 @@ const DADOS_DEMO = {
       id: "demo-1",
       conta: "Conta Demo 01",
       valor: 20,
+      vbucks: 800,
+      valorBaseMomento: 2.5,
       quantidade: 1,
       cliente: "Visitante",
       nickCliente: "PlayerDemo",
@@ -259,8 +263,8 @@ function tempoRestante(ms) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function valorParaVBucks(valor) {
-  const base = Number(state?.valorBase100 || 2.5);
+function valorParaVBucks(valor, baseCustom) {
+  const base = Number(baseCustom || state?.valorBase100 || 2.5);
   if (!Number.isFinite(base) || base <= 0) return 0;
   return Math.round((Number(valor) / base) * 100);
 }
@@ -345,7 +349,6 @@ function render() {
     })
     .join("");
 
-  // Gerenciar Contas com alinhamento limpo e sem a mensagem longa
   document.getElementById("contas").innerHTML = (state.contas || [])
     .map(
       (c, i) => `
@@ -511,7 +514,8 @@ function render() {
         .map((v, ri) => {
           const i = state.historicoVendas.length - 1 - ri;
           const itens = v.quantidade || 1;
-          const vb = valorParaVBucks(v.valor);
+          // Usa os V-Bucks gravados na venda ou calcula com a base salva
+          const vb = v.vbucks !== undefined ? v.vbucks : valorParaVBucks(v.valor, v.valorBaseMomento);
           return `<div class="history-card">
           <div class="history-main">
             <div class="history-number">#${String(i + 1).padStart(2, "0")}</div>
@@ -594,6 +598,7 @@ function adicionarVenda() {
   const nickCliente = document.getElementById("nickClienteInput").value.trim();
   const quantidade = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
   const itens = obterItensDaVenda();
+  const baseAtual = state.valorBase100 || 2.5;
 
   if (!conta) { alert("Ative pelo menos uma conta."); return; }
   if (!valor || valor <= 0) { alert("Digite um valor válido."); return; }
@@ -617,7 +622,7 @@ function adicionarVenda() {
   }
 
   const contaObj = (state.contas || []).find(c => c.nome === conta);
-  const vbucksNecessarios = Math.round((valor / (state.valorBase100 || 2.5)) * 100);
+  const vbucksNecessarios = Math.round((valor / baseAtual) * 100);
   const saldoVBucks = Number(contaObj?.vbucks) || 0;
 
   if (saldoVBucks < vbucksNecessarios) {
@@ -634,6 +639,8 @@ function adicionarVenda() {
     id: vendaId,
     conta,
     valor,
+    vbucks: vbucksNecessarios,
+    valorBaseMomento: baseAtual,
     quantidade,
     cliente,
     nickCliente,
@@ -676,7 +683,8 @@ function excluirVenda(index) {
 
   const conta = state.contas.find(c => c.nome === venda.conta);
   if (conta) {
-    conta.vbucks += valorParaVBucks(venda.valor);
+    const vbDevolver = venda.vbucks !== undefined ? venda.vbucks : valorParaVBucks(venda.valor, venda.valorBaseMomento);
+    conta.vbucks += vbDevolver;
   }
 
   if (venda.id) {
@@ -785,6 +793,25 @@ function editarValorBase() {
     alert("Digite um valor válido maior que zero.");
     return;
   }
+
+  // Antes de mudar a cotação global, fixa os V-Bucks das vendas antigas que ainda não tinham o campo salvo
+  if (Array.isArray(state.historicoVendas)) {
+    state.historicoVendas.forEach(v => {
+      if (v.vbucks === undefined) {
+        v.vbucks = valorParaVBucks(v.valor, v.valorBaseMomento || atual);
+        v.valorBaseMomento = v.valorBaseMomento || atual;
+      }
+    });
+  }
+  if (Array.isArray(state.vendas)) {
+    state.vendas.forEach(v => {
+      if (v.vbucks === undefined) {
+        v.vbucks = valorParaVBucks(v.valor, v.valorBaseMomento || atual);
+        v.valorBaseMomento = v.valorBaseMomento || atual;
+      }
+    });
+  }
+
   state.valorBase100 = Math.round(valor * 100) / 100;
   save();
 }
