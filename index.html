@@ -148,23 +148,25 @@
   </section>
 
   <section class="panel">
-    <div class="history-heading">
-      <div>
-        <h2>📜 Histórico de Vendas</h2>
-        <div class="history-total-card">
-          <div class="history-total-label">💰 TOTAL DO HISTÓRICO</div>
-          <div class="history-total-value" id="historicoTotal">R$ 0,00</div>
-          <div class="history-total-help">Valor acumulado de todas as vendas registradas.</div>
-        </div>
-        <div class="history-permanent-sales">
-          <span>🛒 TOTAL DE VENDAS</span>
-          <strong id="historicoQtdTotal">0 vendas</strong>
-        </div>
-        <div id="lucroMetaAlert" class="profit-goal-alert" style="display:none"></div>
-        <div class="history-periods" id="historicoPeriodos"></div>
-      </div>
-      <button type="button" class="btn-danger" onclick="limparHistorico()">🗑️ Limpar Histórico</button>
+    <div class="history-top-bar">
+      <h2>📜 Histórico de Vendas</h2>
+      <button type="button" class="btn-danger btn-compact" onclick="limparHistorico()">🗑️ Limpar Histórico</button>
     </div>
+    
+    <div class="history-content-full">
+      <div class="history-total-card">
+        <div class="history-total-label">💰 TOTAL DO HISTÓRICO</div>
+        <div class="history-total-value" id="historicoTotal">R$ 0,00</div>
+        <div class="history-total-help">Valor acumulado de todas as vendas registradas.</div>
+      </div>
+      <div class="history-permanent-sales">
+        <span>🛒 TOTAL DE VENDAS</span>
+        <strong id="historicoQtdTotal">0 pedidos · 0 itens enviados</strong>
+      </div>
+      <div id="lucroMetaAlert" class="profit-goal-alert" style="display:none"></div>
+      <div class="history-periods" id="historicoPeriodos"></div>
+    </div>
+
     <div id="historico" class="history-cards"></div>
   </section>
 

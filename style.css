@@ -418,21 +418,37 @@ button:hover {
   color: var(--accent-light);
 }
 
-/* Histórico de Vendas (Geral) */
-.history-heading {
+/* =======================================================
+   HISTÓRICO DE VENDAS (LARGURA TOTAL E BOTÃO NO TOPO)
+   ======================================================= */
+.history-top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
-.history-heading h2 {
+.history-top-bar h2 {
   margin: 0;
 }
 
+.btn-compact {
+  padding: 8px 14px;
+  font-size: 12px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.history-content-full {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .history-total-card {
-  margin: 14px 0 12px;
+  width: 100%;
+  margin: 8px 0 12px;
   padding: 20px;
   background: linear-gradient(135deg, #37126b, #17072f);
   border: 1px solid var(--accent);
@@ -463,11 +479,12 @@ button:hover {
 }
 
 .history-permanent-sales {
-  margin: 10px 0 0;
-  padding: 12px 16px;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 14px 18px;
   background: var(--panel-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -486,10 +503,11 @@ button:hover {
 }
 
 .history-periods {
+  width: 100%;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
-  margin-top: 12px;
+  margin-bottom: 8px;
 }
 
 .period-card {
@@ -518,9 +536,6 @@ button:hover {
   color: var(--muted);
 }
 
-/* =======================================================
-   ESTRUTURA CORRIGIDA DOS CARDS DO HISTÓRICO DE VENDAS
-   ======================================================= */
 .history-cards {
   display: flex;
   flex-direction: column;
@@ -543,7 +558,6 @@ button:hover {
   border-color: var(--accent-light);
 }
 
-/* Topo do card com Grid (Esquerda: Info | Direita: Preço) */
 .history-main {
   display: flex;
   justify-content: space-between;
@@ -592,7 +606,6 @@ button:hover {
   margin-top: 6px;
 }
 
-/* Valor R$ alinhado na extrema direita */
 .history-value {
   font-size: 26px;
   font-weight: 900;
@@ -603,7 +616,6 @@ button:hover {
   text-shadow: 0 0 15px rgba(0, 230, 118, 0.25);
 }
 
-/* Rodapé do card (Itens e V-Bucks na esquerda | Botões na direita) */
 .history-details {
   display: flex;
   align-items: center;

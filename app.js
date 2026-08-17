@@ -296,7 +296,6 @@ function render() {
 
   document.getElementById("totalGeral").textContent = money(total);
   
-  // Resumo do painel superior: pedidos e itens
   const qtdPedidosSessao = (state.vendas || []).length;
   const qtdItensSessao = (state.vendas || []).reduce((a, v) => a + (v.quantidade || 1), 0);
   document.getElementById("qtdVendas").textContent = `${qtdPedidosSessao} (${qtdItensSessao} itens)`;
