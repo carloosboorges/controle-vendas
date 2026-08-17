@@ -1,9 +1,6 @@
 const SUPABASE_URL = "https://oyitmutmtvuoynwhiymy.supabase.co";
 const SUPABASE_KEY = "sb_publishable_6e1fQtQfhVa8LjWUbdPrJw_IwhhxLRF";
 
-// Senha de segurança para ações destrutivas (como apagar histórico)
-const SENHA_SEGURANCA = "123456"; // Altere aqui para a senha que preferir
-
 const DADOS_DEMO = {
   contas: [
     { nome: "Conta Demo 01", ativa: true, usadas: 0, vbucks: 10000 },
@@ -843,10 +840,15 @@ function marcarMetasRetiradas() {
   save();
 }
 
-// Limpeza segura com senha mestra
-function limparHistorico() {
-  if (!state.historicoVendas.length) {
+// Limpeza segura validando credenciais em tempo real no Supabase
+async function limparHistorico() {
+  if (!state.historicoVendas || !state.historicoVendas.length) {
     alert("O histórico já está vazio.");
+    return;
+  }
+
+  if (!currentUser || !currentUser.email) {
+    alert("🔒 Acesso restrito!\n\nVocê precisa estar logado como Administrador para apagar o histórico.");
     return;
   }
 
@@ -854,20 +856,45 @@ function limparHistorico() {
     return;
   }
 
-  const senhaDigitada = prompt("🔒 AUTENTICAÇÃO DE SEGURANÇA:\n\nDigite a senha mestre de administrador para autorizar a exclusão:");
+  const senhaDigitada = prompt(`🔒 CONFIRMAÇÃO DE SEGURANÇA:\n\nDigite a sua senha de Administrador (${currentUser.email}) para autorizar a exclusão:`);
   
-  if (senhaDigitada === null) {
-    return; // Usuário cancelou
-  }
-
-  if (senhaDigitada.trim() !== SENHA_SEGURANCA) {
-    alert("❌ SENHA INCORRETA!\n\nAção cancelada por segurança.");
+  if (!senhaDigitada) {
     return;
   }
 
-  state.historicoVendas = [];
-  save();
-  alert("✅ Histórico apagado com sucesso.");
+  const footer = document.getElementById("statusFooter");
+  if (footer) footer.textContent = "🔒 Validando credenciais...";
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ 
+        email: currentUser.email, 
+        password: senhaDigitada 
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.access_token) {
+      alert("❌ SENHA INCORRETA!\n\nA exclusão do histórico foi cancelada.");
+      if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
+      return;
+    }
+
+    state.historicoVendas = [];
+    await save();
+    alert("✅ Histórico apagado com sucesso!");
+
+  } catch (err) {
+    console.error("Erro ao validar senha:", err);
+    alert("Erro ao conectar ao servidor para validar a senha.");
+    if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
+  }
 }
 
 function novaLive() {
