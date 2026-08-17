@@ -418,7 +418,19 @@ button:hover {
   color: var(--accent-light);
 }
 
-/* Histórico de Vendas */
+/* Histórico de Vendas (Geral) */
+.history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.history-heading h2 {
+  margin: 0;
+}
+
 .history-total-card {
   margin: 14px 0 12px;
   padding: 20px;
@@ -506,50 +518,58 @@ button:hover {
   color: var(--muted);
 }
 
+/* =======================================================
+   ESTRUTURA CORRIGIDA DOS CARDS DO HISTÓRICO DE VENDAS
+   ======================================================= */
 .history-cards {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin-top: 16px;
 }
 
 .history-card {
   background: var(--panel-card);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px;
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.2s;
 }
 
+.history-card:hover {
+  border-color: var(--accent-light);
+}
+
+/* Topo do card com Grid (Esquerda: Info | Direita: Preço) */
 .history-main {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
 }
 
 .history-number {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--accent-light);
   font-weight: 800;
-  min-width: 35px;
+  margin-right: 12px;
+  min-width: 32px;
+}
+
+.history-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .history-account {
   font-weight: 800;
-  font-size: 17px;
-  color: #fff;
-}
-
-.history-date {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 4px;
-}
-
-.history-value {
-  font-size: 22px;
-  font-weight: 900;
-  color: var(--green);
-  white-space: nowrap;
+  font-size: 18px;
+  color: #ffffff;
+  letter-spacing: 0.3px;
 }
 
 .history-client {
@@ -562,28 +582,50 @@ button:hover {
 .history-item {
   font-size: 13px;
   color: var(--muted);
-  margin-top: 4px;
+  margin-top: 5px;
+  line-height: 1.4;
 }
 
+.history-date {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+/* Valor R$ alinhado na extrema direita */
+.history-value {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--green);
+  white-space: nowrap;
+  text-align: right;
+  margin-left: auto;
+  text-shadow: 0 0 15px rgba(0, 230, 118, 0.25);
+}
+
+/* Rodapé do card (Itens e V-Bucks na esquerda | Botões na direita) */
 .history-details {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-top: 12px;
-  padding-left: 47px;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .history-actions {
-  margin-left: auto;
   display: flex;
   gap: 8px;
+  margin-left: auto;
 }
 
 .history-actions button {
-  padding: 7px 11px;
+  padding: 6px 12px;
   font-size: 12px;
+  border-radius: 8px;
 }
 
 .itens-extras {
@@ -683,11 +725,19 @@ footer {
 
 @media (max-width: 600px) {
   .history-main {
+    flex-direction: column;
     align-items: flex-start;
+    gap: 8px;
+  }
+  .history-value {
+    text-align: left;
+    margin-left: 0;
+    font-size: 22px;
   }
   .history-details {
-    padding-left: 0;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
   }
   .history-actions {
     width: 100%;
