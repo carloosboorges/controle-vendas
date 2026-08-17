@@ -3,19 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Controle de Vendas</title>
+  <title>Putz Story — Controle de Vendas</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
 <div class="container">
-  <header>
-    <div>
-      <h1>🎮 Controle de Vendas</h1>
-      <div class="subtitle">Registre as vendas e veja quanto saiu de cada conta.</div>
-    </div>
-    <div style="display:flex; gap:8px; align-items:center;">
+  
+  <!-- Header Principal com Logo Centralizada -->
+  <header class="main-header">
+    <div class="header-actions-bar">
       <button type="button" class="btn-gray" id="authBtn" onclick="abrirModalAuth()">🔑 Entrar</button>
       <button type="button" class="btn-danger" onclick="novaLive()">🔄 Nova Sessão</button>
+    </div>
+
+    <div class="logo-area">
+      <img src="logo.png/putz-store1.png" alt="Putz Story Logo" class="brand-logo">
+      <div class="subtitle">Painel Oficial de Controle de Vendas & Envios</div>
     </div>
   </header>
 
@@ -24,7 +30,7 @@
     <div class="modal-card">
       <div class="modal-head">
         <h3 id="modalTitle" style="margin:0;">🔑 Acesso Administrativo</h3>
-        <button type="button" class="btn-danger" style="padding:4px 8px; font-size:12px;" onclick="fecharModalAuth()">✕</button>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalAuth()">✕</button>
       </div>
       <div id="authFormArea">
         <div class="field" style="margin-top:12px;">
@@ -54,7 +60,7 @@
   <section class="panel pricing-panel">
     <div class="pricing-box">
       <div>
-        <div class="label">⚙️ Valor base</div>
+        <div class="label">⚙️ Valor Base</div>
         <div class="pricing-help">Valor cobrado a cada 100 V-Bucks.</div>
       </div>
       <div class="pricing-controls">
@@ -65,22 +71,22 @@
   </section>
 
   <section class="summary">
-    <div class="card">
-      <div class="label">Total</div>
+    <div class="card card-glow">
+      <div class="label">Total Geral</div>
       <div class="value" id="totalGeral">R$ 0,00</div>
     </div>
-    <div class="card">
-      <div class="label">Vendas registradas</div>
+    <div class="card card-glow">
+      <div class="label">Vendas Registradas</div>
       <div class="value" id="qtdVendas">0</div>
     </div>
-    <div class="card">
-      <div class="label">Conta com maior faturamento</div>
+    <div class="card card-glow">
+      <div class="label">Top Faturamento</div>
       <div class="value" id="topConta" style="font-size:19px">—</div>
     </div>
   </section>
 
-  <section class="panel">
-    <h2>➕ Registrar venda</h2>
+  <section class="panel panel-form">
+    <h2>➕ Registrar Venda</h2>
     <div class="toolbar">
       <div class="field">
         <label>Conta utilizada</label>
@@ -90,8 +96,8 @@
         <label>Valor da venda</label>
         <input id="valorInput" type="number" min="0.01" step="0.01" placeholder="Ex.: 45,00">
       </div>
-      <div class="field" style="max-width:170px;min-width:130px">
-        <label>Quantidade de vendas/itens</label>
+      <div class="field" style="max-width:180px;min-width:130px">
+        <label>Quantidade de itens</label>
         <input id="quantidadeInput" type="number" min="1" step="1" value="1" oninput="atualizarCamposItens()">
       </div>
       <div class="field">
@@ -106,8 +112,8 @@
         <label>Item vendido</label>
         <input id="itemInput" type="text" maxlength="160" placeholder="Ex.: Skin, picareta...">
       </div>
-      <button type="button" onclick="adicionarVenda()">Adicionar venda</button>
-      <button type="button" class="btn-gray" id="limparValorBtn">🧹 Limpar valor</button>
+      <button type="button" class="btn-primary" onclick="adicionarVenda()">Adicionar venda</button>
+      <button type="button" class="btn-gray" id="limparValorBtn">🧹 Limpar</button>
     </div>
     <div id="itensExtras" class="itens-extras" style="display:none"></div>
     <div class="quick">
@@ -129,14 +135,14 @@
   </section>
 
   <section class="panel">
-    <h2>💰 Total por conta</h2>
+    <h2>💰 Total por Conta & Status de Envios</h2>
     <div id="totaisPorConta" class="account-grid"></div>
   </section>
 
   <section class="panel">
-    <h2>⚙️ Gerenciar contas</h2>
+    <h2>⚙️ Gerenciar Contas</h2>
     <div class="section-actions">
-      <button type="button" class="btn-green" onclick="adicionarConta()">➕ Adicionar conta</button>
+      <button type="button" class="btn-green" onclick="adicionarConta()">➕ Adicionar Conta</button>
     </div>
     <div id="contas"></div>
   </section>
@@ -148,7 +154,7 @@
         <div class="history-total-card">
           <div class="history-total-label">💰 TOTAL DO HISTÓRICO</div>
           <div class="history-total-value" id="historicoTotal">R$ 0,00</div>
-          <div class="history-total-help">Valor de todas as vendas registradas no histórico.</div>
+          <div class="history-total-help">Valor acumulado de todas as vendas registradas.</div>
         </div>
         <div class="history-permanent-sales">
           <span>🛒 TOTAL DE VENDAS</span>
