@@ -419,25 +419,28 @@ button:hover {
 }
 
 /* =======================================================
-   HISTÓRICO DE VENDAS (LARGURA TOTAL E BOTÃO NO TOPO)
+   HISTÓRICO DE VENDAS (BARRA SUPERIOR DIREITA FIXA)
    ======================================================= */
 .history-top-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  margin-bottom: 16px !important;
 }
 
 .history-top-bar h2 {
-  margin: 0;
+  margin: 0 !important;
+  font-size: 20px !important;
 }
 
 .btn-compact {
-  padding: 8px 14px;
-  font-size: 12px;
-  border-radius: 10px;
-  white-space: nowrap;
+  padding: 8px 14px !important;
+  font-size: 12px !important;
+  border-radius: 10px !important;
+  white-space: nowrap !important;
+  margin-left: auto !important;
 }
 
 .history-content-full {
@@ -448,7 +451,7 @@ button:hover {
 
 .history-total-card {
   width: 100%;
-  margin: 8px 0 12px;
+  margin: 0 0 12px;
   padding: 20px;
   background: linear-gradient(135deg, #37126b, #17072f);
   border: 1px solid var(--accent);
