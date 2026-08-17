@@ -1,6 +1,9 @@
 const SUPABASE_URL = "https://oyitmutmtvuoynwhiymy.supabase.co";
 const SUPABASE_KEY = "sb_publishable_6e1fQtQfhVa8LjWUbdPrJw_IwhhxLRF";
 
+// Senha de segurança para ações destrutivas (como apagar histórico)
+const SENHA_SEGURANCA = "123456"; // Altere aqui para a senha que preferir
+
 const DADOS_DEMO = {
   contas: [
     { nome: "Conta Demo 01", ativa: true, usadas: 0, vbucks: 10000 },
@@ -840,16 +843,31 @@ function marcarMetasRetiradas() {
   save();
 }
 
+// Limpeza segura com senha mestra
 function limparHistorico() {
   if (!state.historicoVendas.length) {
     alert("O histórico já está vazio.");
     return;
   }
-  if (!confirm("⚠️ Deseja apagar todo o histórico de vendas?")) return;
-  if (!confirm("🚨 Tem certeza absoluta? Essa ação não pode ser desfeita.")) return;
+
+  if (!confirm("🚨 ATENÇÃO: Deseja realmente APAGAR TODO O HISTÓRICO de vendas?\n\nEssa ação é definitiva e não poderá ser desfeita.")) {
+    return;
+  }
+
+  const senhaDigitada = prompt("🔒 AUTENTICAÇÃO DE SEGURANÇA:\n\nDigite a senha mestre de administrador para autorizar a exclusão:");
+  
+  if (senhaDigitada === null) {
+    return; // Usuário cancelou
+  }
+
+  if (senhaDigitada.trim() !== SENHA_SEGURANCA) {
+    alert("❌ SENHA INCORRETA!\n\nAção cancelada por segurança.");
+    return;
+  }
 
   state.historicoVendas = [];
   save();
+  alert("✅ Histórico apagado com sucesso.");
 }
 
 function novaLive() {
