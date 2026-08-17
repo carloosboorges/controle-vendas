@@ -295,7 +295,11 @@ function render() {
     total = (state.vendas || []).reduce((a, v) => a + v.valor, 0);
 
   document.getElementById("totalGeral").textContent = money(total);
-  document.getElementById("qtdVendas").textContent = (state.vendas || []).reduce((a, v) => a + (v.quantidade || 1), 0);
+  
+  // Resumo do painel superior: pedidos e itens
+  const qtdPedidosSessao = (state.vendas || []).length;
+  const qtdItensSessao = (state.vendas || []).reduce((a, v) => a + (v.quantidade || 1), 0);
+  document.getElementById("qtdVendas").textContent = `${qtdPedidosSessao} (${qtdItensSessao} itens)`;
 
   let top = "—", tv = 0;
   Object.entries(t).forEach(([n, v]) => {
@@ -361,10 +365,13 @@ function render() {
     .join("");
 
   const totalHistorico = (state.historicoVendas || []).reduce((s, v) => s + Number(v.valor || 0), 0);
-  const totalVendasHistorico = (state.historicoVendas || []).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
+  const totalPedidosHistorico = (state.historicoVendas || []).length;
+  const totalItensHistorico = (state.historicoVendas || []).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
   const historicoQtdTotalEl = document.getElementById("historicoQtdTotal");
-  if (historicoQtdTotalEl) historicoQtdTotalEl.textContent = `${totalVendasHistorico} ${totalVendasHistorico === 1 ? "venda" : "vendas"}`;
+  if (historicoQtdTotalEl) {
+    historicoQtdTotalEl.textContent = `${totalPedidosHistorico} ${totalPedidosHistorico === 1 ? "pedido" : "pedidos"} · ${totalItensHistorico} ${totalItensHistorico === 1 ? "item enviado" : "itens enviados"}`;
+  }
 
   const historicoTotalEl = document.getElementById("historicoTotal");
   if (historicoTotalEl) historicoTotalEl.textContent = `Total do histórico: ${money(totalHistorico)}`;
@@ -385,13 +392,18 @@ function render() {
     return x;
   };
   const somaFiltro = fn => historico.filter(fn).reduce((s, v) => s + Number(v.valor || 0), 0);
-  const qtdFiltro = fn => historico.filter(fn).reduce((s, v) => s + (v.quantidade || 1), 0);
+  const qtdPedidosFiltro = fn => historico.filter(fn).length;
+  const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (v.quantidade || 1), 0);
 
   const mesTotal = somaFiltro(v => {
     const d = chaveData(v);
     return d && d.getMonth() === agoraData.getMonth() && d.getFullYear() === agoraData.getFullYear();
   });
-  const mesQtd = qtdFiltro(v => {
+  const mesPedidos = qtdPedidosFiltro(v => {
+    const d = chaveData(v);
+    return d && d.getMonth() === agoraData.getMonth() && d.getFullYear() === agoraData.getFullYear();
+  });
+  const mesItens = qtdItensFiltro(v => {
     const d = chaveData(v);
     return d && d.getMonth() === agoraData.getMonth() && d.getFullYear() === agoraData.getFullYear();
   });
@@ -403,7 +415,11 @@ function render() {
     const d = chaveData(v);
     return d && d >= semInicio && d < semFim;
   });
-  const semanaQtd = qtdFiltro(v => {
+  const semanaPedidos = qtdPedidosFiltro(v => {
+    const d = chaveData(v);
+    return d && d >= semInicio && d < semFim;
+  });
+  const semanaItens = qtdItensFiltro(v => {
     const d = chaveData(v);
     return d && d >= semInicio && d < semFim;
   });
@@ -412,7 +428,11 @@ function render() {
     const d = chaveData(v);
     return d && d.getFullYear() === agoraData.getFullYear();
   });
-  const anoQtd = qtdFiltro(v => {
+  const anoPedidos = qtdPedidosFiltro(v => {
+    const d = chaveData(v);
+    return d && d.getFullYear() === agoraData.getFullYear();
+  });
+  const anoItens = qtdItensFiltro(v => {
     const d = chaveData(v);
     return d && d.getFullYear() === agoraData.getFullYear();
   });
@@ -425,7 +445,11 @@ function render() {
     const d = chaveData(v);
     return d && d >= hojeInicio && d < amanhaInicio;
   });
-  const hojeQtd = qtdFiltro(v => {
+  const hojePedidos = qtdPedidosFiltro(v => {
+    const d = chaveData(v);
+    return d && d >= hojeInicio && d < amanhaInicio;
+  });
+  const hojeItens = qtdItensFiltro(v => {
     const d = chaveData(v);
     return d && d >= hojeInicio && d < amanhaInicio;
   });
@@ -448,10 +472,26 @@ function render() {
   const periodosEl = document.getElementById("historicoPeriodos");
   if (periodosEl)
     periodosEl.innerHTML = `
-    <div class="period-card"><span>📍 Hoje</span><strong>${money(hojeTotal)}</strong><small>${hojeQtd} ${hojeQtd === 1 ? "venda" : "vendas"}</small></div>
-    <div class="period-card"><span>📅 Esta semana</span><strong>${money(semanaTotal)}</strong><small>${semanaQtd} ${semanaQtd === 1 ? "venda" : "vendas"}</small></div>
-    <div class="period-card"><span>🗓️ ${nomesMes[agoraData.getMonth()]} ${agoraData.getFullYear()}</span><strong>${money(mesTotal)}</strong><small>${mesQtd} ${mesQtd === 1 ? "venda" : "vendas"}</small></div>
-    <div class="period-card"><span>📆 Ano ${agoraData.getFullYear()}</span><strong>${money(anoTotal)}</strong><small>${anoQtd} ${anoQtd === 1 ? "venda" : "vendas"}</small></div>
+    <div class="period-card">
+      <span>📍 Hoje</span>
+      <strong>${money(hojeTotal)}</strong>
+      <small>${hojePedidos} ${hojePedidos === 1 ? "pedido" : "pedidos"} (${hojeItens} ${hojeItens === 1 ? "item" : "itens"})</small>
+    </div>
+    <div class="period-card">
+      <span>📅 Esta semana</span>
+      <strong>${money(semanaTotal)}</strong>
+      <small>${semanaPedidos} ${semanaPedidos === 1 ? "pedido" : "pedidos"} (${semanaItens} ${semanaItens === 1 ? "item" : "itens"})</small>
+    </div>
+    <div class="period-card">
+      <span>🗓️ ${nomesMes[agoraData.getMonth()]} ${agoraData.getFullYear()}</span>
+      <strong>${money(mesTotal)}</strong>
+      <small>${mesPedidos} ${mesPedidos === 1 ? "pedido" : "pedidos"} (${mesItens} ${mesItens === 1 ? "item" : "itens"})</small>
+    </div>
+    <div class="period-card">
+      <span>📆 Ano ${agoraData.getFullYear()}</span>
+      <strong>${money(anoTotal)}</strong>
+      <small>${anoPedidos} ${anoPedidos === 1 ? "pedido" : "pedidos"} (${anoItens} ${anoItens === 1 ? "item" : "itens"})</small>
+    </div>
     <div class="period-card profit-card">
       <span>📈 Lucro</span>
       <strong>${money(lucroHistorico)}</strong>
