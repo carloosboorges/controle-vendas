@@ -35,6 +35,10 @@
           <label>Senha</label>
           <input id="authPassword" type="password" placeholder="Sua senha">
         </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+          <input type="checkbox" id="lembrarCredenciais" style="width:16px; height:16px; cursor:pointer;">
+          <label for="lembrarCredenciais" style="font-size:13px; color:var(--muted); cursor:pointer;">Lembrar acesso neste PC</label>
+        </div>
         <div style="display:flex; gap:8px; margin-top:16px;">
           <button type="button" class="btn-green" style="flex:1;" onclick="fazerLogin()">Entrar</button>
           <button type="button" class="btn-gray" onclick="fecharModalAuth()">Cancelar</button>

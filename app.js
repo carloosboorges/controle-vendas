@@ -64,6 +64,17 @@ function atualizarInterfaceAuth() {
 function abrirModalAuth() {
   const modal = document.getElementById("authModal");
   if (modal) modal.style.display = "flex";
+
+  const salvoEmail = localStorage.getItem("vendas_saved_email") || "";
+  const salvoPass = localStorage.getItem("vendas_saved_pass") || "";
+  const checkLembrar = document.getElementById("lembrarCredenciais");
+
+  if (salvoEmail && salvoPass) {
+    document.getElementById("authEmail").value = salvoEmail;
+    document.getElementById("authPassword").value = salvoPass;
+    if (checkLembrar) checkLembrar.checked = true;
+  }
+
   atualizarInterfaceAuth();
 }
 
@@ -75,6 +86,7 @@ function fecharModalAuth() {
 async function fazerLogin() {
   const email = document.getElementById("authEmail").value.trim();
   const password = document.getElementById("authPassword").value.trim();
+  const lembrar = document.getElementById("lembrarCredenciais")?.checked;
 
   if (!email || !password) {
     alert("Preencha o e-mail e a senha.");
@@ -97,13 +109,19 @@ async function fazerLogin() {
       return;
     }
 
+    if (lembrar) {
+      localStorage.setItem("vendas_saved_email", email);
+      localStorage.setItem("vendas_saved_pass", password);
+    } else {
+      localStorage.removeItem("vendas_saved_email");
+      localStorage.removeItem("vendas_saved_pass");
+    }
+
     authToken = data.access_token;
     currentUser = data.user;
     localStorage.setItem("vendas_auth_token", authToken);
 
     fecharModalAuth();
-    document.getElementById("authEmail").value = "";
-    document.getElementById("authPassword").value = "";
     await inicializar();
   } catch (err) {
     console.error("Erro no login:", err);
