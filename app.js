@@ -48,7 +48,7 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let state = null;
 
 // ==========================================
-// SISTEMA DE NOTIFICAÇÕES TOAST (SUBSTITUI ALERT)
+// NOTIFICAÇÕES TOAST
 // ==========================================
 function mostrarNotificacao(msg, tipo = "info") {
   const container = document.getElementById("toastContainer");
@@ -66,7 +66,7 @@ function mostrarNotificacao(msg, tipo = "info") {
 }
 
 // ==========================================
-// MODAL DE CONFIRMAÇÃO GENÉRICO (SUBSTITUI CONFIRM)
+// MODAL DE CONFIRMAÇÃO
 // ==========================================
 let pendingConfirmCallback = null;
 
@@ -97,7 +97,153 @@ function fecharModalConfirmacao() {
 }
 
 // ==========================================
-// AUTENTICAÇÃO E LOGIN
+// MODAL ALTERAR VALOR BASE
+// ==========================================
+function abrirModalValorBase() {
+  const modal = document.getElementById("valorBaseModal");
+  const input = document.getElementById("novoValorBaseInput");
+  if (input) input.value = Number(state?.valorBase100 || 2.5).toFixed(2);
+  if (modal) modal.style.display = "flex";
+}
+
+function fecharModalValorBase() {
+  const modal = document.getElementById("valorBaseModal");
+  if (modal) modal.style.display = "none";
+}
+
+function salvarValorBaseModal() {
+  const input = document.getElementById("novoValorBaseInput");
+  const valor = parseFloat(input?.value);
+
+  if (!Number.isFinite(valor) || valor <= 0) {
+    mostrarNotificacao("Digite um valor válido maior que zero.", "erro");
+    return;
+  }
+
+  const atual = state.valorBase100 || 2.5;
+
+  if (Array.isArray(state.historicoVendas)) {
+    state.historicoVendas.forEach(v => {
+      if (v.vbucks === undefined) {
+        v.vbucks = valorParaVBucks(v.valor, v.valorBaseMomento || atual);
+        v.valorBaseMomento = v.valorBaseMomento || atual;
+      }
+    });
+  }
+  if (Array.isArray(state.vendas)) {
+    state.vendas.forEach(v => {
+      if (v.vbucks === undefined) {
+        v.vbucks = valorParaVBucks(v.valor, v.valorBaseMomento || atual);
+        v.valorBaseMomento = v.valorBaseMomento || atual;
+      }
+    });
+  }
+
+  state.valorBase100 = Math.round(valor * 100) / 100;
+  save();
+  fecharModalValorBase();
+  mostrarNotificacao(`Valor base alterado para ${money(state.valorBase100)}!`, "sucesso");
+}
+
+// ==========================================
+// MODAL ADICIONAR CONTA
+// ==========================================
+function abrirModalAddConta() {
+  const modal = document.getElementById("addContaModal");
+  const nomeInput = document.getElementById("novaContaNomeInput");
+  const vbInput = document.getElementById("novaContaVbucksInput");
+  if (nomeInput) nomeInput.value = "";
+  if (vbInput) vbInput.value = "0";
+  if (modal) modal.style.display = "flex";
+}
+
+function fecharModalAddConta() {
+  const modal = document.getElementById("addContaModal");
+  if (modal) modal.style.display = "none";
+}
+
+function salvarNovaContaModal() {
+  const nomeInput = document.getElementById("novaContaNomeInput");
+  const vbInput = document.getElementById("novaContaVbucksInput");
+  const nome = nomeInput?.value.trim();
+  const vbucks = parseInt(vbInput?.value, 10) || 0;
+
+  if (!nome) {
+    mostrarNotificacao("Digite o nome ou nick da conta.", "erro");
+    return;
+  }
+
+  if (state.contas.some(c => c.nome.toLowerCase() === nome.toLowerCase())) {
+    mostrarNotificacao("Já existe uma conta com esse nome.", "erro");
+    return;
+  }
+
+  state.contas.push({ nome, ativa: false, vbucks: Math.max(0, vbucks) });
+  save();
+  fecharModalAddConta();
+  mostrarNotificacao(`Conta ${nome} adicionada com sucesso!`, "sucesso");
+}
+
+// ==========================================
+// MODAL EDITAR CONTA (NOME / V-BUCKS)
+// ==========================================
+function abrirModalEditConta(i) {
+  const conta = state.contas[i];
+  if (!conta) return;
+
+  document.getElementById("editContaIndex").value = i;
+  document.getElementById("editContaNomeInput").value = conta.nome;
+  document.getElementById("editContaVbucksInput").value = conta.vbucks || 0;
+
+  const modal = document.getElementById("editContaModal");
+  if (modal) modal.style.display = "flex";
+}
+
+function fecharModalEditConta() {
+  const modal = document.getElementById("editContaModal");
+  if (modal) modal.style.display = "none";
+}
+
+function salvarEdicaoContaModal() {
+  const i = parseInt(document.getElementById("editContaIndex").value, 10);
+  const conta = state.contas[i];
+  if (!conta) return;
+
+  const novoNome = document.getElementById("editContaNomeInput").value.trim();
+  const novoVbucks = parseInt(document.getElementById("editContaVbucksInput").value, 10);
+
+  if (!novoNome) {
+    mostrarNotificacao("O nome da conta não pode ficar vazio.", "erro");
+    return;
+  }
+  if (!Number.isFinite(novoVbucks) || novoVbucks < 0) {
+    mostrarNotificacao("Quantidade de V-Bucks inválida.", "erro");
+    return;
+  }
+
+  const existe = state.contas.some((c, idx) => idx !== i && c.nome.toLowerCase() === novoNome.toLowerCase());
+  if (existe) {
+    mostrarNotificacao("Já existe outra conta com esse nome.", "erro");
+    return;
+  }
+
+  const nomeAntigo = conta.nome;
+  conta.nome = novoNome;
+  conta.vbucks = novoVbucks;
+
+  if (nomeAntigo !== novoNome) {
+    state.vendas.forEach(v => { if (v.conta === nomeAntigo) v.conta = novoNome; });
+    state.historicoVendas.forEach(v => { if (v.conta === nomeAntigo) v.conta = novoNome; });
+    state.reservas.forEach(r => { if (r.conta === nomeAntigo) r.conta = novoNome; });
+  }
+
+  save();
+  fecharModalEditConta();
+  mostrarNotificacao(`Dados da conta ${conta.nome} atualizados!`, "sucesso");
+}
+
+// ==========================================
+// AUTENTICAÇÃO E SESSÃO
 // ==========================================
 function atualizarInterfaceAuth() {
   const authBtn = document.getElementById("authBtn");
@@ -412,11 +558,10 @@ function render() {
           <div class="account-name">${esc(c.nome)}</div>
           <span class="badge ${c.ativa ? "" : "off"}">${c.ativa ? "🟢 ATIVA" : "⚫ DESATIVADA"}</span>
         </div>
-        <div class="small">${c.ativa ? "Disponível para registrar vendas" : "Desativada — ative para utilizar"}</div>
+        <div class="small">${c.ativa ? `Saldo: ${formatVBucks(c.vbucks)} V-Bucks · Disponível` : "Desativada — ative para utilizar"}</div>
       </div>
       <div class="account-actions">
-        <button type="button" class="btn-gray" onclick="editarNomeConta(${i})">✏️ Editar nome</button>
-        <button type="button" class="btn-gray" onclick="editarVBucks(${i})">🪙 Editar V-Bucks</button>
+        <button type="button" class="btn-gray" onclick="abrirModalEditConta(${i})">✏️ Editar</button>
         <button type="button" class="${c.ativa ? "btn-gray" : "btn-green"}" onclick="toggleConta(${i})">${c.ativa ? "Desativar" : "Ativar"}</button>
         <button type="button" class="btn-danger" onclick="removerConta(${i})">🗑️ Remover</button>
       </div>
@@ -751,53 +896,6 @@ function excluirVenda(index) {
   });
 }
 
-function editarNomeConta(i) {
-  const conta = state.contas[i];
-  if (!conta) return;
-
-  const novoNome = prompt(`Editar nick da conta:`, conta.nome);
-  if (novoNome === null) return;
-
-  const nome = novoNome.trim();
-  if (!nome) { mostrarNotificacao("O nome da conta não pode ficar vazio.", "erro"); return; }
-  if (nome === conta.nome) return;
-
-  const existe = state.contas.some((c, idx) => idx !== i && c.nome.toLowerCase() === nome.toLowerCase());
-  if (existe) { mostrarNotificacao("Já existe uma conta com esse nome.", "erro"); return; }
-
-  const nomeAntigo = conta.nome;
-  conta.nome = nome;
-
-  state.vendas.forEach(v => { if (v.conta === nomeAntigo) v.conta = nome; });
-  save();
-  mostrarNotificacao("Nome da conta alterado!", "sucesso");
-}
-
-function editarVBucks(i) {
-  const conta = state.contas[i];
-  const texto = prompt(`Editar V-Bucks de ${conta.nome}:`, String(conta.vbucks || 0));
-  if (texto === null) return;
-  const valor = parseInt(String(texto).replace(/\D/g, ""), 10);
-  if (!Number.isFinite(valor) || valor < 0) { mostrarNotificacao("Quantidade de V-Bucks inválida.", "erro"); return; }
-  conta.vbucks = valor;
-  save();
-  mostrarNotificacao("Saldo de V-Bucks atualizado!", "sucesso");
-}
-
-function adicionarConta() {
-  const nome = prompt("Digite o nick da nova conta:");
-  if (nome === null) return;
-  const novoNome = nome.trim();
-  if (!novoNome) { mostrarNotificacao("O nome não pode ficar vazio.", "erro"); return; }
-  if (state.contas.some(c => c.nome.toLowerCase() === novoNome.toLowerCase())) {
-    mostrarNotificacao("Já existe uma conta com esse nome.", "erro");
-    return;
-  }
-  state.contas.push({ nome: novoNome, ativa: false, vbucks: 0 });
-  save();
-  mostrarNotificacao("Conta adicionada com sucesso!", "sucesso");
-}
-
 function removerConta(i) {
   const conta = state.contas[i];
   if (!conta) return;
@@ -844,38 +942,6 @@ function removerTimersConta(i) {
   });
 }
 
-function editarValorBase() {
-  const atual = state.valorBase100 || 2.5;
-  const entrada = prompt("Digite o novo valor cobrado por 100 V-Bucks:", String(atual).replace(".", ","));
-  if (entrada === null) return;
-  const valor = Number(String(entrada).replace(",", "."));
-  if (!Number.isFinite(valor) || valor <= 0) {
-    mostrarNotificacao("Digite um valor válido maior que zero.", "erro");
-    return;
-  }
-
-  if (Array.isArray(state.historicoVendas)) {
-    state.historicoVendas.forEach(v => {
-      if (v.vbucks === undefined) {
-        v.vbucks = valorParaVBucks(v.valor, v.valorBaseMomento || atual);
-        v.valorBaseMomento = v.valorBaseMomento || atual;
-      }
-    });
-  }
-  if (Array.isArray(state.vendas)) {
-    state.vendas.forEach(v => {
-      if (v.vbucks === undefined) {
-        v.vbucks = valorParaVBucks(v.valor, v.valorBaseMomento || atual);
-        v.valorBaseMomento = v.valorBaseMomento || atual;
-      }
-    });
-  }
-
-  state.valorBase100 = Math.round(valor * 100) / 100;
-  save();
-  mostrarNotificacao("Valor base atualizado!", "sucesso");
-}
-
 // ==========================================
 // MODAL DE EDIÇÃO DE VENDA COMPLETA
 // ==========================================
@@ -917,7 +983,6 @@ function salvarEdicaoVenda() {
 
   const listaItens = itensRaw.split(",").map(s => s.trim()).filter(Boolean);
 
-  // Recalculo inteligente de V-Bucks e saldos
   const baseUsada = venda.valorBaseMomento || state.valorBase100 || 2.5;
   const vbucksAntigos = venda.vbucks !== undefined ? venda.vbucks : valorParaVBucks(venda.valor, baseUsada);
   const vbucksNovos = valorParaVBucks(valor, baseUsada);
@@ -937,7 +1002,6 @@ function salvarEdicaoVenda() {
   venda.itens = listaItens;
   venda.quantidade = listaItens.length || 1;
 
-  // Atualiza na sessão ao vivo caso exista
   const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
   if (sessaoVenda) {
     sessaoVenda.cliente = cliente;
