@@ -47,6 +47,58 @@ let currentUser = null;
 let authToken = localStorage.getItem("vendas_auth_token") || null;
 let state = null;
 
+// ==========================================
+// SISTEMA DE NOTIFICAÇÕES TOAST (SUBSTITUI ALERT)
+// ==========================================
+function mostrarNotificacao(msg, tipo = "info") {
+  const container = document.getElementById("toastContainer");
+  if (!container) return;
+  const toast = document.createElement("div");
+  toast.className = `toast ${tipo === "sucesso" ? "toast-success" : tipo === "erro" ? "toast-error" : ""}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+    toast.style.opacity = "0";
+    toast.style.transform = "translateX(30px)";
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
+
+// ==========================================
+// MODAL DE CONFIRMAÇÃO GENÉRICO (SUBSTITUI CONFIRM)
+// ==========================================
+let pendingConfirmCallback = null;
+
+function abrirModalConfirmacao(titulo, descricao, onConfirm) {
+  const modal = document.getElementById("genericConfirmModal");
+  const titleEl = document.getElementById("genericConfirmTitle");
+  const descEl = document.getElementById("genericConfirmDesc");
+  const okBtn = document.getElementById("genericConfirmOkBtn");
+
+  if (titleEl) titleEl.textContent = titulo;
+  if (descEl) descEl.textContent = descricao;
+
+  pendingConfirmCallback = onConfirm;
+  okBtn.onclick = () => {
+    fecharModalConfirmacao();
+    if (typeof pendingConfirmCallback === "function") {
+      pendingConfirmCallback();
+    }
+  };
+
+  if (modal) modal.style.display = "flex";
+}
+
+function fecharModalConfirmacao() {
+  const modal = document.getElementById("genericConfirmModal");
+  if (modal) modal.style.display = "none";
+  pendingConfirmCallback = null;
+}
+
+// ==========================================
+// AUTENTICAÇÃO E LOGIN
+// ==========================================
 function atualizarInterfaceAuth() {
   const authBtn = document.getElementById("authBtn");
   const formArea = document.getElementById("authFormArea");
@@ -93,7 +145,7 @@ async function fazerLogin() {
   const lembrar = document.getElementById("lembrarCredenciais")?.checked;
 
   if (!email || !password) {
-    alert("Preencha o e-mail e a senha.");
+    mostrarNotificacao("Preencha o e-mail e a senha.", "erro");
     return;
   }
 
@@ -109,7 +161,7 @@ async function fazerLogin() {
 
     const data = await res.json();
     if (!res.ok || !data.access_token) {
-      alert("Falha no login: " + (data.error_description || data.msg || "Credenciais inválidas."));
+      mostrarNotificacao("Falha no login: credenciais inválidas.", "erro");
       return;
     }
 
@@ -126,10 +178,11 @@ async function fazerLogin() {
     localStorage.setItem("vendas_auth_token", authToken);
 
     fecharModalAuth();
+    mostrarNotificacao("Login realizado com sucesso!", "sucesso");
     await inicializar();
   } catch (err) {
     console.error("Erro no login:", err);
-    alert("Erro ao tentar conectar ao serviço de login.");
+    mostrarNotificacao("Erro ao conectar com o serviço de login.", "erro");
   }
 }
 
@@ -138,6 +191,7 @@ function fazerLogout() {
   currentUser = null;
   localStorage.removeItem("vendas_auth_token");
   fecharModalAuth();
+  mostrarNotificacao("Você saiu da conta.", "info");
   inicializar();
 }
 
@@ -535,7 +589,7 @@ function render() {
             <span>🎁 ${itens} ${itens === 1 ? "item" : "itens"}</span>
             <span>🪙 ${formatVBucks(vb)} V-Bucks</span>
             <div class="history-actions">
-              <button type="button" class="btn-gray" onclick="editarHistorico(${i})">✏️ Editar</button>
+              <button type="button" class="btn-gray" onclick="abrirModalEdicao(${i})">✏️ Editar</button>
               <button type="button" class="btn-danger" onclick="excluirHistorico(${i})">🗑️ Excluir</button>
             </div>
           </div>
@@ -599,24 +653,24 @@ function adicionarVenda() {
   const itens = obterItensDaVenda();
   const baseAtual = state.valorBase100 || 2.5;
 
-  if (!conta) { alert("Ative pelo menos uma conta."); return; }
-  if (!valor || valor <= 0) { alert("Digite um valor válido."); return; }
-  if (!Number.isInteger(quantidade) || quantidade < 1) { alert("A quantidade deve ser pelo menos 1."); return; }
-  if (!cliente) { alert("Digite o nome do cliente."); return; }
-  if (!nickCliente) { alert("Digite o Nick do cliente."); return; }
+  if (!conta) { mostrarNotificacao("Ative pelo menos uma conta.", "erro"); return; }
+  if (!valor || valor <= 0) { mostrarNotificacao("Digite um valor válido.", "erro"); return; }
+  if (!Number.isInteger(quantidade) || quantidade < 1) { mostrarNotificacao("A quantidade deve ser pelo menos 1.", "erro"); return; }
+  if (!cliente) { mostrarNotificacao("Digite o nome do cliente.", "erro"); return; }
+  if (!nickCliente) { mostrarNotificacao("Digite o Nick do cliente.", "erro"); return; }
   
   if (quantidade === 1 && itens.length === 0) {
-    alert("Digite o item vendido.");
+    mostrarNotificacao("Digite o item vendido.", "erro");
     return;
   }
   if (quantidade > 1 && itens.length !== quantidade) {
-    alert(`Digite o nome de todos os ${quantidade} itens vendidos.`);
+    mostrarNotificacao(`Digite o nome de todos os ${quantidade} itens vendidos.`, "erro");
     return;
   }
 
   const usadas = usadasDaConta(conta);
   if (usadas + quantidade > 5) {
-    alert(`A conta ${conta} tem ${usadas}/5 envios ocupados. Você só pode registrar mais ${5 - usadas}.`);
+    mostrarNotificacao(`A conta ${conta} tem ${usadas}/5 envios ocupados. Vagas restantes: ${5 - usadas}.`, "erro");
     return;
   }
 
@@ -625,7 +679,7 @@ function adicionarVenda() {
   const saldoVBucks = Number(contaObj?.vbucks) || 0;
 
   if (saldoVBucks < vbucksNecessarios) {
-    alert(`A conta ${conta} possui ${saldoVBucks.toLocaleString("pt-BR")} V-Bucks, mas esta venda precisa de ${vbucksNecessarios.toLocaleString("pt-BR")} V-Bucks.`);
+    mostrarNotificacao(`Saldo insuficiente! A conta ${conta} tem ${saldoVBucks.toLocaleString("pt-BR")} V-Bucks e a venda requer ${vbucksNecessarios.toLocaleString("pt-BR")}.`, "erro");
     return;
   }
 
@@ -672,85 +726,88 @@ function adicionarVenda() {
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens();
   save();
+  mostrarNotificacao("Venda registrada com sucesso!", "sucesso");
 }
 
 function excluirVenda(index) {
   const venda = state.vendas[index];
   if (!venda) return;
 
-  if (!confirm("Excluir esta venda?\n\nO valor será removido dos totais, os V-Bucks serão devolvidos e os timers desta venda serão liberados.")) return;
+  abrirModalConfirmacao("🗑️ Excluir Venda", `Excluir venda de ${venda.cliente} no valor de ${money(venda.valor)}? Os V-Bucks serão devolvidos à conta.`, () => {
+    const conta = state.contas.find(c => c.nome === venda.conta);
+    if (conta) {
+      const vbDevolver = venda.vbucks !== undefined ? venda.vbucks : valorParaVBucks(venda.valor, venda.valorBaseMomento);
+      conta.vbucks += vbDevolver;
+    }
 
-  const conta = state.contas.find(c => c.nome === venda.conta);
-  if (conta) {
-    const vbDevolver = venda.vbucks !== undefined ? venda.vbucks : valorParaVBucks(venda.valor, venda.valorBaseMomento);
-    conta.vbucks += vbDevolver;
-  }
+    if (venda.id) {
+      state.reservas = state.reservas.filter(r => r.vendaId !== venda.id);
+    }
 
-  if (venda.id) {
-    state.reservas = state.reservas.filter(r => r.vendaId !== venda.id);
-  }
-
-  state.vendas.splice(index, 1);
-  state.historicoVendas = state.historicoVendas.filter(v => v.id !== venda.id);
-  save();
+    state.vendas.splice(index, 1);
+    state.historicoVendas = state.historicoVendas.filter(v => v.id !== venda.id);
+    save();
+    mostrarNotificacao("Venda excluída com sucesso!", "sucesso");
+  });
 }
 
 function editarNomeConta(i) {
   const conta = state.contas[i];
   if (!conta) return;
 
-  const novoNome = prompt(`EDITAR NOME DA CONTA\n\nNome atual: ${conta.nome}\n\nDigite o novo nick da conta:`, conta.nome);
+  const novoNome = prompt(`Editar nick da conta:`, conta.nome);
   if (novoNome === null) return;
 
   const nome = novoNome.trim();
-  if (!nome) { alert("O nome da conta não pode ficar vazio."); return; }
+  if (!nome) { mostrarNotificacao("O nome da conta não pode ficar vazio.", "erro"); return; }
   if (nome === conta.nome) return;
 
   const existe = state.contas.some((c, idx) => idx !== i && c.nome.toLowerCase() === nome.toLowerCase());
-  if (existe) { alert("Já existe uma conta com esse nome."); return; }
+  if (existe) { mostrarNotificacao("Já existe uma conta com esse nome.", "erro"); return; }
 
   const nomeAntigo = conta.nome;
   conta.nome = nome;
 
   state.vendas.forEach(v => { if (v.conta === nomeAntigo) v.conta = nome; });
   save();
+  mostrarNotificacao("Nome da conta alterado!", "sucesso");
 }
 
 function editarVBucks(i) {
   const conta = state.contas[i];
-  const texto = prompt(`EDITAR V-BUCKS\n\nConta: ${conta.nome}\nSaldo atual: ${formatVBucks(conta.vbucks)} V-Bucks\n\nDigite o novo saldo:`, String(conta.vbucks || 0));
+  const texto = prompt(`Editar V-Bucks de ${conta.nome}:`, String(conta.vbucks || 0));
   if (texto === null) return;
   const valor = parseInt(String(texto).replace(/\D/g, ""), 10);
-  if (!Number.isFinite(valor) || valor < 0) { alert("Quantidade inválida."); return; }
+  if (!Number.isFinite(valor) || valor < 0) { mostrarNotificacao("Quantidade de V-Bucks inválida.", "erro"); return; }
   conta.vbucks = valor;
   save();
+  mostrarNotificacao("Saldo de V-Bucks atualizado!", "sucesso");
 }
 
 function adicionarConta() {
-  const nome = prompt("ADICIONAR CONTA\n\nDigite o nick da nova conta:");
+  const nome = prompt("Digite o nick da nova conta:");
   if (nome === null) return;
   const novoNome = nome.trim();
-  if (!novoNome) { alert("O nome não pode ficar vazio."); return; }
+  if (!novoNome) { mostrarNotificacao("O nome não pode ficar vazio.", "erro"); return; }
   if (state.contas.some(c => c.nome.toLowerCase() === novoNome.toLowerCase())) {
-    alert("Já existe uma conta com esse nome.");
+    mostrarNotificacao("Já existe uma conta com esse nome.", "erro");
     return;
   }
   state.contas.push({ nome: novoNome, ativa: false, vbucks: 0 });
   save();
+  mostrarNotificacao("Conta adicionada com sucesso!", "sucesso");
 }
 
 function removerConta(i) {
   const conta = state.contas[i];
   if (!conta) return;
-  const vendas = state.vendas.filter(v => v.conta === conta.nome).length;
-  const timers = state.reservas.filter(r => r.conta === conta.nome && r.expiresAt > Date.now()).length;
-  let msg = `Remover a conta ${conta.nome}?`;
-  if (vendas || timers) msg += `\n\nEla possui ${vendas} venda(s) e ${timers} timer(s) ativo(s). Esses dados também serão removidos.`;
-  if (!confirm(msg)) return;
-  state.contas.splice(i, 1);
-  state.vendas = state.vendas.filter(v => v.conta !== conta.nome);
-  state.reservas = state.reservas.filter(r => r.conta !== conta.nome);
-  save();
+  abrirModalConfirmacao("🗑️ Remover Conta", `Remover a conta ${conta.nome}? Vendas e timers vinculados serão apagados.`, () => {
+    state.contas.splice(i, 1);
+    state.vendas = state.vendas.filter(v => v.conta !== conta.nome);
+    state.reservas = state.reservas.filter(r => r.conta !== conta.nome);
+    save();
+    mostrarNotificacao("Conta removida com sucesso.", "info");
+  });
 }
 
 function toggleConta(i) {
@@ -765,9 +822,11 @@ function removerTimerEspecifico(index) {
     render();
     return;
   }
-  if (!confirm(`Remover somente este timer da ${timer.conta}?\n\nTempo restante: ${tempoRestante(timer.expiresAt - Date.now())}\n\nApenas esta vaga será liberada.`)) return;
-  state.reservas.splice(index, 1);
-  save();
+  abrirModalConfirmacao("Liberar Vaga", `Liberar somente esta vaga da ${timer.conta}?`, () => {
+    state.reservas.splice(index, 1);
+    save();
+    mostrarNotificacao("Vaga liberada imediatamente.", "sucesso");
+  });
 }
 
 function removerTimersConta(i) {
@@ -775,21 +834,23 @@ function removerTimersConta(i) {
   if (!conta) return;
   const atuais = state.reservas.filter(r => r.conta === conta.nome && r.expiresAt > Date.now());
   if (!atuais.length) {
-    alert(`A conta ${conta.nome} não possui timers ativos.`);
+    mostrarNotificacao(`A conta ${conta.nome} não possui timers ativos.`, "info");
     return;
   }
-  if (!confirm(`Remover todos os timers de ${conta.nome}? Isso vai deixar a conta com 0/5 vendas usadas e liberar todas as vagas imediatamente.`)) return;
-  state.reservas = state.reservas.filter(r => r.conta !== conta.nome);
-  save();
+  abrirModalConfirmacao("🗑️ Resetar Vagas", `Liberar todas as 5 vagas da ${conta.nome} agora?`, () => {
+    state.reservas = state.reservas.filter(r => r.conta !== conta.nome);
+    save();
+    mostrarNotificacao(`Vagas de ${conta.nome} resetadas para 5/5!`, "sucesso");
+  });
 }
 
 function editarValorBase() {
   const atual = state.valorBase100 || 2.5;
-  const entrada = prompt("Digite o valor cobrado por 100 V-Bucks:", String(atual).replace(".", ","));
+  const entrada = prompt("Digite o novo valor cobrado por 100 V-Bucks:", String(atual).replace(".", ","));
   if (entrada === null) return;
   const valor = Number(String(entrada).replace(",", "."));
   if (!Number.isFinite(valor) || valor <= 0) {
-    alert("Digite um valor válido maior que zero.");
+    mostrarNotificacao("Digite um valor válido maior que zero.", "erro");
     return;
   }
 
@@ -812,76 +873,86 @@ function editarValorBase() {
 
   state.valorBase100 = Math.round(valor * 100) / 100;
   save();
+  mostrarNotificacao("Valor base atualizado!", "sucesso");
 }
 
-function editarHistorico(i) {
+// ==========================================
+// MODAL DE EDIÇÃO DE VENDA COMPLETA
+// ==========================================
+function abrirModalEdicao(index) {
+  const venda = state.historicoVendas[index];
+  if (!venda) return;
+
+  document.getElementById("editVendaIndex").value = index;
+  document.getElementById("editClientInput").value = venda.cliente || "";
+  document.getElementById("editNickInput").value = venda.nickCliente || "";
+  document.getElementById("editValorInput").value = Number(venda.valor || 0).toFixed(2);
+  
+  const itensStr = Array.isArray(venda.itens) && venda.itens.length ? venda.itens.join(", ") : (venda.item || "");
+  document.getElementById("editItemInput").value = itensStr;
+
+  const modal = document.getElementById("editSaleModal");
+  if (modal) modal.style.display = "flex";
+}
+
+function fecharModalEdicao() {
+  const modal = document.getElementById("editSaleModal");
+  if (modal) modal.style.display = "none";
+}
+
+function salvarEdicaoVenda() {
+  const i = parseInt(document.getElementById("editVendaIndex").value, 10);
   const venda = state.historicoVendas[i];
   if (!venda) return;
-  const op = prompt(
-    `EDITAR REGISTRO DO HISTÓRICO\n\n1 - Nome do cliente\n2 - Nick do cliente\n3 - Item vendido\n4 - Valor da venda (R$)\n\nDigite o número:`,
-    `4`
-  );
-  if (op === null) return;
-  const n = Number(op);
 
-  if (n === 1) {
-    const x = prompt("Novo nome do cliente:", venda.cliente || "");
-    if (x === null || !x.trim()) return;
-    venda.cliente = x.trim();
-    // Atualiza na sessão se existir
-    const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
-    if (sessaoVenda) sessaoVenda.cliente = venda.cliente;
-  } else if (n === 2) {
-    const x = prompt("Novo Nick do cliente:", venda.nickCliente || "");
-    if (x === null || !x.trim()) return;
-    venda.nickCliente = x.trim();
-    const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
-    if (sessaoVenda) sessaoVenda.nickCliente = venda.nickCliente;
-  } else if (n === 3) {
-    const novo = prompt("Novo nome do item:", Array.isArray(venda.itens) ? venda.itens.join(", ") : venda.item);
-    if (novo === null || !novo.trim()) return;
-    venda.item = novo.trim();
-    venda.itens = [novo.trim()];
-    const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
-    if (sessaoVenda) {
-      sessaoVenda.item = venda.item;
-      sessaoVenda.itens = venda.itens;
-    }
-  } else if (n === 4) {
-    const entrada = prompt("Novo valor da venda em R$:", String(venda.valor).replace(".", ","));
-    if (entrada === null) return;
-    const novoValor = Number(String(entrada).replace(",", "."));
-    if (!Number.isFinite(novoValor) || novoValor <= 0) {
-      alert("Digite um valor válido maior que zero.");
-      return;
-    }
+  const cliente = document.getElementById("editClientInput").value.trim();
+  const nick = document.getElementById("editNickInput").value.trim();
+  const valor = parseFloat(document.getElementById("editValorInput").value);
+  const itensRaw = document.getElementById("editItemInput").value.trim();
 
-    // Calcula os V-Bucks antigos e novos usando a cotação da época dessa venda
-    const baseUsada = venda.valorBaseMomento || state.valorBase100 || 2.5;
-    const vbucksAntigos = venda.vbucks !== undefined ? venda.vbucks : valorParaVBucks(venda.valor, baseUsada);
-    const vbucksNovos = valorParaVBucks(novoValor, baseUsada);
-    const diferencaVBucks = vbucksNovos - vbucksAntigos;
+  if (!cliente) { mostrarNotificacao("O nome do cliente não pode ficar vazio.", "erro"); return; }
+  if (!nick) { mostrarNotificacao("O nick do cliente não pode ficar vazio.", "erro"); return; }
+  if (!valor || valor <= 0) { mostrarNotificacao("Digite um valor válido.", "erro"); return; }
+  if (!itensRaw) { mostrarNotificacao("Informe pelo menos um item.", "erro"); return; }
 
-    // Atualiza saldo de V-Bucks da conta vinculada
-    const contaObj = (state.contas || []).find(c => c.nome === venda.conta);
-    if (contaObj) {
-      contaObj.vbucks = Math.max(0, (contaObj.vbucks || 0) - diferencaVBucks);
-    }
+  const listaItens = itensRaw.split(",").map(s => s.trim()).filter(Boolean);
 
-    // Atualiza os dados no histórico
-    venda.valor = novoValor;
-    venda.vbucks = vbucksNovos;
-    venda.valorBaseMomento = baseUsada;
+  // Recalculo inteligente de V-Bucks e saldos
+  const baseUsada = venda.valorBaseMomento || state.valorBase100 || 2.5;
+  const vbucksAntigos = venda.vbucks !== undefined ? venda.vbucks : valorParaVBucks(venda.valor, baseUsada);
+  const vbucksNovos = valorParaVBucks(valor, baseUsada);
+  const diferencaVBucks = vbucksNovos - vbucksAntigos;
 
-    // Atualiza na sessão ao vivo se a venda estiver aberta
-    const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
-    if (sessaoVenda) {
-      sessaoVenda.valor = novoValor;
-      sessaoVenda.vbucks = vbucksNovos;
-      sessaoVenda.valorBaseMomento = baseUsada;
-    }
+  const contaObj = (state.contas || []).find(c => c.nome === venda.conta);
+  if (contaObj) {
+    contaObj.vbucks = Math.max(0, (contaObj.vbucks || 0) - diferencaVBucks);
   }
+
+  venda.cliente = cliente;
+  venda.nickCliente = nick;
+  venda.valor = valor;
+  venda.vbucks = vbucksNovos;
+  venda.valorBaseMomento = baseUsada;
+  venda.item = listaItens[0] || "";
+  venda.itens = listaItens;
+  venda.quantidade = listaItens.length || 1;
+
+  // Atualiza na sessão ao vivo caso exista
+  const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
+  if (sessaoVenda) {
+    sessaoVenda.cliente = cliente;
+    sessaoVenda.nickCliente = nick;
+    sessaoVenda.valor = valor;
+    sessaoVenda.vbucks = vbucksNovos;
+    sessaoVenda.valorBaseMomento = baseUsada;
+    sessaoVenda.item = listaItens[0] || "";
+    sessaoVenda.itens = listaItens;
+    sessaoVenda.quantidade = listaItens.length || 1;
+  }
+
   save();
+  fecharModalEdicao();
+  mostrarNotificacao("Registro de venda atualizado com sucesso!", "sucesso");
 }
 
 function excluirHistorico(i) {
@@ -892,9 +963,11 @@ function excluirHistorico(i) {
     excluirVenda(sessaoIndex);
     return;
   }
-  if (!confirm("Excluir este registro do histórico?")) return;
-  state.historicoVendas.splice(i, 1);
-  save();
+  abrirModalConfirmacao("🗑️ Excluir do Histórico", `Excluir definitivamente o registro da venda de ${venda.cliente}?`, () => {
+    state.historicoVendas.splice(i, 1);
+    save();
+    mostrarNotificacao("Venda removida do histórico.", "sucesso");
+  });
 }
 
 function marcarMetasRetiradas() {
@@ -903,79 +976,84 @@ function marcarMetasRetiradas() {
   const metasAtingidas = Math.floor(totalHistoricoAtual / 310);
   const retiradas = state.metasLucro?.retiradas || 0;
   const disponiveis = Math.max(0, metasAtingidas - retiradas);
-  if (disponiveis <= 0) {
-    alert("Nenhuma meta de R$ 100 está disponível para retirada no momento.");
-    return;
-  }
-  const valor = disponiveis * 100;
-  if (!confirm(`💰 RETIRAR LUCRO?\n\nValor para retirar: R$ ${valor.toFixed(2).replace(".", ",")}\n\nConfirmar retirada?`)) return;
+  if (disponiveis <= 0) return;
 
-  state.metasLucro = state.metasLucro || { retiradas: 0 };
-  state.metasLucro.retiradas += disponiveis;
-  save();
+  const valor = disponiveis * 100;
+  abrirModalConfirmacao("💰 Retirada de Lucro", `Confirmar retirada de R$ ${valor.toFixed(2).replace(".", ",")} de lucro atingido?`, () => {
+    state.metasLucro = state.metasLucro || { retiradas: 0 };
+    state.metasLucro.retiradas += disponiveis;
+    save();
+    mostrarNotificacao("Retirada de lucro confirmada!", "sucesso");
+  });
 }
 
-// Limpeza segura validando credenciais no Supabase
-async function limparHistorico() {
+// ==========================================
+// LIMPEZA SEGURA COM MODAL DE SENHA
+// ==========================================
+function solicitarLimpezaHistorico() {
   if (!state.historicoVendas || !state.historicoVendas.length) {
-    alert("O histórico já está vazio.");
+    mostrarNotificacao("O histórico já está vazio.", "info");
     return;
   }
 
   if (!currentUser || !currentUser.email) {
-    alert("🔒 Acesso restrito!\n\nVocê precisa estar logado como Administrador para apagar o histórico.");
+    mostrarNotificacao("Acesso restrito: Faça login como Administrador para apagar o histórico.", "erro");
     return;
   }
 
-  if (!confirm("🚨 ATENÇÃO: Deseja realmente APAGAR TODO O HISTÓRICO de vendas?\n\nEssa ação é definitiva e não poderá ser desfeita.")) {
-    return;
-  }
+  const modal = document.getElementById("adminAuthActionModal");
+  const desc = document.getElementById("adminActionDesc");
+  const passInput = document.getElementById("adminActionPassword");
+  const confirmBtn = document.getElementById("adminActionConfirmBtn");
 
-  const senhaDigitada = prompt(`🔒 CONFIRMAÇÃO DE SEGURANÇA:\n\nDigite a sua senha de Administrador (${currentUser.email}) para autorizar a exclusão:`);
-  
-  if (!senhaDigitada) {
-    return;
-  }
+  if (desc) desc.textContent = `A exclusão do histórico é definitiva. Digite a senha da conta ${currentUser.email} para confirmar:`;
+  if (passInput) passInput.value = "";
 
-  const footer = document.getElementById("statusFooter");
-  if (footer) footer.textContent = "🔒 Validando credenciais...";
-
-  try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-      method: "POST",
-      headers: {
-        "apikey": SUPABASE_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ 
-        email: currentUser.email, 
-        password: senhaDigitada 
-      })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.access_token) {
-      alert("❌ SENHA INCORRETA!\n\nA exclusão do histórico foi cancelada.");
-      if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
+  confirmBtn.onclick = async () => {
+    const pass = passInput.value.trim();
+    if (!pass) {
+      mostrarNotificacao("Digite sua senha de administrador.", "erro");
       return;
     }
 
-    state.historicoVendas = [];
-    await save();
-    alert("✅ Histórico apagado com sucesso!");
+    confirmBtn.textContent = "⏳ Validando...";
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+        method: "POST",
+        headers: { "apikey": SUPABASE_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: currentUser.email, password: pass })
+      });
+      const data = await res.json();
 
-  } catch (err) {
-    console.error("Erro ao validar senha:", err);
-    alert("Erro ao conectar ao servidor para validar a senha.");
-    if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
-  }
+      if (!res.ok || !data.access_token) {
+        mostrarNotificacao("Senha incorreta! Exclusão cancelada.", "erro");
+        confirmBtn.textContent = "🔒 Autorizar Exclusão";
+        return;
+      }
+
+      state.historicoVendas = [];
+      await save();
+      fecharModalAdminAction();
+      mostrarNotificacao("Histórico de vendas completamente limpo.", "sucesso");
+    } catch (e) {
+      mostrarNotificacao("Erro ao conectar com o banco de dados.", "erro");
+    } finally {
+      confirmBtn.textContent = "🔒 Autorizar Exclusão";
+    }
+  };
+
+  if (modal) modal.style.display = "flex";
+}
+
+function fecharModalAdminAction() {
+  const modal = document.getElementById("adminAuthActionModal");
+  if (modal) modal.style.display = "none";
 }
 
 function novaLive() {
-  if (!confirm("Começar uma nova sessão? O histórico e os timers continuarão normalmente.")) return;
   state.vendas = [];
   save();
+  mostrarNotificacao("Nova sessão iniciada!", "sucesso");
 }
 
 document.getElementById("limparValorBtn").addEventListener("click", () => {
