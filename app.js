@@ -1,6 +1,20 @@
 const SUPABASE_URL = "https://oyitmutmtvuoynwhiymy.supabase.co";
 const SUPABASE_KEY = "sb_publishable_6e1fQtQfhVa8LjWUbdPrJw_IwhhxLRF";
 
+const CATEGORIAS_ITENS = [
+  "Traje",
+  "Gesto",
+  "Picareta",
+  "Música",
+  "Pacotão",
+  "Asa-delta",
+  "Envelopamento",
+  "Calçado",
+  "Gesto Integrado",
+  "Passe de Batalha",
+  "Outro"
+];
+
 const DADOS_DEMO = {
   contas: [
     { nome: "Conta Demo 01", ativa: true, usadas: 0, vbucks: 10000 },
@@ -16,8 +30,8 @@ const DADOS_DEMO = {
       quantidade: 1,
       cliente: "Visitante",
       nickCliente: "PlayerDemo",
-      item: "Skin Exemplo",
-      itens: ["Skin Exemplo"],
+      item: "Traje – Skin Exemplo",
+      itens: ["Traje – Skin Exemplo"],
       data: "17/08/2026",
       hora: "12:00"
     }
@@ -34,8 +48,8 @@ const DADOS_DEMO = {
       quantidade: 1,
       cliente: "Visitante",
       nickCliente: "PlayerDemo",
-      item: "Skin Exemplo",
-      itens: ["Skin Exemplo"],
+      item: "Traje – Skin Exemplo",
+      itens: ["Traje – Skin Exemplo"],
       data: "17/08/2026",
       hora: "12:00"
     }
@@ -48,9 +62,8 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
-// Estados para controle de visualização dos filtros de mês e ano
-let mesFiltroSelecionado = null; // Formato "MM/AAAA"
-let anoFiltroSelecionado = null; // Formato "AAAA"
+let mesFiltroSelecionado = null;
+let anoFiltroSelecionado = null;
 
 // ==========================================
 // NOTIFICAÇÕES TOAST
@@ -417,6 +430,7 @@ async function inicializar() {
   const footer = document.getElementById("statusFooter");
   await verificarSessao();
   atualizarInterfaceAuth();
+  atualizarCamposItens();
 
   if (!currentUser) {
     if (footer) footer.textContent = "👀 Modo Visitante (Alterações locais de teste — não afetam o banco)";
@@ -536,7 +550,6 @@ function totais() {
   return t;
 }
 
-// Funções para troca de filtro de Mês e Ano
 function mudarMesFiltro(val) {
   mesFiltroSelecionado = val;
   render();
@@ -545,6 +558,68 @@ function mudarMesFiltro(val) {
 function mudarAnoFiltro(val) {
   anoFiltroSelecionado = val;
   render();
+}
+
+// Helpers para separar Tipo e Nome ao carregar ou editar itens
+function parseItemString(str) {
+  const s = String(str || "").trim();
+  const sep = s.indexOf("–") >= 0 ? "–" : (s.indexOf("-") >= 0 ? "-" : null);
+  if (!sep) return { tipo: "Outro", nome: s };
+  
+  const partes = s.split(sep);
+  const tipoCandidato = partes[0].trim();
+  const nomeCandidato = partes.slice(1).join(sep).trim();
+
+  const match = CATEGORIAS_ITENS.find(c => c.toLowerCase() === tipoCandidato.toLowerCase());
+  if (match) {
+    return { tipo: match, nome: nomeCandidato };
+  }
+  return { tipo: "Outro", nome: s };
+}
+
+function formatItemString(tipo, nome) {
+  const t = String(tipo || "").trim();
+  const n = String(nome || "").trim();
+  if (!t || t === "Outro") return n;
+  return `${t} – ${n}`;
+}
+
+// ==========================================
+// RENDERIZAÇÃO DOS CAMPOS DE ITENS NO FORMULÁRIO
+// ==========================================
+function atualizarCamposItens() {
+  const qtd = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
+  const container = document.getElementById("itensGroupContainer");
+  if (!container) return;
+
+  const optionsHtml = CATEGORIAS_ITENS.map(c => `<option value="${c}">${c}</option>`).join("");
+
+  container.innerHTML = Array.from({ length: qtd }, (_, i) => `
+    <div class="item-picker-box">
+      <label>Item ${qtd > 1 ? i + 1 : "Vendido"}</label>
+      <div class="item-picker-row">
+        <select class="item-type-select" id="itemTypeSelect_${i}">
+          ${optionsHtml}
+        </select>
+        <input class="item-name-input" id="itemNameInput_${i}" type="text" maxlength="120" placeholder="Nome do item (Ex.: Remexa o Esqueleto)">
+      </div>
+    </div>
+  `).join("");
+}
+
+function obterItensDaVenda() {
+  const qtd = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
+  const lista = [];
+
+  for (let i = 0; i < qtd; i++) {
+    const tipo = document.getElementById(`itemTypeSelect_${i}`)?.value || "Outro";
+    const nome = document.getElementById(`itemNameInput_${i}`)?.value.trim() || "";
+    if (nome) {
+      lista.push(formatItemString(tipo, nome));
+    }
+  }
+
+  return lista;
 }
 
 function render() {
@@ -659,7 +734,6 @@ function render() {
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (v.quantidade || 1), 0);
 
-  // 1. Hoje
   const hojeInicio = new Date(agoraData.getFullYear(), agoraData.getMonth(), agoraData.getDate());
   const amanhaInicio = new Date(hojeInicio);
   amanhaInicio.setDate(amanhaInicio.getDate() + 1);
@@ -676,7 +750,6 @@ function render() {
     return d && d >= hojeInicio && d < amanhaInicio;
   });
 
-  // 2. Esta Semana
   const semInicio = inicioSemana(agoraData);
   const semFim = new Date(semInicio);
   semFim.setDate(semFim.getDate() + 7);
@@ -693,9 +766,7 @@ function render() {
     return d && d >= semInicio && d < semFim;
   });
 
-  // 3. Meses Existentes e Mês Selecionado
   const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-  
   const mapaMeses = {};
   const mesAtualKey = `${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
   mapaMeses[mesAtualKey] = `${nomesMes[agoraData.getMonth()]} ${agoraData.getFullYear()}`;
@@ -726,7 +797,6 @@ function render() {
     return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA;
   });
 
-  // 4. Anos Existentes e Ano Selecionado
   const setAnos = new Set();
   setAnos.add(String(agoraData.getFullYear()));
   historico.forEach(v => {
@@ -753,7 +823,6 @@ function render() {
     return d && d.getFullYear() === selAnoNum;
   });
 
-  // Lucro
   const metasAtingidas = Math.floor(totalHistorico / 310);
   const metasRetiradas = Math.min(state.metasLucro?.retiradas || 0, metasAtingidas);
   const metasDisponiveis = Math.max(0, metasAtingidas - metasRetiradas);
@@ -769,7 +838,6 @@ function render() {
     lucroAlertEl.style.display = metasDisponiveis > 0 ? "block" : "none";
   }
 
-  // Montagem dos 5 cards de estatísticas com seletores dinâmicos
   const periodosEl = document.getElementById("historicoPeriodos");
   if (periodosEl) {
     const optionsMesHtml = Object.entries(mapaMeses)
@@ -859,41 +927,6 @@ function render() {
     : `<div class="empty">Nenhuma venda registrada ainda.</div>`;
 }
 
-function atualizarCamposItens() {
-  const qtd = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
-  const box = document.getElementById("itensExtras");
-  const singleItem = document.getElementById("singleItemContainer");
-  if (!box) return;
-
-  if (qtd <= 1) {
-    box.innerHTML = "";
-    box.style.display = "none";
-    if (singleItem) singleItem.style.display = "flex";
-    return;
-  }
-
-  if (singleItem) singleItem.style.display = "none";
-  box.style.display = "grid";
-  box.innerHTML = Array.from(
-    { length: qtd },
-    (_, i) => `
-    <div class="field">
-      <label>Item ${i + 1}</label>
-      <input class="item-extra" type="text" maxlength="160" placeholder="Nome do item ${i + 1}">
-    </div>
-  `
-  ).join("");
-}
-
-function obterItensDaVenda() {
-  const qtd = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
-  const extras = [...document.querySelectorAll(".item-extra")].map(i => i.value.trim()).filter(Boolean);
-  const principal = document.getElementById("itemInput").value.trim();
-
-  if (qtd <= 1) return principal ? [principal] : [];
-  return extras;
-}
-
 function valorRapido(v) {
   const input = document.getElementById("valorInput");
   if (!input) return;
@@ -919,11 +952,7 @@ function adicionarVenda() {
   if (!cliente) { mostrarNotificacao("Digite o nome do cliente.", "erro"); return; }
   if (!nickCliente) { mostrarNotificacao("Digite o Nick do cliente.", "erro"); return; }
   
-  if (quantidade === 1 && itens.length === 0) {
-    mostrarNotificacao("Digite o item vendido.", "erro");
-    return;
-  }
-  if (quantidade > 1 && itens.length !== quantidade) {
+  if (itens.length !== quantidade) {
     mostrarNotificacao(`Digite o nome de todos os ${quantidade} itens vendidos.`, "erro");
     return;
   }
@@ -982,7 +1011,6 @@ function adicionarVenda() {
   document.getElementById("valorInput").value = "";
   document.getElementById("clienteInput").value = "";
   document.getElementById("nickClienteInput").value = "";
-  document.getElementById("itemInput").value = "";
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens();
   save();
@@ -1062,6 +1090,9 @@ function removerTimersConta(i) {
   });
 }
 
+// ==========================================
+// MODAL DE EDIÇÃO DE VENDA COMPLETA COM PICKERS
+// ==========================================
 function abrirModalEdicao(index) {
   const venda = state.historicoVendas[index];
   if (!venda) return;
@@ -1071,11 +1102,44 @@ function abrirModalEdicao(index) {
   document.getElementById("editNickInput").value = venda.nickCliente || "";
   document.getElementById("editValorInput").value = Number(venda.valor || 0).toFixed(2);
   
-  const itensStr = Array.isArray(venda.itens) && venda.itens.length ? venda.itens.join(", ") : (venda.item || "");
-  document.getElementById("editItemInput").value = itensStr;
+  const container = document.getElementById("editItensListContainer");
+  const itens = Array.isArray(venda.itens) && venda.itens.length ? venda.itens : [venda.item || ""];
+
+  container.innerHTML = itens.map((itemStr, idx) => {
+    const { tipo, nome } = parseItemString(itemStr);
+    const optionsHtml = CATEGORIAS_ITENS.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join("");
+
+    return `
+      <div class="item-picker-box">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="font-size:12px;">Item ${idx + 1}</label>
+          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="removerItemEdicao(${idx})">✕</button>` : ""}
+        </div>
+        <div class="item-picker-row">
+          <select class="item-type-select edit-modal-item-type">
+            ${optionsHtml}
+          </select>
+          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item">
+        </div>
+      </div>
+    `;
+  }).join("");
 
   const modal = document.getElementById("editSaleModal");
   if (modal) modal.style.display = "flex";
+}
+
+function removerItemEdicao(idx) {
+  const i = parseInt(document.getElementById("editVendaIndex").value, 10);
+  const venda = state.historicoVendas[i];
+  if (!venda) return;
+  const itens = Array.isArray(venda.itens) ? [...venda.itens] : [venda.item || ""];
+  if (itens.length > 1) {
+    itens.splice(idx, 1);
+    venda.itens = itens;
+    venda.quantidade = itens.length;
+    abrirModalEdicao(i);
+  }
 }
 
 function fecharModalEdicao() {
@@ -1091,14 +1155,23 @@ function salvarEdicaoVenda() {
   const cliente = document.getElementById("editClientInput").value.trim();
   const nick = document.getElementById("editNickInput").value.trim();
   const valor = parseFloat(document.getElementById("editValorInput").value);
-  const itensRaw = document.getElementById("editItemInput").value.trim();
+
+  const types = [...document.querySelectorAll(".edit-modal-item-type")];
+  const names = [...document.querySelectorAll(".edit-modal-item-name")];
+  const listaItens = [];
+
+  for (let idx = 0; idx < names.length; idx++) {
+    const nome = names[idx].value.trim();
+    const tipo = types[idx].value;
+    if (nome) {
+      listaItens.push(formatItemString(tipo, nome));
+    }
+  }
 
   if (!cliente) { mostrarNotificacao("O nome do cliente não pode ficar vazio.", "erro"); return; }
   if (!nick) { mostrarNotificacao("O nick do cliente não pode ficar vazio.", "erro"); return; }
   if (!valor || valor <= 0) { mostrarNotificacao("Digite um valor válido.", "erro"); return; }
-  if (!itensRaw) { mostrarNotificacao("Informe pelo menos um item.", "erro"); return; }
-
-  const listaItens = itensRaw.split(",").map(s => s.trim()).filter(Boolean);
+  if (!listaItens.length) { mostrarNotificacao("Informe pelo menos um item válido.", "erro"); return; }
 
   const baseUsada = venda.valorBaseMomento || state.valorBase100 || 2.5;
   const vbucksAntigos = venda.vbucks !== undefined ? venda.vbucks : valorParaVBucks(venda.valor, baseUsada);
@@ -1117,7 +1190,7 @@ function salvarEdicaoVenda() {
   venda.valorBaseMomento = baseUsada;
   venda.item = listaItens[0] || "";
   venda.itens = listaItens;
-  venda.quantidade = listaItens.length || 1;
+  venda.quantidade = listaItens.length;
 
   const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
   if (sessaoVenda) {
@@ -1128,7 +1201,7 @@ function salvarEdicaoVenda() {
     sessaoVenda.valorBaseMomento = baseUsada;
     sessaoVenda.item = listaItens[0] || "";
     sessaoVenda.itens = listaItens;
-    sessaoVenda.quantidade = listaItens.length || 1;
+    sessaoVenda.quantidade = listaItens.length;
   }
 
   save();

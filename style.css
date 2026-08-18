@@ -158,6 +158,37 @@ body {
   min-width: 190px;
 }
 
+/* Linha de seleção do item (Tipo + Nome) */
+.itens-group-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.item-picker-box {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  padding: 12px 14px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item-picker-row {
+  display: flex;
+  gap: 8px;
+}
+
+.item-type-select {
+  width: 140px !important;
+  flex-shrink: 0;
+}
+
+.item-name-input {
+  flex: 1;
+}
+
 label {
   font-size: 13px;
   color: var(--muted);
@@ -579,6 +610,37 @@ button:hover {
   color: var(--muted);
 }
 
+.period-header-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.period-select {
+  background: transparent !important;
+  border: none !important;
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  font-family: inherit !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  outline: none !important;
+  box-shadow: none !important;
+  width: auto !important;
+}
+
+.period-select option {
+  background: #140929;
+  color: #fff;
+  font-weight: 600;
+}
+
+.period-select:hover,
+.period-select:focus {
+  color: var(--accent-light) !important;
+}
+
 .history-cards {
   display: flex;
   flex-direction: column;
@@ -683,12 +745,6 @@ button:hover {
   border-radius: 8px;
 }
 
-.itens-extras {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
-  margin: 12px 0;
-}
-
 .profit-goal-alert {
   margin: 10px 0 12px;
   padding: 12px 14px;
@@ -712,9 +768,7 @@ button:hover {
   font-weight: 800;
 }
 
-/* =======================================================
-   ESTRUTURA DE MODAIS CUSTOMIZADOS & TOASTS
-   ======================================================= */
+/* Modais e Toasts */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -742,7 +796,7 @@ button:hover {
 }
 
 .modal-card-large {
-  max-width: 500px;
+  max-width: 540px;
 }
 
 .modal-body-grid {
@@ -763,7 +817,6 @@ button:hover {
   align-items: center;
 }
 
-/* Toast Notifications */
 .toast-container {
   position: fixed;
   bottom: 24px;
@@ -813,7 +866,6 @@ footer {
   margin-top: 35px;
 }
 
-/* Responsividade */
 @media (max-width: 850px) {
   .account-row {
     flex-direction: column;
@@ -848,6 +900,12 @@ footer {
   .brand-logo {
     max-width: 240px;
   }
+  .item-picker-row {
+    flex-direction: column;
+  }
+  .item-type-select {
+    width: 100% !important;
+  }
 }
 
 @media (max-width: 600px) {
@@ -876,36 +934,4 @@ footer {
   .history-periods {
     grid-template-columns: 1fr;
   }
-
-  /* Seletores integrados nos cards de período */
-.period-header-select {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.period-select {
-  background: transparent !important;
-  border: none !important;
-  color: var(--muted) !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  font-family: inherit !important;
-  padding: 0 !important;
-  cursor: pointer !important;
-  outline: none !important;
-  box-shadow: none !important;
-  width: auto !important;
-}
-
-.period-select option {
-  background: #140929;
-  color: #fff;
-  font-weight: 600;
-}
-
-.period-select:hover,
-.period-select:focus {
-  color: var(--accent-light) !important;
-}
 }
