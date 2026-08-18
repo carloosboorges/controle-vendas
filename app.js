@@ -45,6 +45,7 @@ const DADOS_DEMO = {
 
 let currentUser = null;
 let authToken = localStorage.getItem("vendas_auth_token") || null;
+let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
 // ==========================================
@@ -66,7 +67,7 @@ function mostrarNotificacao(msg, tipo = "info") {
 }
 
 // ==========================================
-// MODAL DE CONFIRMAÇÃO
+// MODAL DE CONFIRMAÇÃO GENÉRICO
 // ==========================================
 let pendingConfirmCallback = null;
 
@@ -81,9 +82,10 @@ function abrirModalConfirmacao(titulo, descricao, onConfirm) {
 
   pendingConfirmCallback = onConfirm;
   okBtn.onclick = () => {
+    const cb = pendingConfirmCallback;
     fecharModalConfirmacao();
-    if (typeof pendingConfirmCallback === "function") {
-      pendingConfirmCallback();
+    if (typeof cb === "function") {
+      cb();
     }
   };
 
@@ -185,7 +187,7 @@ function salvarNovaContaModal() {
 }
 
 // ==========================================
-// MODAL EDITAR CONTA (NOME / V-BUCKS)
+// MODAL EDITAR CONTA
 // ==========================================
 function abrirModalEditConta(i) {
   const conta = state.contas[i];
@@ -243,7 +245,7 @@ function salvarEdicaoContaModal() {
 }
 
 // ==========================================
-// AUTENTICAÇÃO E SESSÃO
+// AUTENTICAÇÃO E SESSÃO PERSISTENTE INFINITA
 // ==========================================
 function atualizarInterfaceAuth() {
   const authBtn = document.getElementById("authBtn");
@@ -320,8 +322,11 @@ async function fazerLogin() {
     }
 
     authToken = data.access_token;
+    refreshToken = data.refresh_token || null;
     currentUser = data.user;
+
     localStorage.setItem("vendas_auth_token", authToken);
+    if (refreshToken) localStorage.setItem("vendas_refresh_token", refreshToken);
 
     fecharModalAuth();
     mostrarNotificacao("Login realizado com sucesso!", "sucesso");
@@ -334,17 +339,52 @@ async function fazerLogin() {
 
 function fazerLogout() {
   authToken = null;
+  refreshToken = null;
   currentUser = null;
   localStorage.removeItem("vendas_auth_token");
+  localStorage.removeItem("vendas_refresh_token");
   fecharModalAuth();
   mostrarNotificacao("Você saiu da conta.", "info");
   inicializar();
 }
 
+// Renovação automática da sessão para nunca deslogar sozinho
+async function renovarTokenSupabase() {
+  const storedRefresh = localStorage.getItem("vendas_refresh_token");
+  if (!storedRefresh) return false;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ refresh_token: storedRefresh })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      authToken = data.access_token;
+      refreshToken = data.refresh_token;
+      currentUser = data.user;
+      localStorage.setItem("vendas_auth_token", authToken);
+      localStorage.setItem("vendas_refresh_token", refreshToken);
+      return true;
+    }
+  } catch (e) {
+    console.error("Erro ao renovar token:", e);
+  }
+  return false;
+}
+
 async function verificarSessao() {
   if (!authToken) {
-    currentUser = null;
-    return;
+    const renovou = await renovarTokenSupabase();
+    if (!renovou) {
+      currentUser = null;
+      return;
+    }
   }
   try {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
@@ -356,9 +396,15 @@ async function verificarSessao() {
     if (res.ok) {
       currentUser = await res.json();
     } else {
-      currentUser = null;
-      authToken = null;
-      localStorage.removeItem("vendas_auth_token");
+      // Se o token de 1 hora expirou, renova silenciosamente
+      const renovou = await renovarTokenSupabase();
+      if (!renovou) {
+        currentUser = null;
+        authToken = null;
+        refreshToken = null;
+        localStorage.removeItem("vendas_auth_token");
+        localStorage.removeItem("vendas_refresh_token");
+      }
     }
   } catch (e) {
     currentUser = null;
@@ -549,6 +595,7 @@ function render() {
     })
     .join("");
 
+  // Gerenciador de contas com índice seguro
   document.getElementById("contas").innerHTML = (state.contas || [])
     .map(
       (c, i) => `
@@ -896,15 +943,21 @@ function excluirVenda(index) {
   });
 }
 
+// Remoção de conta corrigida com captura de índice fechada
 function removerConta(i) {
   const conta = state.contas[i];
   if (!conta) return;
-  abrirModalConfirmacao("🗑️ Remover Conta", `Remover a conta ${conta.nome}? Vendas e timers vinculados serão apagados.`, () => {
-    state.contas.splice(i, 1);
-    state.vendas = state.vendas.filter(v => v.conta !== conta.nome);
-    state.reservas = state.reservas.filter(r => r.conta !== conta.nome);
+  const nomeConta = conta.nome;
+
+  abrirModalConfirmacao("🗑️ Remover Conta", `Remover a conta ${nomeConta}? Vendas e timers vinculados serão apagados.`, () => {
+    const indexAtual = state.contas.findIndex(c => c.nome === nomeConta);
+    if (indexAtual >= 0) {
+      state.contas.splice(indexAtual, 1);
+    }
+    state.vendas = state.vendas.filter(v => v.conta !== nomeConta);
+    state.reservas = state.reservas.filter(r => r.conta !== nomeConta);
     save();
-    mostrarNotificacao("Conta removida com sucesso.", "info");
+    mostrarNotificacao(`Conta ${nomeConta} removida com sucesso.`, "info");
   });
 }
 
