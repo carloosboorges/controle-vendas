@@ -514,7 +514,6 @@ function render() {
         .map((v, ri) => {
           const i = state.historicoVendas.length - 1 - ri;
           const itens = v.quantidade || 1;
-          // Usa os V-Bucks gravados na venda ou calcula com a base salva
           const vb = v.vbucks !== undefined ? v.vbucks : valorParaVBucks(v.valor, v.valorBaseMomento);
           return `<div class="history-card">
           <div class="history-main">
@@ -794,7 +793,6 @@ function editarValorBase() {
     return;
   }
 
-  // Antes de mudar a cotação global, fixa os V-Bucks das vendas antigas que ainda não tinham o campo salvo
   if (Array.isArray(state.historicoVendas)) {
     state.historicoVendas.forEach(v => {
       if (v.vbucks === undefined) {
@@ -819,7 +817,10 @@ function editarValorBase() {
 function editarHistorico(i) {
   const venda = state.historicoVendas[i];
   if (!venda) return;
-  const op = prompt(`EDITAR REGISTRO DO HISTÓRICO\n\n1 - Nome do cliente\n2 - Nick do cliente\n3 - Item vendido\n\nDigite o número:`, `2`);
+  const op = prompt(
+    `EDITAR REGISTRO DO HISTÓRICO\n\n1 - Nome do cliente\n2 - Nick do cliente\n3 - Item vendido\n4 - Valor da venda (R$)\n\nDigite o número:`,
+    `4`
+  );
   if (op === null) return;
   const n = Number(op);
 
@@ -827,15 +828,58 @@ function editarHistorico(i) {
     const x = prompt("Novo nome do cliente:", venda.cliente || "");
     if (x === null || !x.trim()) return;
     venda.cliente = x.trim();
+    // Atualiza na sessão se existir
+    const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
+    if (sessaoVenda) sessaoVenda.cliente = venda.cliente;
   } else if (n === 2) {
     const x = prompt("Novo Nick do cliente:", venda.nickCliente || "");
     if (x === null || !x.trim()) return;
     venda.nickCliente = x.trim();
+    const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
+    if (sessaoVenda) sessaoVenda.nickCliente = venda.nickCliente;
   } else if (n === 3) {
     const novo = prompt("Novo nome do item:", Array.isArray(venda.itens) ? venda.itens.join(", ") : venda.item);
     if (novo === null || !novo.trim()) return;
     venda.item = novo.trim();
     venda.itens = [novo.trim()];
+    const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
+    if (sessaoVenda) {
+      sessaoVenda.item = venda.item;
+      sessaoVenda.itens = venda.itens;
+    }
+  } else if (n === 4) {
+    const entrada = prompt("Novo valor da venda em R$:", String(venda.valor).replace(".", ","));
+    if (entrada === null) return;
+    const novoValor = Number(String(entrada).replace(",", "."));
+    if (!Number.isFinite(novoValor) || novoValor <= 0) {
+      alert("Digite um valor válido maior que zero.");
+      return;
+    }
+
+    // Calcula os V-Bucks antigos e novos usando a cotação da época dessa venda
+    const baseUsada = venda.valorBaseMomento || state.valorBase100 || 2.5;
+    const vbucksAntigos = venda.vbucks !== undefined ? venda.vbucks : valorParaVBucks(venda.valor, baseUsada);
+    const vbucksNovos = valorParaVBucks(novoValor, baseUsada);
+    const diferencaVBucks = vbucksNovos - vbucksAntigos;
+
+    // Atualiza saldo de V-Bucks da conta vinculada
+    const contaObj = (state.contas || []).find(c => c.nome === venda.conta);
+    if (contaObj) {
+      contaObj.vbucks = Math.max(0, (contaObj.vbucks || 0) - diferencaVBucks);
+    }
+
+    // Atualiza os dados no histórico
+    venda.valor = novoValor;
+    venda.vbucks = vbucksNovos;
+    venda.valorBaseMomento = baseUsada;
+
+    // Atualiza na sessão ao vivo se a venda estiver aberta
+    const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
+    if (sessaoVenda) {
+      sessaoVenda.valor = novoValor;
+      sessaoVenda.vbucks = vbucksNovos;
+      sessaoVenda.valorBaseMomento = baseUsada;
+    }
   }
   save();
 }
