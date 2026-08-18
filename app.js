@@ -10,7 +10,8 @@ const CATEGORIAS_ITENS = [
   "Asa-delta",
   "Envelopamento",
   "Calçado",
-  "Acessório",
+  "Acessórios",
+  "Carro",
   "Outro"
 ];
 
