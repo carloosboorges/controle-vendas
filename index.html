@@ -1,4 +1,231 @@
-<!-- Formulário de Venda -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Putz Story — Controle de Vendas</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+  
+  <!-- Header Principal -->
+  <header class="main-header">
+    <div class="header-actions-bar">
+      <button type="button" class="btn-gray" id="authBtn" onclick="abrirModalAuth()">🔑 Entrar</button>
+      <button type="button" class="btn-danger" onclick="abrirModalConfirmacao('🔄 Nova Sessão', 'Deseja iniciar uma nova sessão? O histórico e timers continuarão salvos.', novaLive)">🔄 Nova Sessão</button>
+    </div>
+
+    <div class="logo-area">
+      <img src="logo.png/putz-store2.png" alt="Putz Story Logo" class="brand-logo">
+      <div class="subtitle">Painel Oficial de Controle de Vendas & Envios</div>
+    </div>
+  </header>
+
+  <!-- ================= MODAIS DO SISTEMA ================= -->
+
+  <!-- 1. Modal de Autenticação / Login -->
+  <div id="authModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="modalTitle" style="margin:0;">🔑 Acesso Administrativo</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalAuth()">✕</button>
+      </div>
+      <div id="authFormArea">
+        <div class="field" style="margin-top:12px;">
+          <label>E-mail</label>
+          <input id="authEmail" type="email" placeholder="seuemail@exemplo.com">
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Senha</label>
+          <input id="authPassword" type="password" placeholder="Sua senha">
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+          <input type="checkbox" id="lembrarCredenciais" style="width:16px; height:16px; cursor:pointer;">
+          <label for="lembrarCredenciais" style="font-size:13px; color:var(--muted); cursor:pointer;">Lembrar acesso neste PC</label>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:16px;">
+          <button type="button" class="btn-green" style="flex:1;" onclick="fazerLogin()">Entrar</button>
+          <button type="button" class="btn-gray" onclick="fecharModalAuth()">Cancelar</button>
+        </div>
+      </div>
+      <div id="authUserInfo" style="display:none; margin-top:12px;">
+        <p id="userLoggedText" style="font-size:14px; margin:0 0 14px;"></p>
+        <button type="button" class="btn-danger" style="width:100%;" onclick="fazerLogout()">🚪 Sair da Conta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Modal de Alterar Valor Base -->
+  <div id="valorBaseModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 style="margin:0;">⚙️ Alterar Valor Base</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalValorBase()">✕</button>
+      </div>
+      <p style="font-size:13px; color:var(--muted); margin:12px 0 8px;">Defina o novo valor cobrado por cada 100 V-Bucks:</p>
+      <div class="field">
+        <label>Valor por 100 V-Bucks (R$)</label>
+        <input id="novoValorBaseInput" type="number" step="0.01" min="0.01" placeholder="Ex.: 2.50">
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="button" class="btn-green" style="flex:1;" onclick="salvarValorBaseModal()">💾 Salvar Novo Valor</button>
+        <button type="button" class="btn-gray" onclick="fecharModalValorBase()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Modal de Adicionar Conta -->
+  <div id="addContaModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 style="margin:0;">➕ Adicionar Nova Conta</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalAddConta()">✕</button>
+      </div>
+      <div class="field" style="margin-top:14px;">
+        <label>Nome / Nick da Conta</label>
+        <input id="novaContaNomeInput" type="text" maxlength="60" placeholder="Ex.: Putz0606">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>Saldo Inicial de V-Bucks (opcional)</label>
+        <input id="novaContaVbucksInput" type="number" min="0" placeholder="Ex.: 10000" value="0">
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="button" class="btn-green" style="flex:1;" onclick="salvarNovaContaModal()">➕ Adicionar Conta</button>
+        <button type="button" class="btn-gray" onclick="fecharModalAddConta()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Modal de Edição de Conta -->
+  <div id="editContaModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="editContaTitle" style="margin:0;">✏️ Editar Conta</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEditConta()">✕</button>
+      </div>
+      <input type="hidden" id="editContaIndex">
+      <div class="field" style="margin-top:14px;">
+        <label>Nick da Conta</label>
+        <input id="editContaNomeInput" type="text" maxlength="60">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>Saldo Atual de V-Bucks</label>
+        <input id="editContaVbucksInput" type="number" min="0">
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="button" class="btn-green" style="flex:1;" onclick="salvarEdicaoContaModal()">💾 Salvar Dados</button>
+        <button type="button" class="btn-gray" onclick="fecharModalEditConta()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Modal de Edição Completa de Venda -->
+  <div id="editSaleModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card modal-card-large">
+      <div class="modal-head">
+        <h3 id="editSaleTitle" style="margin:0;">✏️ Editar Registro de Venda</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEdicao()">✕</button>
+      </div>
+      <input type="hidden" id="editVendaIndex">
+      <div class="modal-body-grid">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <div class="field">
+            <label>Nome do Cliente</label>
+            <input id="editClientInput" type="text" maxlength="80">
+          </div>
+          <div class="field">
+            <label>Nick do Cliente</label>
+            <input id="editNickInput" type="text" maxlength="80">
+          </div>
+        </div>
+        <div class="field">
+          <label>Valor da Venda (R$)</label>
+          <input id="editValorInput" type="number" step="0.01" min="0.01">
+        </div>
+        <div>
+          <label style="font-size:13px; color:var(--muted); font-weight:600; margin-bottom:6px; display:block;">Itens do Pedido</label>
+          <div id="editItensListContainer" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-green" style="flex:1;" onclick="salvarEdicaoVenda()">💾 Salvar Alterações</button>
+        <button type="button" class="btn-gray" onclick="fecharModalEdicao()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Modal de Confirmação com Senha de Administrador -->
+  <div id="adminAuthActionModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 style="margin:0; color:var(--red);">🚨 Ação Crítica</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalAdminAction()">✕</button>
+      </div>
+      <p id="adminActionDesc" style="font-size:13px; color:var(--muted); margin:12px 0 8px;"></p>
+      <div class="field">
+        <label>Senha de Administrador</label>
+        <input id="adminActionPassword" type="password" placeholder="Digite sua senha">
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="button" class="btn-danger" style="flex:1;" id="adminActionConfirmBtn">🔒 Autorizar Exclusão</button>
+        <button type="button" class="btn-gray" onclick="fecharModalAdminAction()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. Modal de Confirmação Genérica -->
+  <div id="genericConfirmModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="genericConfirmTitle" style="margin:0;">⚠️ Confirmação</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalConfirmacao()">✕</button>
+      </div>
+      <p id="genericConfirmDesc" style="font-size:14px; color:var(--muted); margin:14px 0 18px;"></p>
+      <div style="display:flex; gap:10px;">
+        <button type="button" class="btn-danger" style="flex:1;" id="genericConfirmOkBtn">Confirmar</button>
+        <button type="button" class="btn-gray" onclick="fecharModalConfirmacao()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Container de Toasts/Notificações -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Painel de Preço Base -->
+  <section class="panel pricing-panel">
+    <div class="pricing-box">
+      <div>
+        <div class="label">⚙️ Valor Base</div>
+        <div class="pricing-help">Valor cobrado a cada 100 V-Bucks.</div>
+      </div>
+      <div class="pricing-controls">
+        <strong id="valorBaseDisplay">R$ 2,50</strong>
+        <button type="button" class="btn-gray" onclick="abrirModalValorBase()">✏️ Alterar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Métricas Principais -->
+  <section class="summary">
+    <div class="card card-glow">
+      <div class="label">Total Geral</div>
+      <div class="value" id="totalGeral">R$ 0,00</div>
+    </div>
+    <div class="card card-glow">
+      <div class="label">Vendas Registradas</div>
+      <div class="value" id="qtdVendas">0</div>
+    </div>
+    <div class="card card-glow">
+      <div class="label">Top Faturamento</div>
+      <div class="value" id="topConta" style="font-size:19px">—</div>
+    </div>
+  </section>
+
+  <!-- Formulário de Venda -->
   <section class="panel panel-form">
     <h2>➕ Registrar Venda</h2>
     
@@ -55,3 +282,49 @@
       <button type="button" onclick="valorRapido(100)">R$ 100</button>
     </div>
   </section>
+
+  <!-- Contas e Envios -->
+  <section class="panel">
+    <h2>💰 Total por Conta & Status de Envios</h2>
+    <div id="totaisPorConta" class="account-grid"></div>
+  </section>
+
+  <!-- Gerenciador de Contas -->
+  <section class="panel">
+    <h2>⚙️ Gerenciar Contas</h2>
+    <div class="section-actions">
+      <button type="button" class="btn-green" onclick="abrirModalAddConta()">➕ Adicionar Conta</button>
+    </div>
+    <div id="contas"></div>
+  </section>
+
+  <!-- Histórico -->
+  <section class="panel">
+    <div class="history-top-bar">
+      <h2>📜 Histórico de Vendas</h2>
+      <button type="button" class="btn-danger btn-compact" onclick="solicitarLimpezaHistorico()">🗑️ Limpar Histórico</button>
+    </div>
+    
+    <div class="history-content-full">
+      <div class="history-total-card">
+        <div class="history-total-label">💰 TOTAL DO HISTÓRICO</div>
+        <div class="history-total-value" id="historicoTotal">R$ 0,00</div>
+        <div class="history-total-help">Valor acumulado de todas as vendas registradas.</div>
+      </div>
+      <div class="history-permanent-sales">
+        <span>🛒 TOTAL DE VENDAS</span>
+        <strong id="historicoQtdTotal">0 pedidos · 0 itens enviados</strong>
+      </div>
+      <div id="lucroMetaAlert" class="profit-goal-alert" style="display:none"></div>
+      <div class="history-periods" id="historicoPeriodos"></div>
+    </div>
+
+    <div id="historico" class="history-cards"></div>
+  </section>
+
+  <footer id="statusFooter">☁️ Carregando...</footer>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
