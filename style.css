@@ -876,4 +876,36 @@ footer {
   .history-periods {
     grid-template-columns: 1fr;
   }
+
+  /* Seletores integrados nos cards de período */
+.period-header-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.period-select {
+  background: transparent !important;
+  border: none !important;
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  font-family: inherit !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  outline: none !important;
+  box-shadow: none !important;
+  width: auto !important;
+}
+
+.period-select option {
+  background: #140929;
+  color: #fff;
+  font-weight: 600;
+}
+
+.period-select:hover,
+.period-select:focus {
+  color: var(--accent-light) !important;
+}
 }

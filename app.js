@@ -48,6 +48,10 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
+// Estados para controle de visualização dos filtros de mês e ano
+let mesFiltroSelecionado = null; // Formato "MM/AAAA"
+let anoFiltroSelecionado = null; // Formato "AAAA"
+
 // ==========================================
 // NOTIFICAÇÕES TOAST
 // ==========================================
@@ -245,7 +249,7 @@ function salvarEdicaoContaModal() {
 }
 
 // ==========================================
-// AUTENTICAÇÃO E SESSÃO PERSISTENTE INFINITA
+// AUTENTICAÇÃO E SESSÃO PERSISTENTE
 // ==========================================
 function atualizarInterfaceAuth() {
   const authBtn = document.getElementById("authBtn");
@@ -348,7 +352,6 @@ function fazerLogout() {
   inicializar();
 }
 
-// Renovação automática da sessão para nunca deslogar sozinho
 async function renovarTokenSupabase() {
   const storedRefresh = localStorage.getItem("vendas_refresh_token");
   if (!storedRefresh) return false;
@@ -396,7 +399,6 @@ async function verificarSessao() {
     if (res.ok) {
       currentUser = await res.json();
     } else {
-      // Se o token de 1 hora expirou, renova silenciosamente
       const renovou = await renovarTokenSupabase();
       if (!renovou) {
         currentUser = null;
@@ -534,6 +536,17 @@ function totais() {
   return t;
 }
 
+// Funções para troca de filtro de Mês e Ano
+function mudarMesFiltro(val) {
+  mesFiltroSelecionado = val;
+  render();
+}
+
+function mudarAnoFiltro(val) {
+  anoFiltroSelecionado = val;
+  render();
+}
+
 function render() {
   if (!state) return;
 
@@ -595,7 +608,6 @@ function render() {
     })
     .join("");
 
-  // Gerenciador de contas com índice seguro
   document.getElementById("contas").innerHTML = (state.contas || [])
     .map(
       (c, i) => `
@@ -647,49 +659,7 @@ function render() {
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (v.quantidade || 1), 0);
 
-  const mesTotal = somaFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getMonth() === agoraData.getMonth() && d.getFullYear() === agoraData.getFullYear();
-  });
-  const mesPedidos = qtdPedidosFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getMonth() === agoraData.getMonth() && d.getFullYear() === agoraData.getFullYear();
-  });
-  const mesItens = qtdItensFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getMonth() === agoraData.getMonth() && d.getFullYear() === agoraData.getFullYear();
-  });
-
-  const semInicio = inicioSemana(agoraData);
-  const semFim = new Date(semInicio);
-  semFim.setDate(semFim.getDate() + 7);
-  const semanaTotal = somaFiltro(v => {
-    const d = chaveData(v);
-    return d && d >= semInicio && d < semFim;
-  });
-  const semanaPedidos = qtdPedidosFiltro(v => {
-    const d = chaveData(v);
-    return d && d >= semInicio && d < semFim;
-  });
-  const semanaItens = qtdItensFiltro(v => {
-    const d = chaveData(v);
-    return d && d >= semInicio && d < semFim;
-  });
-
-  const anoTotal = somaFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getFullYear() === agoraData.getFullYear();
-  });
-  const anoPedidos = qtdPedidosFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getFullYear() === agoraData.getFullYear();
-  });
-  const anoItens = qtdItensFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getFullYear() === agoraData.getFullYear();
-  });
-
-  const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  // 1. Hoje
   const hojeInicio = new Date(agoraData.getFullYear(), agoraData.getMonth(), agoraData.getDate());
   const amanhaInicio = new Date(hojeInicio);
   amanhaInicio.setDate(amanhaInicio.getDate() + 1);
@@ -706,6 +676,84 @@ function render() {
     return d && d >= hojeInicio && d < amanhaInicio;
   });
 
+  // 2. Esta Semana
+  const semInicio = inicioSemana(agoraData);
+  const semFim = new Date(semInicio);
+  semFim.setDate(semFim.getDate() + 7);
+  const semanaTotal = somaFiltro(v => {
+    const d = chaveData(v);
+    return d && d >= semInicio && d < semFim;
+  });
+  const semanaPedidos = qtdPedidosFiltro(v => {
+    const d = chaveData(v);
+    return d && d >= semInicio && d < semFim;
+  });
+  const semanaItens = qtdItensFiltro(v => {
+    const d = chaveData(v);
+    return d && d >= semInicio && d < semFim;
+  });
+
+  // 3. Meses Existentes e Mês Selecionado
+  const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  
+  const mapaMeses = {};
+  const mesAtualKey = `${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
+  mapaMeses[mesAtualKey] = `${nomesMes[agoraData.getMonth()]} ${agoraData.getFullYear()}`;
+
+  historico.forEach(v => {
+    const d = chaveData(v);
+    if (d) {
+      const k = `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+      mapaMeses[k] = `${nomesMes[d.getMonth()]} ${d.getFullYear()}`;
+    }
+  });
+
+  if (!mesFiltroSelecionado || !mapaMeses[mesFiltroSelecionado]) {
+    mesFiltroSelecionado = mesAtualKey;
+  }
+
+  const [selM, selA] = mesFiltroSelecionado.split("/").map(Number);
+  const mesTotal = somaFiltro(v => {
+    const d = chaveData(v);
+    return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA;
+  });
+  const mesPedidos = qtdPedidosFiltro(v => {
+    const d = chaveData(v);
+    return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA;
+  });
+  const mesItens = qtdItensFiltro(v => {
+    const d = chaveData(v);
+    return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA;
+  });
+
+  // 4. Anos Existentes e Ano Selecionado
+  const setAnos = new Set();
+  setAnos.add(String(agoraData.getFullYear()));
+  historico.forEach(v => {
+    const d = chaveData(v);
+    if (d) setAnos.add(String(d.getFullYear()));
+  });
+
+  const anosLista = Array.from(setAnos).sort((a, b) => Number(b) - Number(a));
+  if (!anoFiltroSelecionado || !setAnos.has(anoFiltroSelecionado)) {
+    anoFiltroSelecionado = String(agoraData.getFullYear());
+  }
+
+  const selAnoNum = Number(anoFiltroSelecionado);
+  const anoTotal = somaFiltro(v => {
+    const d = chaveData(v);
+    return d && d.getFullYear() === selAnoNum;
+  });
+  const anoPedidos = qtdPedidosFiltro(v => {
+    const d = chaveData(v);
+    return d && d.getFullYear() === selAnoNum;
+  });
+  const anoItens = qtdItensFiltro(v => {
+    const d = chaveData(v);
+    return d && d.getFullYear() === selAnoNum;
+  });
+
+  // Lucro
   const metasAtingidas = Math.floor(totalHistorico / 310);
   const metasRetiradas = Math.min(state.metasLucro?.retiradas || 0, metasAtingidas);
   const metasDisponiveis = Math.max(0, metasAtingidas - metasRetiradas);
@@ -721,8 +769,17 @@ function render() {
     lucroAlertEl.style.display = metasDisponiveis > 0 ? "block" : "none";
   }
 
+  // Montagem dos 5 cards de estatísticas com seletores dinâmicos
   const periodosEl = document.getElementById("historicoPeriodos");
-  if (periodosEl)
+  if (periodosEl) {
+    const optionsMesHtml = Object.entries(mapaMeses)
+      .map(([k, label]) => `<option value="${k}" ${k === mesFiltroSelecionado ? "selected" : ""}>${label}</option>`)
+      .join("");
+
+    const optionsAnoHtml = anosLista
+      .map(a => `<option value="${a}" ${a === anoFiltroSelecionado ? "selected" : ""}>Ano ${a}</option>`)
+      .join("");
+
     periodosEl.innerHTML = `
     <div class="period-card">
       <span>📍 Hoje</span>
@@ -734,13 +791,23 @@ function render() {
       <strong>${money(semanaTotal)}</strong>
       <small>${semanaPedidos} ${semanaPedidos === 1 ? "pedido" : "pedidos"} (${semanaItens} ${semanaItens === 1 ? "item" : "itens"})</small>
     </div>
-    <div class="period-card">
-      <span>🗓️ ${nomesMes[agoraData.getMonth()]} ${agoraData.getFullYear()}</span>
+    <div class="period-card period-card-select">
+      <div class="period-header-select">
+        <span>🗓️</span>
+        <select class="period-select" onchange="mudarMesFiltro(this.value)">
+          ${optionsMesHtml}
+        </select>
+      </div>
       <strong>${money(mesTotal)}</strong>
       <small>${mesPedidos} ${mesPedidos === 1 ? "pedido" : "pedidos"} (${mesItens} ${mesItens === 1 ? "item" : "itens"})</small>
     </div>
-    <div class="period-card">
-      <span>📆 Ano ${agoraData.getFullYear()}</span>
+    <div class="period-card period-card-select">
+      <div class="period-header-select">
+        <span>📆</span>
+        <select class="period-select" onchange="mudarAnoFiltro(this.value)">
+          ${optionsAnoHtml}
+        </select>
+      </div>
       <strong>${money(anoTotal)}</strong>
       <small>${anoPedidos} ${anoPedidos === 1 ? "pedido" : "pedidos"} (${anoItens} ${anoItens === 1 ? "item" : "itens"})</small>
     </div>
@@ -752,6 +819,7 @@ function render() {
       ${metasDisponiveis > 0 ? '<button type="button" class="profit-goal-btn" onclick="marcarMetasRetiradas(); return false;">✓ Já retirei</button>' : ""}
     </div>
   `;
+  }
 
   document.getElementById("historico").innerHTML = (state.historicoVendas || []).length
     ? state.historicoVendas
@@ -943,7 +1011,6 @@ function excluirVenda(index) {
   });
 }
 
-// Remoção de conta corrigida com captura de índice fechada
 function removerConta(i) {
   const conta = state.contas[i];
   if (!conta) return;
@@ -995,9 +1062,6 @@ function removerTimersConta(i) {
   });
 }
 
-// ==========================================
-// MODAL DE EDIÇÃO DE VENDA COMPLETA
-// ==========================================
 function abrirModalEdicao(index) {
   const venda = state.historicoVendas[index];
   if (!venda) return;
@@ -1104,9 +1168,6 @@ function marcarMetasRetiradas() {
   });
 }
 
-// ==========================================
-// LIMPEZA SEGURA COM MODAL DE SENHA
-// ==========================================
 function solicitarLimpezaHistorico() {
   if (!state.historicoVendas || !state.historicoVendas.length) {
     mostrarNotificacao("O histórico já está vazio.", "info");
