@@ -165,7 +165,7 @@ function salvarValorBaseModal() {
 }
 
 // ==========================================
-// MODAL ADICIONAR CONTA
+// MODAL ADICIONAR CONTA (CORRIGIDO)
 // ==========================================
 function abrirModalAddConta() {
   const modal = document.getElementById("addContaModal");
@@ -185,7 +185,8 @@ function salvarNovaContaModal() {
   const nomeInput = document.getElementById("novaContaNomeInput");
   const vbInput = document.getElementById("novaContaVbucksInput");
   const nome = nomeInput?.value.trim();
-  const vbucks = parseInt(vbInput?.value, 10) || 0;
+  // Remove pontos e caracteres não-numéricos para ler 8.100 como 8100
+  const vbucks = parseInt(String(vbInput?.value || "0").replace(/\D/g, ""), 10) || 0;
 
   if (!nome) {
     mostrarNotificacao("Digite o nome ou nick da conta.", "erro");
@@ -204,7 +205,7 @@ function salvarNovaContaModal() {
 }
 
 // ==========================================
-// MODAL EDITAR CONTA
+// MODAL EDITAR CONTA (CORRIGIDO)
 // ==========================================
 function abrirModalEditConta(i) {
   const conta = state.contas[i];
@@ -229,7 +230,8 @@ function salvarEdicaoContaModal() {
   if (!conta) return;
 
   const novoNome = document.getElementById("editContaNomeInput").value.trim();
-  const novoVbucks = parseInt(document.getElementById("editContaVbucksInput").value, 10);
+  // Remove pontos e caracteres não-numéricos para ler 8.100 como 8100
+  const novoVbucks = parseInt(String(document.getElementById("editContaVbucksInput").value || "0").replace(/\D/g, ""), 10);
 
   if (!novoNome) {
     mostrarNotificacao("O nome da conta não pode ficar vazio.", "erro");
@@ -560,7 +562,6 @@ function mudarAnoFiltro(val) {
   render();
 }
 
-// Helpers para separar Tipo e Nome ao carregar ou editar itens
 function parseItemString(str) {
   const s = String(str || "").trim();
   const sep = s.indexOf("–") >= 0 ? "–" : (s.indexOf("-") >= 0 ? "-" : null);
@@ -584,9 +585,6 @@ function formatItemString(tipo, nome) {
   return `${t} – ${n}`;
 }
 
-// ==========================================
-// RENDERIZAÇÃO DOS CAMPOS DE ITENS NO FORMULÁRIO
-// ==========================================
 function atualizarCamposItens() {
   const qtd = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
   const container = document.getElementById("itensGroupContainer");
@@ -1090,9 +1088,6 @@ function removerTimersConta(i) {
   });
 }
 
-// ==========================================
-// MODAL DE EDIÇÃO DE VENDA COMPLETA COM PICKERS
-// ==========================================
 function abrirModalEdicao(index) {
   const venda = state.historicoVendas[index];
   if (!venda) return;
