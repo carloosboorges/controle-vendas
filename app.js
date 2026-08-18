@@ -10,8 +10,6 @@ const CATEGORIAS_ITENS = [
   "Asa-delta",
   "Envelopamento",
   "Calçado",
-  "Gesto Integrado",
-  "Passe de Batalha",
   "Outro"
 ];
 
