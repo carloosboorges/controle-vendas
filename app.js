@@ -714,7 +714,6 @@ function render() {
   const historicoTotalEl = document.getElementById("historicoTotal");
   if (historicoTotalEl) historicoTotalEl.textContent = `Total do histórico: ${money(totalHistorico)}`;
 
-  // Atualiza contador da lixeira
   const lixeiraBtn = document.getElementById("lixeiraBtn");
   const qtdLixeira = (state.lixeiraVendas || []).length;
   if (lixeiraBtn) lixeiraBtn.textContent = `🗑️ Lixeira (${qtdLixeira})`;
@@ -993,7 +992,8 @@ function adicionarVenda() {
     item: itens[0] || "",
     itens,
     data: d.toLocaleDateString("pt-BR"),
-    hora: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    hora: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    criadoEmMs: agora
   };
 
   if (!Array.isArray(state.vendas)) state.vendas = [];
@@ -1036,19 +1036,33 @@ function excluirHistorico(i) {
       conta.vbucks = (Number(conta.vbucks) || 0) + Number(vbDevolver);
     }
 
-    // 2. Remove timers ativos
+    // 2. Salva snapshot dos timers originais com a data de expiração real antes de remover
+    const timersAtuais = (state.reservas || []).filter(r => r.vendaId === venda.id);
+    if (timersAtuais.length > 0) {
+      venda.timersSalvos = timersAtuais;
+    } else {
+      const baseTempo = venda.criadoEmMs || Date.now();
+      venda.timersSalvos = Array.from({ length: Number(venda.quantidade) || 1 }, (_, n) => ({
+        id: `timer-${Date.now()}-${n}`,
+        conta: venda.conta,
+        vendaId: venda.id,
+        expiresAt: baseTempo + 86400000
+      }));
+    }
+
+    // 3. Remove da sessão ao vivo e dos timers ativos
     if (venda.id) {
       state.reservas = (state.reservas || []).filter(r => r.vendaId !== venda.id);
       state.vendas = (state.vendas || []).filter(v => v.id !== venda.id);
     }
 
-    // 3. Adiciona à lixeira com data de exclusão
+    // 4. Move para a lixeira
     const d = new Date();
     venda.excluidaEm = `${d.toLocaleDateString("pt-BR")} às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
     if (!Array.isArray(state.lixeiraVendas)) state.lixeiraVendas = [];
     state.lixeiraVendas.unshift(venda);
 
-    // 4. Remove do histórico ativo
+    // 5. Remove do histórico ativo
     state.historicoVendas.splice(i, 1);
     save();
     mostrarNotificacao("Venda movida para a lixeira! Pode ser restaurada a qualquer momento.", "sucesso");
@@ -1098,7 +1112,7 @@ function restaurarVenda(idx) {
   const venda = (state.lixeiraVendas || [])[idx];
   if (!venda) return;
 
-  // Verifica saldo para descontar os V-Bucks novamente
+  // 1. Validação de Saldo de V-Bucks
   const conta = (state.contas || []).find(c => c.nome === venda.conta);
   const vbNecessarios = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, venda.valorBaseMomento);
 
@@ -1107,13 +1121,37 @@ function restaurarVenda(idx) {
     return;
   }
 
+  // 2. Validação de Timers Ativos e Vagas Restantes (Limite 5/5)
+  const agora = Date.now();
+  const timersAtivosParaRestaurar = (venda.timersSalvos || []).filter(t => t.expiresAt > agora);
+  const vagasNecessarias = timersAtivosParaRestaurar.length;
+  const vagasOcupadasAgora = usadasDaConta(venda.conta);
+
+  if (vagasOcupadasAgora + vagasNecessarias > 5) {
+    mostrarNotificacao(`Não é possível restaurar: a conta ${venda.conta} já possui ${vagasOcupadasAgora}/5 envios ocupados. Vagas necessárias: ${vagasNecessarias}.`, "erro");
+    return;
+  }
+
+  // 3. Desconta os V-Bucks novamente
   if (conta) {
     conta.vbucks = Math.max(0, (Number(conta.vbucks) || 0) - vbNecessarios);
   }
 
-  // Remove da lixeira e volta para o histórico
+  // 4. Restaura os timers que ainda estão dentro do prazo de 24h
+  if (!Array.isArray(state.reservas)) state.reservas = [];
+  timersAtivosParaRestaurar.forEach(t => {
+    state.reservas.push(t);
+  });
+
+  // 5. Restaura a venda na sessão ao vivo (card da conta/total do topo) e no histórico geral
+  if (!Array.isArray(state.vendas)) state.vendas = [];
+  if (!Array.isArray(state.historicoVendas)) state.historicoVendas = [];
+
   state.lixeiraVendas.splice(idx, 1);
   delete venda.excluidaEm;
+  delete venda.timersSalvos;
+
+  state.vendas.push(venda);
   state.historicoVendas.push(venda);
 
   save();
