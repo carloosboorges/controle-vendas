@@ -27,7 +27,7 @@
 
   <!-- ================= MODAIS DO SISTEMA ================= -->
 
-  <!-- 1. Modal de Autenticação / Login -->
+  <!-- Modal de Autenticação / Login -->
   <div id="authModal" class="modal-overlay" style="display:none;">
     <div class="modal-card">
       <div class="modal-head">
@@ -59,7 +59,7 @@
     </div>
   </div>
 
-  <!-- 2. Modal de Alterar Valor Base -->
+  <!-- Modal de Alterar Valor Base -->
   <div id="valorBaseModal" class="modal-overlay" style="display:none;">
     <div class="modal-card">
       <div class="modal-head">
@@ -78,7 +78,7 @@
     </div>
   </div>
 
-  <!-- 3. Modal de Adicionar Conta -->
+  <!-- Modal de Adicionar Conta -->
   <div id="addContaModal" class="modal-overlay" style="display:none;">
     <div class="modal-card">
       <div class="modal-head">
@@ -91,7 +91,7 @@
       </div>
       <div class="field" style="margin-top:10px;">
         <label>Saldo Inicial de V-Bucks (opcional)</label>
-        <input id="novaContaVbucksInput" type="number" min="0" placeholder="Ex.: 10000" value="0">
+        <input id="novaContaVbucksInput" type="text" placeholder="Ex.: 8100 ou 8.100" value="0">
       </div>
       <div style="display:flex; gap:10px; margin-top:16px;">
         <button type="button" class="btn-green" style="flex:1;" onclick="salvarNovaContaModal()">➕ Adicionar Conta</button>
@@ -100,7 +100,7 @@
     </div>
   </div>
 
-  <!-- 4. Modal de Edição de Conta -->
+  <!-- Modal de Edição de Conta -->
   <div id="editContaModal" class="modal-overlay" style="display:none;">
     <div class="modal-card">
       <div class="modal-head">
@@ -114,7 +114,7 @@
       </div>
       <div class="field" style="margin-top:10px;">
         <label>Saldo Atual de V-Bucks</label>
-        <input id="editContaVbucksInput" type="number" min="0">
+        <input id="editContaVbucksInput" type="text" placeholder="Ex.: 8100 ou 8.100">
       </div>
       <div style="display:flex; gap:10px; margin-top:16px;">
         <button type="button" class="btn-green" style="flex:1;" onclick="salvarEdicaoContaModal()">💾 Salvar Dados</button>
@@ -123,7 +123,7 @@
     </div>
   </div>
 
-  <!-- 5. Modal de Edição Completa de Venda -->
+  <!-- Modal de Edição Completa de Venda -->
   <div id="editSaleModal" class="modal-overlay" style="display:none;">
     <div class="modal-card modal-card-large">
       <div class="modal-head">
@@ -158,7 +158,23 @@
     </div>
   </div>
 
-  <!-- 6. Modal de Confirmação com Senha de Administrador -->
+  <!-- Modal da Lixeira / Vendas Excluídas -->
+  <div id="trashModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card modal-card-large">
+      <div class="modal-head">
+        <h3 style="margin:0; color:var(--accent-light);">🗑️ Lixeira de Vendas</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalLixeira()">✕</button>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin:10px 0 14px;">Vendas excluídas que podem ser restauradas ao histórico a qualquer momento:</p>
+      <div id="trashListContainer" class="trash-list-container"></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+        <button type="button" class="btn-danger btn-compact" onclick="esvaziarLixeira()">🔥 Esvaziar Lixeira</button>
+        <button type="button" class="btn-gray" onclick="fecharModalLixeira()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmação com Senha de Administrador -->
   <div id="adminAuthActionModal" class="modal-overlay" style="display:none;">
     <div class="modal-card">
       <div class="modal-head">
@@ -177,7 +193,7 @@
     </div>
   </div>
 
-  <!-- 7. Modal de Confirmação Genérica -->
+  <!-- Modal de Confirmação Genérica -->
   <div id="genericConfirmModal" class="modal-overlay" style="display:none;">
     <div class="modal-card">
       <div class="modal-head">
@@ -229,7 +245,6 @@
   <section class="panel panel-form">
     <h2>➕ Registrar Venda</h2>
     
-    <!-- 1. Linha com dados da conta e cliente -->
     <div class="toolbar">
       <div class="field">
         <label>Conta utilizada</label>
@@ -253,18 +268,16 @@
       </div>
     </div>
 
-    <!-- 2. Área de Seleção dos Itens Vendidos (Tipo + Nome) -->
-    <div id="itensGroupContainer" class="itens-group-container" style="margin-top: 14px;">
-      <!-- Gerado dinamicamente via JS -->
-    </div>
+    <!-- Área de Seleção dos Itens Vendidos -->
+    <div id="itensGroupContainer" class="itens-group-container" style="margin-top: 14px;"></div>
 
-    <!-- 3. Botões de Ação logo abaixo do item vendido -->
+    <!-- Botões de Ação -->
     <div class="form-actions-row" style="margin-top: 16px; display: flex; gap: 10px;">
       <button type="button" class="btn-primary" style="flex: 1;" onclick="adicionarVenda()">➕ Adicionar venda</button>
       <button type="button" class="btn-gray" id="limparValorBtn">🧹 Limpar</button>
     </div>
 
-    <!-- 4. Valores Rápidos -->
+    <!-- Valores Rápidos -->
     <div class="quick" style="margin-top: 14px;">
       <span class="small" style="align-self:center">Valores rápidos:</span>
       <button type="button" onclick="valorRapido(2.5)">R$ 2,50</button>
@@ -302,7 +315,10 @@
   <section class="panel">
     <div class="history-top-bar">
       <h2>📜 Histórico de Vendas</h2>
-      <button type="button" class="btn-danger btn-compact" onclick="solicitarLimpezaHistorico()">🗑️ Limpar Histórico</button>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn-gray btn-compact" onclick="abrirModalLixeira()" id="lixeiraBtn">🗑️ Lixeira (0)</button>
+        <button type="button" class="btn-danger btn-compact" onclick="solicitarLimpezaHistorico()">🔥 Limpar Histórico</button>
+      </div>
     </div>
     
     <div class="history-content-full">

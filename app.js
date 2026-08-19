@@ -20,40 +20,11 @@ const DADOS_DEMO = {
     { nome: "Conta Demo 01", ativa: true, usadas: 0, vbucks: 10000 },
     { nome: "Conta Demo 02", ativa: true, usadas: 0, vbucks: 8500 }
   ],
-  vendas: [
-    {
-      id: "demo-1",
-      conta: "Conta Demo 01",
-      valor: 20,
-      vbucks: 800,
-      valorBaseMomento: 2.5,
-      quantidade: 1,
-      cliente: "Visitante",
-      nickCliente: "PlayerDemo",
-      item: "Traje – Skin Exemplo",
-      itens: ["Traje – Skin Exemplo"],
-      data: "17/08/2026",
-      hora: "12:00"
-    }
-  ],
+  vendas: [],
   reservas: [],
   valorBase100: 2.5,
-  historicoVendas: [
-    {
-      id: "demo-1",
-      conta: "Conta Demo 01",
-      valor: 20,
-      vbucks: 800,
-      valorBaseMomento: 2.5,
-      quantidade: 1,
-      cliente: "Visitante",
-      nickCliente: "PlayerDemo",
-      item: "Traje – Skin Exemplo",
-      itens: ["Traje – Skin Exemplo"],
-      data: "17/08/2026",
-      hora: "12:00"
-    }
-  ],
+  historicoVendas: [],
+  lixeiraVendas: [],
   metasLucro: { retiradas: 0 }
 };
 
@@ -470,9 +441,9 @@ async function inicializar() {
   }
 }
 
-// Garante que todos os saldos e valores sejam números estritos para evitar concatenações de texto
 function sanitizarDados() {
   if (!state) return;
+  if (!Array.isArray(state.lixeiraVendas)) state.lixeiraVendas = [];
   if (Array.isArray(state.contas)) {
     state.contas.forEach(c => {
       c.vbucks = Number(c.vbucks) || 0;
@@ -486,6 +457,12 @@ function sanitizarDados() {
   }
   if (Array.isArray(state.historicoVendas)) {
     state.historicoVendas.forEach(v => {
+      v.valor = Number(v.valor) || 0;
+      if (v.vbucks !== undefined) v.vbucks = Number(v.vbucks) || 0;
+    });
+  }
+  if (Array.isArray(state.lixeiraVendas)) {
+    state.lixeiraVendas.forEach(v => {
       v.valor = Number(v.valor) || 0;
       if (v.vbucks !== undefined) v.vbucks = Number(v.vbucks) || 0;
     });
@@ -736,6 +713,11 @@ function render() {
 
   const historicoTotalEl = document.getElementById("historicoTotal");
   if (historicoTotalEl) historicoTotalEl.textContent = `Total do histórico: ${money(totalHistorico)}`;
+
+  // Atualiza contador da lixeira
+  const lixeiraBtn = document.getElementById("lixeiraBtn");
+  const qtdLixeira = (state.lixeiraVendas || []).length;
+  if (lixeiraBtn) lixeiraBtn.textContent = `🗑️ Lixeira (${qtdLixeira})`;
 
   const historico = state.historicoVendas || [];
   const agoraData = new Date();
@@ -994,7 +976,6 @@ function adicionarVenda() {
     return;
   }
 
-  // Subtração estrita garantindo tipo numérico
   contaObj.vbucks = Math.max(0, saldoVBucks - vbucksNecessarios);
 
   const agora = Date.now(), d = new Date();
@@ -1040,26 +1021,130 @@ function adicionarVenda() {
   mostrarNotificacao("Venda registrada com sucesso!", "sucesso");
 }
 
-function excluirVenda(index) {
-  const venda = state.vendas[index];
+// ==========================================
+// EXCLUSÃO COM MOVIMENTAÇÃO PARA A LIXEIRA
+// ==========================================
+function excluirHistorico(i) {
+  const venda = state.historicoVendas[i];
   if (!venda) return;
 
-  abrirModalConfirmacao("🗑️ Excluir Venda", `Excluir venda de ${venda.cliente} no valor de ${money(venda.valor)}? Os V-Bucks serão devolvidos à conta.`, () => {
-    const conta = state.contas.find(c => c.nome === venda.conta);
+  abrirModalConfirmacao("🗑️ Mover para Lixeira", `Deseja mover a venda de ${venda.cliente} (${money(venda.valor)}) para a lixeira? Os V-Bucks serão devolvidos à conta.`, () => {
+    // 1. Devolve V-Bucks para a conta
+    const conta = (state.contas || []).find(c => c.nome === venda.conta);
     if (conta) {
       const vbDevolver = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, venda.valorBaseMomento);
-      // Soma estritamente matemática
       conta.vbucks = (Number(conta.vbucks) || 0) + Number(vbDevolver);
     }
 
+    // 2. Remove timers ativos
     if (venda.id) {
-      state.reservas = state.reservas.filter(r => r.vendaId !== venda.id);
+      state.reservas = (state.reservas || []).filter(r => r.vendaId !== venda.id);
+      state.vendas = (state.vendas || []).filter(v => v.id !== venda.id);
     }
 
-    state.vendas.splice(index, 1);
-    state.historicoVendas = state.historicoVendas.filter(v => v.id !== venda.id);
+    // 3. Adiciona à lixeira com data de exclusão
+    const d = new Date();
+    venda.excluidaEm = `${d.toLocaleDateString("pt-BR")} às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+    if (!Array.isArray(state.lixeiraVendas)) state.lixeiraVendas = [];
+    state.lixeiraVendas.unshift(venda);
+
+    // 4. Remove do histórico ativo
+    state.historicoVendas.splice(i, 1);
     save();
-    mostrarNotificacao("Venda excluída com sucesso!", "sucesso");
+    mostrarNotificacao("Venda movida para a lixeira! Pode ser restaurada a qualquer momento.", "sucesso");
+  });
+}
+
+// ==========================================
+// MODAL DA LIXEIRA & RESTAURAÇÃO
+// ==========================================
+function abrirModalLixeira() {
+  const modal = document.getElementById("trashModal");
+  const container = document.getElementById("trashListContainer");
+  const lixeira = state.lixeiraVendas || [];
+
+  if (!container) return;
+
+  if (lixeira.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--muted); font-size:13px;">A lixeira está vazia. Nenhuma venda excluída recentemente.</div>`;
+  } else {
+    container.innerHTML = lixeira.map((v, idx) => {
+      const itemTxt = Array.isArray(v.itens) && v.itens.length ? v.itens.join(", ") : (v.item || "Sem item");
+      return `
+        <div class="trash-item-card">
+          <div class="trash-item-info">
+            <div class="trash-item-title">${esc(v.cliente)} (${money(v.valor)}) · ${esc(v.conta)}</div>
+            <div class="trash-item-desc">🎁 ${esc(itemTxt)}</div>
+            <div class="trash-item-desc" style="color:var(--accent-light);">📅 Vendido em: ${esc(v.data)} · Excluído em: ${esc(v.excluidaEm || "—")}</div>
+          </div>
+          <div class="trash-item-actions">
+            <button type="button" class="btn-green" style="padding:6px 10px; font-size:11px;" onclick="restaurarVenda(${idx})">♻️ Restaurar</button>
+            <button type="button" class="btn-danger" style="padding:6px 10px; font-size:11px;" onclick="excluirDefinitivoLixeira(${idx})">✕</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  if (modal) modal.style.display = "flex";
+}
+
+function fecharModalLixeira() {
+  const modal = document.getElementById("trashModal");
+  if (modal) modal.style.display = "none";
+}
+
+function restaurarVenda(idx) {
+  const venda = (state.lixeiraVendas || [])[idx];
+  if (!venda) return;
+
+  // Verifica saldo para descontar os V-Bucks novamente
+  const conta = (state.contas || []).find(c => c.nome === venda.conta);
+  const vbNecessarios = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, venda.valorBaseMomento);
+
+  if (conta && Number(conta.vbucks) < vbNecessarios) {
+    mostrarNotificacao(`Não é possível restaurar: a conta ${venda.conta} precisa de ${formatVBucks(vbNecessarios)} V-Bucks e tem apenas ${formatVBucks(conta.vbucks)}.`, "erro");
+    return;
+  }
+
+  if (conta) {
+    conta.vbucks = Math.max(0, (Number(conta.vbucks) || 0) - vbNecessarios);
+  }
+
+  // Remove da lixeira e volta para o histórico
+  state.lixeiraVendas.splice(idx, 1);
+  delete venda.excluidaEm;
+  state.historicoVendas.push(venda);
+
+  save();
+  abrirModalLixeira();
+  mostrarNotificacao(`Venda de ${venda.cliente} restaurada com sucesso!`, "sucesso");
+}
+
+function excluirDefinitivoLixeira(idx) {
+  const venda = (state.lixeiraVendas || [])[idx];
+  if (!venda) return;
+
+  abrirModalConfirmacao("🔥 Exclusão Permanente", `Apagar definitivamente a venda de ${venda.cliente}? Esta ação não pode ser desfeita.`, () => {
+    state.lixeiraVendas.splice(idx, 1);
+    save();
+    abrirModalLixeira();
+    mostrarNotificacao("Venda apagada permanentemente.", "info");
+  });
+}
+
+function esvaziarLixeira() {
+  const lixeira = state.lixeiraVendas || [];
+  if (lixeira.length === 0) {
+    mostrarNotificacao("A lixeira já está vazia.", "info");
+    return;
+  }
+
+  abrirModalConfirmacao("🔥 Esvaziar Lixeira", `Deseja apagar definitivamente todas as ${lixeira.length} vendas da lixeira?`, () => {
+    state.lixeiraVendas = [];
+    save();
+    abrirModalLixeira();
+    mostrarNotificacao("Lixeira esvaziada com sucesso.", "sucesso");
   });
 }
 
@@ -1228,21 +1313,6 @@ function salvarEdicaoVenda() {
   save();
   fecharModalEdicao();
   mostrarNotificacao("Registro de venda atualizado com sucesso!", "sucesso");
-}
-
-function excluirHistorico(i) {
-  const venda = state.historicoVendas[i];
-  if (!venda) return;
-  const sessaoIndex = state.vendas.findIndex(v => v.id === venda.id);
-  if (sessaoIndex >= 0) {
-    excluirVenda(sessaoIndex);
-    return;
-  }
-  abrirModalConfirmacao("🗑️ Excluir do Histórico", `Excluir definitivamente o registro da venda de ${venda.cliente}?`, () => {
-    state.historicoVendas.splice(i, 1);
-    save();
-    mostrarNotificacao("Venda removida do histórico.", "sucesso");
-  });
 }
 
 function marcarMetasRetiradas() {

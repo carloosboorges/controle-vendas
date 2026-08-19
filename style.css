@@ -934,4 +934,49 @@ footer {
   .history-periods {
     grid-template-columns: 1fr;
   }
+
+  /* Estilo da lista da Lixeira */
+.trash-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.trash-item-card {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.trash-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.trash-item-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+
+.trash-item-desc {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.trash-item-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
 }
