@@ -165,7 +165,7 @@ function salvarValorBaseModal() {
 }
 
 // ==========================================
-// MODAL ADICIONAR CONTA (CORRIGIDO)
+// MODAL ADICIONAR CONTA
 // ==========================================
 function abrirModalAddConta() {
   const modal = document.getElementById("addContaModal");
@@ -185,7 +185,6 @@ function salvarNovaContaModal() {
   const nomeInput = document.getElementById("novaContaNomeInput");
   const vbInput = document.getElementById("novaContaVbucksInput");
   const nome = nomeInput?.value.trim();
-  // Remove pontos e caracteres não-numéricos para ler 8.100 como 8100
   const vbucks = parseInt(String(vbInput?.value || "0").replace(/\D/g, ""), 10) || 0;
 
   if (!nome) {
@@ -198,14 +197,14 @@ function salvarNovaContaModal() {
     return;
   }
 
-  state.contas.push({ nome, ativa: false, vbucks: Math.max(0, vbucks) });
+  state.contas.push({ nome, ativa: false, vbucks: Number(vbucks) || 0 });
   save();
   fecharModalAddConta();
   mostrarNotificacao(`Conta ${nome} adicionada com sucesso!`, "sucesso");
 }
 
 // ==========================================
-// MODAL EDITAR CONTA (CORRIGIDO)
+// MODAL EDITAR CONTA
 // ==========================================
 function abrirModalEditConta(i) {
   const conta = state.contas[i];
@@ -213,7 +212,7 @@ function abrirModalEditConta(i) {
 
   document.getElementById("editContaIndex").value = i;
   document.getElementById("editContaNomeInput").value = conta.nome;
-  document.getElementById("editContaVbucksInput").value = conta.vbucks || 0;
+  document.getElementById("editContaVbucksInput").value = Number(conta.vbucks) || 0;
 
   const modal = document.getElementById("editContaModal");
   if (modal) modal.style.display = "flex";
@@ -230,7 +229,6 @@ function salvarEdicaoContaModal() {
   if (!conta) return;
 
   const novoNome = document.getElementById("editContaNomeInput").value.trim();
-  // Remove pontos e caracteres não-numéricos para ler 8.100 como 8100
   const novoVbucks = parseInt(String(document.getElementById("editContaVbucksInput").value || "0").replace(/\D/g, ""), 10);
 
   if (!novoNome) {
@@ -250,7 +248,7 @@ function salvarEdicaoContaModal() {
 
   const nomeAntigo = conta.nome;
   conta.nome = novoNome;
-  conta.vbucks = novoVbucks;
+  conta.vbucks = Number(novoVbucks) || 0;
 
   if (nomeAntigo !== novoNome) {
     state.vendas.forEach(v => { if (v.conta === nomeAntigo) v.conta = novoNome; });
@@ -437,6 +435,7 @@ async function inicializar() {
   if (!currentUser) {
     if (footer) footer.textContent = "👀 Modo Visitante (Alterações locais de teste — não afetam o banco)";
     state = JSON.parse(JSON.stringify(DADOS_DEMO));
+    sanitizarDados();
     render();
     return;
   }
@@ -459,17 +458,42 @@ async function inicializar() {
       state = JSON.parse(JSON.stringify(DADOS_DEMO));
     }
 
+    sanitizarDados();
     if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
     render();
   } catch (err) {
     console.error("Erro ao carregar dados:", err);
     if (footer) footer.textContent = "⚠️ Erro ao sincronizar dados com o banco";
     state = JSON.parse(JSON.stringify(DADOS_DEMO));
+    sanitizarDados();
     render();
   }
 }
 
+// Garante que todos os saldos e valores sejam números estritos para evitar concatenações de texto
+function sanitizarDados() {
+  if (!state) return;
+  if (Array.isArray(state.contas)) {
+    state.contas.forEach(c => {
+      c.vbucks = Number(c.vbucks) || 0;
+    });
+  }
+  if (Array.isArray(state.vendas)) {
+    state.vendas.forEach(v => {
+      v.valor = Number(v.valor) || 0;
+      if (v.vbucks !== undefined) v.vbucks = Number(v.vbucks) || 0;
+    });
+  }
+  if (Array.isArray(state.historicoVendas)) {
+    state.historicoVendas.forEach(v => {
+      v.valor = Number(v.valor) || 0;
+      if (v.vbucks !== undefined) v.vbucks = Number(v.vbucks) || 0;
+    });
+  }
+}
+
 async function save() {
+  sanitizarDados();
   render();
   const footer = document.getElementById("statusFooter");
 
@@ -534,7 +558,7 @@ function valorParaVBucks(valor, baseCustom) {
 }
 
 function formatVBucks(v) {
-  return Math.max(0, Math.round(v || 0)).toLocaleString("pt-BR");
+  return Math.max(0, Math.round(Number(v) || 0)).toLocaleString("pt-BR");
 }
 
 function money(v) {
@@ -548,7 +572,7 @@ function esc(s) {
 function totais() {
   let t = {};
   (state.contas || []).forEach(c => (t[c.nome] = 0));
-  (state.vendas || []).forEach(v => (t[v.conta] = (t[v.conta] || 0) + v.valor));
+  (state.vendas || []).forEach(v => (t[v.conta] = (t[v.conta] || 0) + Number(v.valor || 0)));
   return t;
 }
 
@@ -628,12 +652,12 @@ function render() {
 
   limparReservasExpiradas();
   const t = totais(),
-    total = (state.vendas || []).reduce((a, v) => a + v.valor, 0);
+    total = (state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0);
 
   document.getElementById("totalGeral").textContent = money(total);
   
   const qtdPedidosSessao = (state.vendas || []).length;
-  const qtdItensSessao = (state.vendas || []).reduce((a, v) => a + (v.quantidade || 1), 0);
+  const qtdItensSessao = (state.vendas || []).reduce((a, v) => a + (Number(v.quantidade) || 1), 0);
   document.getElementById("qtdVendas").textContent = `${qtdPedidosSessao} (${qtdItensSessao} itens)`;
 
   let top = "—", tv = 0;
@@ -730,7 +754,7 @@ function render() {
   };
   const somaFiltro = fn => historico.filter(fn).reduce((s, v) => s + Number(v.valor || 0), 0);
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
-  const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (v.quantidade || 1), 0);
+  const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
   const hojeInicio = new Date(agoraData.getFullYear(), agoraData.getMonth(), agoraData.getDate());
   const amanhaInicio = new Date(hojeInicio);
@@ -894,7 +918,7 @@ function render() {
         .map((v, ri) => {
           const i = state.historicoVendas.length - 1 - ri;
           const itens = v.quantidade || 1;
-          const vb = v.vbucks !== undefined ? v.vbucks : valorParaVBucks(v.valor, v.valorBaseMomento);
+          const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
           return `<div class="history-card">
           <div class="history-main">
             <div class="history-number">#${String(i + 1).padStart(2, "0")}</div>
@@ -970,7 +994,8 @@ function adicionarVenda() {
     return;
   }
 
-  contaObj.vbucks = saldoVBucks - vbucksNecessarios;
+  // Subtração estrita garantindo tipo numérico
+  contaObj.vbucks = Math.max(0, saldoVBucks - vbucksNecessarios);
 
   const agora = Date.now(), d = new Date();
   const vendaId = crypto.randomUUID ? crypto.randomUUID() : `venda-${Date.now()}-${Math.random()}`;
@@ -978,10 +1003,10 @@ function adicionarVenda() {
   const novaVenda = {
     id: vendaId,
     conta,
-    valor,
-    vbucks: vbucksNecessarios,
+    valor: Number(valor),
+    vbucks: Number(vbucksNecessarios),
     valorBaseMomento: baseAtual,
-    quantidade,
+    quantidade: Number(quantidade),
     cliente,
     nickCliente,
     item: itens[0] || "",
@@ -1022,8 +1047,9 @@ function excluirVenda(index) {
   abrirModalConfirmacao("🗑️ Excluir Venda", `Excluir venda de ${venda.cliente} no valor de ${money(venda.valor)}? Os V-Bucks serão devolvidos à conta.`, () => {
     const conta = state.contas.find(c => c.nome === venda.conta);
     if (conta) {
-      const vbDevolver = venda.vbucks !== undefined ? venda.vbucks : valorParaVBucks(venda.valor, venda.valorBaseMomento);
-      conta.vbucks += vbDevolver;
+      const vbDevolver = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, venda.valorBaseMomento);
+      // Soma estritamente matemática
+      conta.vbucks = (Number(conta.vbucks) || 0) + Number(vbDevolver);
     }
 
     if (venda.id) {
@@ -1169,19 +1195,19 @@ function salvarEdicaoVenda() {
   if (!listaItens.length) { mostrarNotificacao("Informe pelo menos um item válido.", "erro"); return; }
 
   const baseUsada = venda.valorBaseMomento || state.valorBase100 || 2.5;
-  const vbucksAntigos = venda.vbucks !== undefined ? venda.vbucks : valorParaVBucks(venda.valor, baseUsada);
+  const vbucksAntigos = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, baseUsada);
   const vbucksNovos = valorParaVBucks(valor, baseUsada);
   const diferencaVBucks = vbucksNovos - vbucksAntigos;
 
   const contaObj = (state.contas || []).find(c => c.nome === venda.conta);
   if (contaObj) {
-    contaObj.vbucks = Math.max(0, (contaObj.vbucks || 0) - diferencaVBucks);
+    contaObj.vbucks = Math.max(0, (Number(contaObj.vbucks) || 0) - Number(diferencaVBucks));
   }
 
   venda.cliente = cliente;
   venda.nickCliente = nick;
-  venda.valor = valor;
-  venda.vbucks = vbucksNovos;
+  venda.valor = Number(valor);
+  venda.vbucks = Number(vbucksNovos);
   venda.valorBaseMomento = baseUsada;
   venda.item = listaItens[0] || "";
   venda.itens = listaItens;
@@ -1191,8 +1217,8 @@ function salvarEdicaoVenda() {
   if (sessaoVenda) {
     sessaoVenda.cliente = cliente;
     sessaoVenda.nickCliente = nick;
-    sessaoVenda.valor = valor;
-    sessaoVenda.vbucks = vbucksNovos;
+    sessaoVenda.valor = Number(valor);
+    sessaoVenda.vbucks = Number(vbucksNovos);
     sessaoVenda.valorBaseMomento = baseUsada;
     sessaoVenda.item = listaItens[0] || "";
     sessaoVenda.itens = listaItens;
