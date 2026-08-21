@@ -10,7 +10,7 @@ const CATEGORIAS_ITENS = [
   "Asa-delta",
   "Envelopamento",
   "Calçado",
-  "Acessórios",
+  "Acessório",
   "Carro",
   "Outro"
 ];
@@ -1250,11 +1250,27 @@ function removerTimersConta(i) {
   });
 }
 
+// ==========================================
+// MODAL DE EDIÇÃO DE VENDA (CORRIGIDO)
+// ==========================================
 function abrirModalEdicao(index) {
   const venda = state.historicoVendas[index];
   if (!venda) return;
 
   document.getElementById("editVendaIndex").value = index;
+  
+  // Preenche a lista de contas garantindo que a conta da venda apareça selecionada
+  const selectConta = document.getElementById("editContaSelect");
+  if (selectConta) {
+    const listaContas = state.contas || [];
+    selectConta.innerHTML = listaContas.map(c => `
+      <option value="${esc(c.nome)}" ${c.nome === venda.conta ? "selected" : ""}>
+        ${esc(c.nome)} (${formatVBucks(c.vbucks)} VB)
+      </option>
+    `).join("");
+    selectConta.value = venda.conta;
+  }
+
   document.getElementById("editClientInput").value = venda.cliente || "";
   document.getElementById("editNickInput").value = venda.nickCliente || "";
   document.getElementById("editValorInput").value = Number(venda.valor || 0).toFixed(2);
@@ -1311,6 +1327,9 @@ function salvarEdicaoVenda() {
   const venda = state.historicoVendas[i];
   if (!venda) return;
 
+  const novaContaNome = document.getElementById("editContaSelect").value;
+  const contaAntigaNome = venda.conta;
+
   const cliente = document.getElementById("editClientInput").value.trim();
   const nick = document.getElementById("editNickInput").value.trim();
   const valor = parseFloat(document.getElementById("editValorInput").value);
@@ -1335,13 +1354,52 @@ function salvarEdicaoVenda() {
   const baseUsada = venda.valorBaseMomento || state.valorBase100 || 2.5;
   const vbucksAntigos = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, baseUsada);
   const vbucksNovos = valorParaVBucks(valor, baseUsada);
-  const diferencaVBucks = vbucksNovos - vbucksAntigos;
 
-  const contaObj = (state.contas || []).find(c => c.nome === venda.conta);
-  if (contaObj) {
-    contaObj.vbucks = Math.max(0, (Number(contaObj.vbucks) || 0) - Number(diferencaVBucks));
+  const contaAntigaObj = (state.contas || []).find(c => c.nome === contaAntigaNome);
+  const contaNovaObj = (state.contas || []).find(c => c.nome === novaContaNome);
+
+  // Se o usuário mudou a conta selecionada
+  if (novaContaNome !== contaAntigaNome) {
+    const saldoDisponivelNova = Number(contaNovaObj?.vbucks) || 0;
+    if (saldoDisponivelNova < vbucksNovos) {
+      mostrarNotificacao(`Saldo insuficiente! A conta ${novaContaNome} tem ${saldoDisponivelNova.toLocaleString("pt-BR")} V-Bucks e a venda precisa de ${vbucksNovos.toLocaleString("pt-BR")}.`, "erro");
+      return;
+    }
+
+    const agora = Date.now();
+    const timersAtivosDestaVenda = (state.reservas || []).filter(r => r.vendaId === venda.id && r.expiresAt > agora).length;
+    const usadasNovaConta = usadasDaConta(novaContaNome);
+
+    if (usadasNovaConta + timersAtivosDestaVenda > 5) {
+      mostrarNotificacao(`Não é possível transferir: a conta ${novaContaNome} já tem ${usadasNovaConta}/5 vagas ocupadas.`, "erro");
+      return;
+    }
+
+    // 1. Devolve V-Bucks para a conta antiga
+    if (contaAntigaObj) {
+      contaAntigaObj.vbucks = (Number(contaAntigaObj.vbucks) || 0) + Number(vbucksAntigos);
+    }
+    // 2. Debita da nova conta
+    if (contaNovaObj) {
+      contaNovaObj.vbucks = Math.max(0, (Number(contaNovaObj.vbucks) || 0) - Number(vbucksNovos));
+    }
+    // 3. Transfere os timers para a nova conta com o mesmo tempo restante
+    if (Array.isArray(state.reservas)) {
+      state.reservas.forEach(r => {
+        if (r.vendaId === venda.id) {
+          r.conta = novaContaNome;
+        }
+      });
+    }
+  } else {
+    // Mesma conta, recalcula apenas a diferença de V-Bucks se o valor mudou
+    const diferencaVBucks = vbucksNovos - vbucksAntigos;
+    if (contaAntigaObj) {
+      contaAntigaObj.vbucks = Math.max(0, (Number(contaAntigaObj.vbucks) || 0) - Number(diferencaVBucks));
+    }
   }
 
+  venda.conta = novaContaNome;
   venda.cliente = cliente;
   venda.nickCliente = nick;
   venda.valor = Number(valor);
@@ -1353,6 +1411,7 @@ function salvarEdicaoVenda() {
 
   const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
   if (sessaoVenda) {
+    sessaoVenda.conta = novaContaNome;
     sessaoVenda.cliente = cliente;
     sessaoVenda.nickCliente = nick;
     sessaoVenda.valor = Number(valor);
@@ -1365,7 +1424,7 @@ function salvarEdicaoVenda() {
 
   save();
   fecharModalEdicao();
-  mostrarNotificacao("Registro de venda atualizado com sucesso!", "sucesso");
+  mostrarNotificacao(`Venda atualizada com sucesso! (Conta: ${novaContaNome})`, "sucesso");
 }
 
 function marcarMetasRetiradas() {
