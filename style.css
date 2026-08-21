@@ -158,6 +158,20 @@ body {
   min-width: 190px;
 }
 
+/* Badge de prévia de V-Bucks em tempo real */
+.vbucks-badge-preview {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--green);
+  background: rgba(0, 230, 118, 0.12);
+  border: 1px solid rgba(0, 230, 118, 0.3);
+  padding: 2px 8px;
+  border-radius: 99px;
+  letter-spacing: 0.3px;
+  text-shadow: 0 0 8px rgba(0, 230, 118, 0.25);
+  transition: all 0.2s ease;
+}
+
 /* Linha de seleção do item (Tipo + Nome) */
 .itens-group-container {
   display: grid;
@@ -817,6 +831,50 @@ button:hover {
   align-items: center;
 }
 
+.trash-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.trash-item-card {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.trash-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.trash-item-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+
+.trash-item-desc {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.trash-item-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .toast-container {
   position: fixed;
   bottom: 24px;
@@ -934,49 +992,4 @@ footer {
   .history-periods {
     grid-template-columns: 1fr;
   }
-
-  /* Estilo da lista da Lixeira */
-.trash-list-container {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 380px;
-  overflow-y: auto;
-  padding-right: 6px;
-}
-
-.trash-item-card {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.trash-item-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.trash-item-title {
-  font-weight: 700;
-  font-size: 14px;
-  color: #fff;
-}
-
-.trash-item-desc {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.trash-item-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
 }

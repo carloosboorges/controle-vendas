@@ -143,8 +143,11 @@
           </div>
         </div>
         <div class="field">
-          <label>Valor da Venda (R$)</label>
-          <input id="editValorInput" type="number" step="0.01" min="0.01">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label>Valor da Venda (R$)</label>
+            <span id="editVbucksPreview" class="vbucks-badge-preview">🪙 0 V-Bucks</span>
+          </div>
+          <input id="editValorInput" type="number" step="0.01" min="0.01" oninput="atualizarPreviewVBucksEdicao()">
         </div>
         <div>
           <label style="font-size:13px; color:var(--muted); font-weight:600; margin-bottom:6px; display:block;">Itens do Pedido</label>
@@ -251,8 +254,11 @@
         <select id="contaSelect"></select>
       </div>
       <div class="field">
-        <label>Valor da venda</label>
-        <input id="valorInput" type="number" min="0.01" step="0.01" placeholder="Ex.: 45,00">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label>Valor da venda</label>
+          <span id="valorVbucksPreview" class="vbucks-badge-preview">🪙 0 V-Bucks</span>
+        </div>
+        <input id="valorInput" type="number" min="0.01" step="0.01" placeholder="Ex.: 45,00" oninput="atualizarPreviewVBucks()">
       </div>
       <div class="field" style="max-width:180px;min-width:130px">
         <label>Quantidade de itens</label>
