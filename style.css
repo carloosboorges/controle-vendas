@@ -158,18 +158,37 @@ body {
   min-width: 190px;
 }
 
-/* Badge de prévia de V-Bucks perfeitamente alinhado e proporcional */
+.field-valor {
+  min-width: 250px;
+  flex: 1.2;
+}
+
+/* Linha do label que mantém tudo em uma linha só */
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.field-label-row label {
+  white-space: nowrap !important;
+  margin: 0;
+}
+
+/* Badge de prévia de V-Bucks perfeitamente alinhado */
 .vbucks-badge-preview {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--green);
-  background: rgba(0, 230, 118, 0.12);
-  border: 1px solid rgba(0, 230, 118, 0.3);
-  padding: 1px 7px;
-  border-radius: 6px;
-  white-space: nowrap;
-  line-height: 1.4;
+  background: rgba(0, 230, 118, 0.14);
+  border: 1px solid rgba(0, 230, 118, 0.35);
+  padding: 2px 8px;
+  border-radius: 99px;
+  white-space: nowrap !important;
   letter-spacing: 0.2px;
+  line-height: 1.2;
   text-shadow: 0 0 8px rgba(0, 230, 118, 0.25);
   display: inline-flex;
   align-items: center;
@@ -210,6 +229,7 @@ label {
   font-size: 13px;
   color: var(--muted);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 input,
