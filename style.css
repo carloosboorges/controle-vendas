@@ -158,8 +158,7 @@ body {
   min-width: 190px;
 }
 
-/* Badge de prévia de V-Bucks em tempo real */
-/* Badge de prévia de V-Bucks perfeitamente alinhado */
+/* Badge de prévia de V-Bucks perfeitamente alinhado e proporcional */
 .vbucks-badge-preview {
   font-size: 11px;
   font-weight: 700;
@@ -168,7 +167,7 @@ body {
   border: 1px solid rgba(0, 230, 118, 0.3);
   padding: 1px 7px;
   border-radius: 6px;
-  white-space: nowrap; /* Impede quebrar linha */
+  white-space: nowrap;
   line-height: 1.4;
   letter-spacing: 0.2px;
   text-shadow: 0 0 8px rgba(0, 230, 118, 0.25);
