@@ -123,7 +123,7 @@
     </div>
   </div>
 
-  <!-- Modal de Edição Completa de Venda -->
+  <!-- Modal de Edição Completa de Venda (COM CAMPO DE CONTA UTILIZADA) -->
   <div id="editSaleModal" class="modal-overlay" style="display:none;">
     <div class="modal-card modal-card-large">
       <div class="modal-head">
@@ -132,6 +132,10 @@
       </div>
       <input type="hidden" id="editVendaIndex">
       <div class="modal-body-grid">
+        <div class="field">
+          <label>Conta utilizada</label>
+          <select id="editContaSelect"></select>
+        </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
           <div class="field">
             <label>Nome do Cliente</label>
