@@ -163,7 +163,7 @@ body {
   flex: 1.2;
 }
 
-/* Linha do label que mantém tudo em uma linha só */
+/* Linha do label que mantém tudo em uma linha só sem quebrar */
 .field-label-row {
   display: flex;
   align-items: center;
@@ -242,6 +242,7 @@ select {
   font-size: 14px;
   font-family: inherit;
   outline: none;
+  width: 100%;
   transition: all 0.2s;
 }
 
