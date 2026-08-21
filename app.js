@@ -10,7 +10,7 @@ const CATEGORIAS_ITENS = [
   "Asa-delta",
   "Envelopamento",
   "Calçado",
-  "Acessório",
+  "Acessórios",
   "Carro",
   "Outro"
 ];
@@ -35,6 +35,31 @@ let state = null;
 
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
+
+// ==========================================
+// PREVIEW DINÂMICO DE V-BUCKS
+// ==========================================
+function atualizarPreviewVBucks() {
+  const input = document.getElementById("valorInput");
+  const badge = document.getElementById("valorVbucksPreview");
+  if (!badge) return;
+
+  const val = parseFloat(input?.value) || 0;
+  const base = Number(state?.valorBase100 || 2.5);
+  const vb = val > 0 ? Math.round((val / base) * 100) : 0;
+  badge.textContent = `🪙 ${vb.toLocaleString("pt-BR")} V-Bucks`;
+}
+
+function atualizarPreviewVBucksEdicao() {
+  const input = document.getElementById("editValorInput");
+  const badge = document.getElementById("editVbucksPreview");
+  if (!badge) return;
+
+  const val = parseFloat(input?.value) || 0;
+  const base = Number(state?.valorBase100 || 2.5);
+  const vb = val > 0 ? Math.round((val / base) * 100) : 0;
+  badge.textContent = `🪙 ${vb.toLocaleString("pt-BR")} V-Bucks`;
+}
 
 // ==========================================
 // NOTIFICAÇÕES TOAST
@@ -131,6 +156,7 @@ function salvarValorBaseModal() {
 
   state.valorBase100 = Math.round(valor * 100) / 100;
   save();
+  atualizarPreviewVBucks();
   fecharModalValorBase();
   mostrarNotificacao(`Valor base alterado para ${money(state.valorBase100)}!`, "sucesso");
 }
@@ -402,6 +428,7 @@ async function inicializar() {
   await verificarSessao();
   atualizarInterfaceAuth();
   atualizarCamposItens();
+  atualizarPreviewVBucks();
 
   if (!currentUser) {
     if (footer) footer.textContent = "👀 Modo Visitante (Alterações locais de teste — não afetam o banco)";
@@ -936,6 +963,7 @@ function valorRapido(v) {
   const atual = parseFloat(input.value) || 0;
   input.value = (atual + Number(v)).toFixed(2);
   input.dispatchEvent(new Event("input", { bubbles: true }));
+  atualizarPreviewVBucks();
   input.focus();
 }
 
@@ -1017,26 +1045,22 @@ function adicionarVenda() {
   document.getElementById("nickClienteInput").value = "";
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens();
+  atualizarPreviewVBucks();
   save();
   mostrarNotificacao("Venda registrada com sucesso!", "sucesso");
 }
 
-// ==========================================
-// EXCLUSÃO COM MOVIMENTAÇÃO PARA A LIXEIRA
-// ==========================================
 function excluirHistorico(i) {
   const venda = state.historicoVendas[i];
   if (!venda) return;
 
   abrirModalConfirmacao("🗑️ Mover para Lixeira", `Deseja mover a venda de ${venda.cliente} (${money(venda.valor)}) para a lixeira? Os V-Bucks serão devolvidos à conta.`, () => {
-    // 1. Devolve V-Bucks para a conta
     const conta = (state.contas || []).find(c => c.nome === venda.conta);
     if (conta) {
       const vbDevolver = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, venda.valorBaseMomento);
       conta.vbucks = (Number(conta.vbucks) || 0) + Number(vbDevolver);
     }
 
-    // 2. Salva snapshot dos timers originais com a data de expiração real antes de remover
     const timersAtuais = (state.reservas || []).filter(r => r.vendaId === venda.id);
     if (timersAtuais.length > 0) {
       venda.timersSalvos = timersAtuais;
@@ -1050,28 +1074,22 @@ function excluirHistorico(i) {
       }));
     }
 
-    // 3. Remove da sessão ao vivo e dos timers ativos
     if (venda.id) {
       state.reservas = (state.reservas || []).filter(r => r.vendaId !== venda.id);
       state.vendas = (state.vendas || []).filter(v => v.id !== venda.id);
     }
 
-    // 4. Move para a lixeira
     const d = new Date();
     venda.excluidaEm = `${d.toLocaleDateString("pt-BR")} às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
     if (!Array.isArray(state.lixeiraVendas)) state.lixeiraVendas = [];
     state.lixeiraVendas.unshift(venda);
 
-    // 5. Remove do histórico ativo
     state.historicoVendas.splice(i, 1);
     save();
     mostrarNotificacao("Venda movida para a lixeira! Pode ser restaurada a qualquer momento.", "sucesso");
   });
 }
 
-// ==========================================
-// MODAL DA LIXEIRA & RESTAURAÇÃO
-// ==========================================
 function abrirModalLixeira() {
   const modal = document.getElementById("trashModal");
   const container = document.getElementById("trashListContainer");
@@ -1112,7 +1130,6 @@ function restaurarVenda(idx) {
   const venda = (state.lixeiraVendas || [])[idx];
   if (!venda) return;
 
-  // 1. Validação de Saldo de V-Bucks
   const conta = (state.contas || []).find(c => c.nome === venda.conta);
   const vbNecessarios = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, venda.valorBaseMomento);
 
@@ -1121,7 +1138,6 @@ function restaurarVenda(idx) {
     return;
   }
 
-  // 2. Validação de Timers Ativos e Vagas Restantes (Limite 5/5)
   const agora = Date.now();
   const timersAtivosParaRestaurar = (venda.timersSalvos || []).filter(t => t.expiresAt > agora);
   const vagasNecessarias = timersAtivosParaRestaurar.length;
@@ -1132,18 +1148,15 @@ function restaurarVenda(idx) {
     return;
   }
 
-  // 3. Desconta os V-Bucks novamente
   if (conta) {
     conta.vbucks = Math.max(0, (Number(conta.vbucks) || 0) - vbNecessarios);
   }
 
-  // 4. Restaura os timers que ainda estão dentro do prazo de 24h
   if (!Array.isArray(state.reservas)) state.reservas = [];
   timersAtivosParaRestaurar.forEach(t => {
     state.reservas.push(t);
   });
 
-  // 5. Restaura a venda na sessão ao vivo (card da conta/total do topo) e no histórico geral
   if (!Array.isArray(state.vendas)) state.vendas = [];
   if (!Array.isArray(state.historicoVendas)) state.historicoVendas = [];
 
@@ -1246,6 +1259,8 @@ function abrirModalEdicao(index) {
   document.getElementById("editNickInput").value = venda.nickCliente || "";
   document.getElementById("editValorInput").value = Number(venda.valor || 0).toFixed(2);
   
+  atualizarPreviewVBucksEdicao();
+
   const container = document.getElementById("editItensListContainer");
   const itens = Array.isArray(venda.itens) && venda.itens.length ? venda.itens : [venda.item || ""];
 
@@ -1438,6 +1453,7 @@ function novaLive() {
 
 document.getElementById("limparValorBtn").addEventListener("click", () => {
   document.getElementById("valorInput").value = "";
+  atualizarPreviewVBucks();
   document.getElementById("valorInput").focus();
 });
 
