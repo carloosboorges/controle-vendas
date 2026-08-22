@@ -761,55 +761,39 @@ function render() {
     return x;
   };
 
-  // Funções de agregação de valores e V-Bucks por período
+  // Funções de agregação
   const somaFiltro = fn => historico.filter(fn).reduce((s, v) => s + Number(v.valor || 0), 0);
   const somaVbucksFiltro = fn => historico.filter(fn).reduce((s, v) => s + (v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento)), 0);
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
-  // 1. Filtro Hoje
+  // 1. Hoje
   const hojeInicio = new Date(agoraData.getFullYear(), agoraData.getMonth(), agoraData.getDate());
   const amanhaInicio = new Date(hojeInicio);
   amanhaInicio.setDate(amanhaInicio.getDate() + 1);
-  const hojeTotal = somaFiltro(v => {
-    const d = chaveData(v);
-    return d && d >= hojeInicio && d < amanhaInicio;
-  });
-  const hojeVbucks = somaVbucksFiltro(v => {
-    const d = chaveData(v);
-    return d && d >= hojeInicio && d < amanhaInicio;
-  });
-  const hojePedidos = qtdPedidosFiltro(v => {
-    const d = chaveData(v);
-    return d && d >= hojeInicio && d < amanhaInicio;
-  });
-  const hojeItens = qtdItensFiltro(v => {
-    const d = chaveData(v);
-    return d && d >= hojeInicio && d < amanhaInicio;
-  });
+  const hojeTotal = somaFiltro(v => { const d = chaveData(v); return d && d >= hojeInicio && d < amanhaInicio; });
+  const hojeVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d >= hojeInicio && d < amanhaInicio; });
+  const hojePedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= hojeInicio && d < amanhaInicio; });
+  const hojeItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= hojeInicio && d < amanhaInicio; });
 
-  // 2. Filtro Semana
+  // 2. Ontem
+  const ontemInicio = new Date(hojeInicio);
+  ontemInicio.setDate(ontemInicio.getDate() - 1);
+  const ontemTotal = somaFiltro(v => { const d = chaveData(v); return d && d >= ontemInicio && d < hojeInicio; });
+  const ontemVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d >= ontemInicio && d < hojeInicio; });
+  const ontemPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= ontemInicio && d < hojeInicio; });
+  const ontemItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= ontemInicio && d < hojeInicio; });
+
+  // 3. Semana
   const semInicio = inicioSemana(agoraData);
   const semFim = new Date(semInicio);
   semFim.setDate(semFim.getDate() + 7);
-  const semanaTotal = somaFiltro(v => {
-    const d = chaveData(v);
-    return d && d >= semInicio && d < semFim;
-  });
-  const semanaVbucks = somaVbucksFiltro(v => {
-    const d = chaveData(v);
-    return d && d >= semInicio && d < semFim;
-  });
-  const semanaPedidos = qtdPedidosFiltro(v => {
-    const d = chaveData(v);
-    return d && d >= semInicio && d < semFim;
-  });
-  const semanaItens = qtdItensFiltro(v => {
-    const d = chaveData(v);
-    return d && d >= semInicio && d < semFim;
-  });
+  const semanaTotal = somaFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
+  const semanaVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
+  const semanaPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
+  const semanaItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
 
-  // 3. Filtro Mês
+  // 4. Mês
   const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const mapaMeses = {};
   const mesAtualKey = `${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
@@ -828,24 +812,12 @@ function render() {
   }
 
   const [selM, selA] = mesFiltroSelecionado.split("/").map(Number);
-  const mesTotal = somaFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA;
-  });
-  const mesVbucks = somaVbucksFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA;
-  });
-  const mesPedidos = qtdPedidosFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA;
-  });
-  const mesItens = qtdItensFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA;
-  });
+  const mesTotal = somaFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
+  const mesVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
+  const mesPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
+  const mesItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
 
-  // 4. Filtro Ano
+  // 5. Ano
   const setAnos = new Set();
   setAnos.add(String(agoraData.getFullYear()));
   historico.forEach(v => {
@@ -859,22 +831,10 @@ function render() {
   }
 
   const selAnoNum = Number(anoFiltroSelecionado);
-  const anoTotal = somaFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getFullYear() === selAnoNum;
-  });
-  const anoVbucks = somaVbucksFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getFullYear() === selAnoNum;
-  });
-  const anoPedidos = qtdPedidosFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getFullYear() === selAnoNum;
-  });
-  const anoItens = qtdItensFiltro(v => {
-    const d = chaveData(v);
-    return d && d.getFullYear() === selAnoNum;
-  });
+  const anoTotal = somaFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
+  const anoVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
+  const anoPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
+  const anoItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
 
   const metasAtingidas = Math.floor(totalHistorico / 310);
   const metasRetiradas = Math.min(state.metasLucro?.retiradas || 0, metasAtingidas);
@@ -907,6 +867,12 @@ function render() {
       <strong>${money(hojeTotal)}</strong>
       <small>${hojePedidos} ${hojePedidos === 1 ? "pedido" : "pedidos"} (${hojeItens} ${hojeItens === 1 ? "item" : "itens"})</small>
       <small class="period-vbucks-text">🪙 ${formatVBucks(hojeVbucks)} V-Bucks</small>
+    </div>
+    <div class="period-card">
+      <span>⏮️ Ontem</span>
+      <strong>${money(ontemTotal)}</strong>
+      <small>${ontemPedidos} ${ontemPedidos === 1 ? "pedido" : "pedidos"} (${ontemItens} ${ontemItens === 1 ? "item" : "itens"})</small>
+      <small class="period-vbucks-text">🪙 ${formatVBucks(ontemVbucks)} V-Bucks</small>
     </div>
     <div class="period-card">
       <span>📅 Esta semana</span>
@@ -1278,7 +1244,7 @@ function removerTimersConta(i) {
 }
 
 // ==========================================
-// MODAL DE EDIÇÃO DE VENDA (COM TROCA DE CONTA)
+// MODAL DE EDIÇÃO DE VENDA
 // ==========================================
 function abrirModalEdicao(index) {
   const venda = state.historicoVendas[index];
@@ -1286,7 +1252,6 @@ function abrirModalEdicao(index) {
 
   document.getElementById("editVendaIndex").value = index;
   
-  // Preenche a lista de contas garantindo que a conta da venda apareça selecionada
   const selectConta = document.getElementById("editContaSelect");
   if (selectConta) {
     const listaContas = state.contas || [];
