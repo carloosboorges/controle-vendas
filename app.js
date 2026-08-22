@@ -201,7 +201,7 @@ function salvarNovaContaModal() {
 }
 
 // ==========================================
-// MODAL EDITAR CONTA
+// MODAL EDITAR CONTA & RECARGA RÁPIDA
 // ==========================================
 function abrirModalEditConta(i) {
   const conta = state.contas[i];
@@ -210,6 +210,9 @@ function abrirModalEditConta(i) {
   document.getElementById("editContaIndex").value = i;
   document.getElementById("editContaNomeInput").value = conta.nome;
   document.getElementById("editContaVbucksInput").value = Number(conta.vbucks) || 0;
+  
+  const somarInput = document.getElementById("editContaSomarVbucksInput");
+  if (somarInput) somarInput.value = "";
 
   const modal = document.getElementById("editContaModal");
   if (modal) modal.style.display = "flex";
@@ -218,6 +221,31 @@ function abrirModalEditConta(i) {
 function fecharModalEditConta() {
   const modal = document.getElementById("editContaModal");
   if (modal) modal.style.display = "none";
+}
+
+function somarPacoteRapido(qtd) {
+  const saldoInput = document.getElementById("editContaVbucksInput");
+  if (!saldoInput) return;
+  const atual = parseInt(String(saldoInput.value || "0").replace(/\D/g, ""), 10) || 0;
+  saldoInput.value = atual + qtd;
+  mostrarNotificacao(`+${qtd.toLocaleString("pt-BR")} V-Bucks somados ao saldo!`, "sucesso");
+}
+
+function aplicarSomaVbucksModal() {
+  const saldoInput = document.getElementById("editContaVbucksInput");
+  const somarInput = document.getElementById("editContaSomarVbucksInput");
+  if (!saldoInput || !somarInput) return;
+
+  const saldoAtual = parseInt(String(saldoInput.value || "0").replace(/\D/g, ""), 10) || 0;
+  const valorSomar = parseInt(String(somarInput.value || "0").replace(/\D/g, ""), 10) || 0;
+
+  if (valorSomar > 0) {
+    saldoInput.value = saldoAtual + valorSomar;
+    somarInput.value = "";
+    mostrarNotificacao(`+${valorSomar.toLocaleString("pt-BR")} V-Bucks somados ao saldo!`, "sucesso");
+  } else {
+    mostrarNotificacao("Digite uma quantidade válida para somar.", "info");
+  }
 }
 
 function salvarEdicaoContaModal() {
@@ -255,7 +283,7 @@ function salvarEdicaoContaModal() {
 
   save();
   fecharModalEditConta();
-  mostrarNotificacao(`Dados da conta ${conta.nome} atualizados!`, "sucesso");
+  mostrarNotificacao(`Dados da conta ${conta.nome} atualizados! Saldo: ${formatVBucks(conta.vbucks)} VB`, "sucesso");
 }
 
 // ==========================================
@@ -761,7 +789,7 @@ function render() {
     return x;
   };
 
-  // Funções de agregação
+  // Funções de agregação de valores e V-Bucks por período
   const somaFiltro = fn => historico.filter(fn).reduce((s, v) => s + Number(v.valor || 0), 0);
   const somaVbucksFiltro = fn => historico.filter(fn).reduce((s, v) => s + (v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento)), 0);
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
@@ -1350,7 +1378,6 @@ function salvarEdicaoVenda() {
   const contaAntigaObj = (state.contas || []).find(c => c.nome === contaAntigaNome);
   const contaNovaObj = (state.contas || []).find(c => c.nome === novaContaNome);
 
-  // Se o usuário mudou a conta selecionada
   if (novaContaNome !== contaAntigaNome) {
     const saldoDisponivelNova = Number(contaNovaObj?.vbucks) || 0;
     if (saldoDisponivelNova < vbucksNovos) {
@@ -1367,15 +1394,12 @@ function salvarEdicaoVenda() {
       return;
     }
 
-    // 1. Devolve V-Bucks para a conta antiga
     if (contaAntigaObj) {
       contaAntigaObj.vbucks = (Number(contaAntigaObj.vbucks) || 0) + Number(vbucksAntigos);
     }
-    // 2. Debita da nova conta
     if (contaNovaObj) {
       contaNovaObj.vbucks = Math.max(0, (Number(contaNovaObj.vbucks) || 0) - Number(vbucksNovos));
     }
-    // 3. Transfere os timers para a nova conta mantendo o tempo restante
     if (Array.isArray(state.reservas)) {
       state.reservas.forEach(r => {
         if (r.vendaId === venda.id) {
@@ -1384,7 +1408,6 @@ function salvarEdicaoVenda() {
       });
     }
   } else {
-    // Mesma conta, recalcula apenas a diferença de V-Bucks
     const diferencaVBucks = vbucksNovos - vbucksAntigos;
     if (contaAntigaObj) {
       contaAntigaObj.vbucks = Math.max(0, (Number(contaAntigaObj.vbucks) || 0) - Number(diferencaVBucks));
