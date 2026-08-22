@@ -163,7 +163,6 @@ body {
   flex: 1.2;
 }
 
-/* Linha do label que mantém tudo em uma linha só sem quebrar */
 .field-label-row {
   display: flex;
   align-items: center;
@@ -177,7 +176,7 @@ body {
   margin: 0;
 }
 
-/* Badge de prévia de V-Bucks perfeitamente alinhado */
+/* Badge de prévia de V-Bucks */
 .vbucks-badge-preview {
   font-size: 11px;
   font-weight: 800;
@@ -614,11 +613,14 @@ button:hover {
   color: #fff;
 }
 
+/* =======================================================
+   GRID DE PERÍODOS COM 6 COLUNAS NA MESMA LINHA
+======================================================= */
 .history-periods {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(6, 1fr); /* 6 colunas para caber todos */
+  gap: 8px;
   margin-bottom: 8px;
 }
 
@@ -626,39 +628,60 @@ button:hover {
   background: var(--panel-card);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 12px;
+  padding: 10px 8px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
 }
 
 .period-card span {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .period-card strong {
-  font-size: 17px;
+  font-size: 15px;
   color: #fff;
+  white-space: nowrap;
+  margin: 2px 0;
 }
 
 .period-card small {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.period-vbucks-text {
+  color: var(--green) !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+  margin-top: 1px;
 }
 
 .period-header-select {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .period-select {
   background: transparent !important;
   border: none !important;
   color: var(--muted) !important;
-  font-size: 12px !important;
+  font-size: 11px !important;
   font-weight: 700 !important;
   font-family: inherit !important;
   padding: 0 !important;
@@ -666,6 +689,10 @@ button:hover {
   outline: none !important;
   box-shadow: none !important;
   width: auto !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 .period-select option {
@@ -677,6 +704,18 @@ button:hover {
 .period-select:hover,
 .period-select:focus {
   color: var(--accent-light) !important;
+}
+
+.profit-goal-btn {
+  margin-top: 4px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 10px;
+  font-weight: 800;
+  width: 100%;
 }
 
 .history-cards {
@@ -793,17 +832,6 @@ button:hover {
   font-size: 13px;
   font-weight: 700;
   color: #fff;
-}
-
-.profit-goal-btn {
-  margin-top: 6px;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #fff;
-  border-radius: 8px;
-  padding: 5px 10px;
-  font-size: 11px;
-  font-weight: 800;
 }
 
 /* Modais e Toasts */
@@ -948,6 +976,13 @@ footer {
   margin-top: 35px;
 }
 
+/* Responsividade */
+@media (max-width: 950px) {
+  .history-periods {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 850px) {
   .account-row {
     flex-direction: column;
@@ -961,9 +996,6 @@ footer {
   }
   .account-actions button {
     flex: 1;
-  }
-  .history-periods {
-    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -987,6 +1019,9 @@ footer {
   }
   .item-type-select {
     width: 100% !important;
+  }
+  .history-periods {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -1016,13 +1051,4 @@ footer {
   .history-periods {
     grid-template-columns: 1fr;
   }
-
-  /* Destaque de V-Bucks nos cards de período */
-.period-vbucks-text {
-  color: var(--green);
-  font-size: 11px;
-  font-weight: 700;
-  margin-top: 3px;
-  letter-spacing: 0.2px;
-}
 }
