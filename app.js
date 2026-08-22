@@ -760,14 +760,22 @@ function render() {
     x.setDate(x.getDate() + dif);
     return x;
   };
+
+  // Funções de agregação de valores e V-Bucks por período
   const somaFiltro = fn => historico.filter(fn).reduce((s, v) => s + Number(v.valor || 0), 0);
+  const somaVbucksFiltro = fn => historico.filter(fn).reduce((s, v) => s + (v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento)), 0);
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
+  // 1. Filtro Hoje
   const hojeInicio = new Date(agoraData.getFullYear(), agoraData.getMonth(), agoraData.getDate());
   const amanhaInicio = new Date(hojeInicio);
   amanhaInicio.setDate(amanhaInicio.getDate() + 1);
   const hojeTotal = somaFiltro(v => {
+    const d = chaveData(v);
+    return d && d >= hojeInicio && d < amanhaInicio;
+  });
+  const hojeVbucks = somaVbucksFiltro(v => {
     const d = chaveData(v);
     return d && d >= hojeInicio && d < amanhaInicio;
   });
@@ -780,10 +788,15 @@ function render() {
     return d && d >= hojeInicio && d < amanhaInicio;
   });
 
+  // 2. Filtro Semana
   const semInicio = inicioSemana(agoraData);
   const semFim = new Date(semInicio);
   semFim.setDate(semFim.getDate() + 7);
   const semanaTotal = somaFiltro(v => {
+    const d = chaveData(v);
+    return d && d >= semInicio && d < semFim;
+  });
+  const semanaVbucks = somaVbucksFiltro(v => {
     const d = chaveData(v);
     return d && d >= semInicio && d < semFim;
   });
@@ -796,6 +809,7 @@ function render() {
     return d && d >= semInicio && d < semFim;
   });
 
+  // 3. Filtro Mês
   const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const mapaMeses = {};
   const mesAtualKey = `${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
@@ -818,6 +832,10 @@ function render() {
     const d = chaveData(v);
     return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA;
   });
+  const mesVbucks = somaVbucksFiltro(v => {
+    const d = chaveData(v);
+    return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA;
+  });
   const mesPedidos = qtdPedidosFiltro(v => {
     const d = chaveData(v);
     return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA;
@@ -827,6 +845,7 @@ function render() {
     return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA;
   });
 
+  // 4. Filtro Ano
   const setAnos = new Set();
   setAnos.add(String(agoraData.getFullYear()));
   historico.forEach(v => {
@@ -841,6 +860,10 @@ function render() {
 
   const selAnoNum = Number(anoFiltroSelecionado);
   const anoTotal = somaFiltro(v => {
+    const d = chaveData(v);
+    return d && d.getFullYear() === selAnoNum;
+  });
+  const anoVbucks = somaVbucksFiltro(v => {
     const d = chaveData(v);
     return d && d.getFullYear() === selAnoNum;
   });
@@ -883,11 +906,13 @@ function render() {
       <span>📍 Hoje</span>
       <strong>${money(hojeTotal)}</strong>
       <small>${hojePedidos} ${hojePedidos === 1 ? "pedido" : "pedidos"} (${hojeItens} ${hojeItens === 1 ? "item" : "itens"})</small>
+      <small class="period-vbucks-text">🪙 ${formatVBucks(hojeVbucks)} V-Bucks</small>
     </div>
     <div class="period-card">
       <span>📅 Esta semana</span>
       <strong>${money(semanaTotal)}</strong>
       <small>${semanaPedidos} ${semanaPedidos === 1 ? "pedido" : "pedidos"} (${semanaItens} ${semanaItens === 1 ? "item" : "itens"})</small>
+      <small class="period-vbucks-text">🪙 ${formatVBucks(semanaVbucks)} V-Bucks</small>
     </div>
     <div class="period-card period-card-select">
       <div class="period-header-select">
@@ -898,6 +923,7 @@ function render() {
       </div>
       <strong>${money(mesTotal)}</strong>
       <small>${mesPedidos} ${mesPedidos === 1 ? "pedido" : "pedidos"} (${mesItens} ${mesItens === 1 ? "item" : "itens"})</small>
+      <small class="period-vbucks-text">🪙 ${formatVBucks(mesVbucks)} V-Bucks</small>
     </div>
     <div class="period-card period-card-select">
       <div class="period-header-select">
@@ -908,6 +934,7 @@ function render() {
       </div>
       <strong>${money(anoTotal)}</strong>
       <small>${anoPedidos} ${anoPedidos === 1 ? "pedido" : "pedidos"} (${anoItens} ${anoItens === 1 ? "item" : "itens"})</small>
+      <small class="period-vbucks-text">🪙 ${formatVBucks(anoVbucks)} V-Bucks</small>
     </div>
     <div class="period-card profit-card">
       <span>📈 Lucro</span>
@@ -1251,7 +1278,7 @@ function removerTimersConta(i) {
 }
 
 // ==========================================
-// MODAL DE EDIÇÃO DE VENDA (CORRIGIDO)
+// MODAL DE EDIÇÃO DE VENDA (COM TROCA DE CONTA)
 // ==========================================
 function abrirModalEdicao(index) {
   const venda = state.historicoVendas[index];
@@ -1383,7 +1410,7 @@ function salvarEdicaoVenda() {
     if (contaNovaObj) {
       contaNovaObj.vbucks = Math.max(0, (Number(contaNovaObj.vbucks) || 0) - Number(vbucksNovos));
     }
-    // 3. Transfere os timers para a nova conta com o mesmo tempo restante
+    // 3. Transfere os timers para a nova conta mantendo o tempo restante
     if (Array.isArray(state.reservas)) {
       state.reservas.forEach(r => {
         if (r.vendaId === venda.id) {
@@ -1392,7 +1419,7 @@ function salvarEdicaoVenda() {
       });
     }
   } else {
-    // Mesma conta, recalcula apenas a diferença de V-Bucks se o valor mudou
+    // Mesma conta, recalcula apenas a diferença de V-Bucks
     const diferencaVBucks = vbucksNovos - vbucksAntigos;
     if (contaAntigaObj) {
       contaAntigaObj.vbucks = Math.max(0, (Number(contaAntigaObj.vbucks) || 0) - Number(diferencaVBucks));
