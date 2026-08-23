@@ -897,15 +897,50 @@ button:hover {
   -webkit-user-select: text !important;
 }
 
+/* =======================================================
+   ESTILO ELEGANTE DE CLIQUE PARA COPIAR (PILL HOVER)
+======================================================= */
 .copyable-text {
-  transition: color 0.15s ease, opacity 0.15s ease;
+  cursor: pointer !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  margin: -2px -4px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.18s ease-in-out;
   user-select: text !important;
   -webkit-user-select: text !important;
 }
 
 .copyable-text:hover {
-  color: #fff !important;
-  text-shadow: 0 0 8px rgba(179, 122, 252, 0.4);
+  color: #ffffff !important;
+  background: rgba(142, 68, 255, 0.22);
+  border-color: rgba(179, 122, 252, 0.45);
+  box-shadow: 0 0 10px rgba(142, 68, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.copyable-text:active {
+  transform: scale(0.97);
+  background: rgba(142, 68, 255, 0.38);
+}
+
+/* Ícone flutuante sutil que aparece no hover */
+.copyable-text::after {
+  content: "📋";
+  font-size: 10px;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all 0.18s ease-in-out;
+  display: inline-block;
+  filter: grayscale(0.2);
+}
+
+.copyable-text:hover::after {
+  opacity: 0.85;
+  transform: translateX(0);
 }
 
 .history-client {
@@ -921,7 +956,7 @@ button:hover {
   font-size: 13px;
   color: var(--muted);
   margin-top: 5px;
-  line-height: 1.4;
+  line-height: 1.5;
   user-select: text !important;
   -webkit-user-select: text !important;
 }
