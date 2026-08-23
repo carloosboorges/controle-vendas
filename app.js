@@ -573,18 +573,18 @@ async function save() {
 }
 
 function limparReservasExpiradas() {
-  if (!state || !Array.isArray(state.reservas)) return;
+  if (!state || !Array.isArray(state.reservas)) return false;
   const agora = Date.now();
   const novas = state.reservas.filter(r => r.expiresAt > agora);
   if (novas.length !== state.reservas.length) {
     state.reservas = novas;
-    save();
+    return true;
   }
+  return false;
 }
 
 function usadasDaConta(nome) {
-  limparReservasExpiradas();
-  return (state.reservas || []).filter(r => r.conta === nome).length;
+  return (state.reservas || []).filter(r => r.conta === nome && r.expiresAt > Date.now()).length;
 }
 
 function tempoRestante(ms) {
@@ -727,33 +727,7 @@ function render() {
     .join("");
   if ([...sel.options].some(o => o.value === old)) sel.value = old;
 
-  document.getElementById("totaisPorConta").innerHTML = (state.contas || [])
-    .filter(c => c.ativa)
-    .map(c => {
-      const quantidade = usadasDaConta(c.nome);
-      const disponiveis = Math.max(0, 5 - quantidade);
-      const reservasAtivas = (state.reservas || [])
-        .filter(r => r.conta === c.nome && r.expiresAt > Date.now())
-        .sort((a, b) => a.expiresAt - b.expiresAt);
-      const tempos = reservasAtivas.map(
-        (r, n) => `
-        <div class="timer-line">
-          <span>Venda ${n + 1}: ${tempoRestante(r.expiresAt - Date.now())}</span>
-          <button type="button" class="btn-danger timer-remove-btn" onclick="removerTimerEspecifico(${state.reservas.indexOf(r)})">✕</button>
-        </div>
-      `
-      );
-      return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
-      <div class="account-card-head"><div class="name">${esc(c.nome)}</div><button type="button" class="btn-danger reset-timer-btn" onclick="removerTimersConta(${state.contas.indexOf(c)})">🗑️ Remover timers</button></div>
-      <div class="amount">${money(t[c.nome] || 0)}</div><div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
-      <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta conta</div>
-      <div class="sales-count">📦 ${quantidade}/5 usadas · ${disponiveis} ${disponiveis === 1 ? "disponível" : "disponíveis"}</div>
-      ${quantidade >= 5 ? `<div class="limit">🔴 LIMITE ATINGIDO — 5/5</div>` : ""}
-      <div class="timer">${tempos.length ? tempos.join("") : `<div class="timer">🟢 5 vagas disponíveis</div>`}</div>
-      <div class="state">${quantidade >= 5 ? "🔴 Sem envios disponíveis" : "🟢 Ativa"}</div>
-    </div>`;
-    })
-    .join("");
+  renderContasCards(t);
 
   document.getElementById("contas").innerHTML = (state.contas || [])
     .map(
@@ -813,20 +787,25 @@ function render() {
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
-  // 1. Mapa de Datas Específicas
-  const mapaDatas = {};
+  // ==========================================
+  // 1. GERAÇÃO E ORDENAÇÃO DECRESCENTE DAS DATAS
+  // ==========================================
+  const setDatas = new Set();
   const hojeKey = agoraData.toLocaleDateString("pt-BR");
-  mapaDatas[hojeKey] = `Hoje (${hojeKey.slice(0, 5)})`;
+  setDatas.add(hojeKey);
 
   historico.forEach(v => {
-    if (v.data) {
-      if (!mapaDatas[v.data]) {
-        mapaDatas[v.data] = v.data === hojeKey ? `Hoje (${v.data.slice(0, 5)})` : v.data;
-      }
-    }
+    if (v.data) setDatas.add(v.data);
   });
 
-  if (!diaFiltroSelecionado || !mapaDatas[diaFiltroSelecionado]) {
+  // Ordena de forma estritamente decrescente (hoje, ontem, anteontem...)
+  const listaDatasOrdenada = Array.from(setDatas).sort((a, b) => {
+    const da = chaveData({ data: a }) || new Date(0);
+    const db = chaveData({ data: b }) || new Date(0);
+    return db.getTime() - da.getTime();
+  });
+
+  if (!diaFiltroSelecionado || !setDatas.has(diaFiltroSelecionado)) {
     diaFiltroSelecionado = hojeKey;
   }
 
@@ -904,8 +883,11 @@ function render() {
 
   const periodosEl = document.getElementById("historicoPeriodos");
   if (periodosEl) {
-    const optionsDiaHtml = Object.entries(mapaDatas)
-      .map(([k, label]) => `<option value="${k}" ${k === diaFiltroSelecionado ? "selected" : ""}>${label}</option>`)
+    const optionsDiaHtml = listaDatasOrdenada
+      .map(dKey => {
+        const label = dKey === hojeKey ? `Hoje (${dKey.slice(0, 5)})` : dKey;
+        return `<option value="${dKey}" ${dKey === diaFiltroSelecionado ? "selected" : ""}>${label}</option>`;
+      })
       .join("");
 
     const optionsMesHtml = Object.entries(mapaMeses)
@@ -1002,6 +984,40 @@ function render() {
         })
         .join("")
     : `<div class="empty">Nenhuma venda registrada ainda.</div>`;
+}
+
+function renderContasCards(t) {
+  if (!t) t = totais();
+  const container = document.getElementById("totaisPorConta");
+  if (!container) return;
+
+  container.innerHTML = (state.contas || [])
+    .filter(c => c.ativa)
+    .map(c => {
+      const quantidade = usadasDaConta(c.nome);
+      const disponiveis = Math.max(0, 5 - quantidade);
+      const reservasAtivas = (state.reservas || [])
+        .filter(r => r.conta === c.nome && r.expiresAt > Date.now())
+        .sort((a, b) => a.expiresAt - b.expiresAt);
+      const tempos = reservasAtivas.map(
+        (r, n) => `
+        <div class="timer-line">
+          <span>Venda ${n + 1}: ${tempoRestante(r.expiresAt - Date.now())}</span>
+          <button type="button" class="btn-danger timer-remove-btn" onclick="removerTimerEspecifico(${state.reservas.indexOf(r)})">✕</button>
+        </div>
+      `
+      );
+      return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
+      <div class="account-card-head"><div class="name">${esc(c.nome)}</div><button type="button" class="btn-danger reset-timer-btn" onclick="removerTimersConta(${state.contas.indexOf(c)})">🗑️ Remover timers</button></div>
+      <div class="amount">${money(t[c.nome] || 0)}</div><div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
+      <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta conta</div>
+      <div class="sales-count">📦 ${quantidade}/5 usadas · ${disponiveis} ${disponiveis === 1 ? "disponível" : "disponíveis"}</div>
+      ${quantidade >= 5 ? `<div class="limit">🔴 LIMITE ATINGIDO — 5/5</div>` : ""}
+      <div class="timer">${tempos.length ? tempos.join("") : `<div class="timer">🟢 5 vagas disponíveis</div>`}</div>
+      <div class="state">${quantidade >= 5 ? "🔴 Sem envios disponíveis" : "🟢 Ativa"}</div>
+    </div>`;
+    })
+    .join("");
 }
 
 function valorRapido(v) {
@@ -1271,7 +1287,7 @@ function toggleConta(i) {
 function removerTimerEspecifico(index) {
   const timer = state.reservas[index];
   if (!timer || timer.expiresAt <= Date.now()) {
-    limparReservasExpiradas();
+    if (limparReservasExpiradas()) save();
     render();
     return;
   }
@@ -1562,7 +1578,12 @@ document.getElementById("valorInput").addEventListener("keydown", e => {
 });
 
 inicializar();
+
+// Temporizador inteligente a cada 1 segundo: só atualiza os timers sem resetar os menus da tela
 setInterval(() => {
-  limparReservasExpiradas();
-  render();
+  if (limparReservasExpiradas()) {
+    save();
+  } else {
+    renderContasCards();
+  }
 }, 1000);
