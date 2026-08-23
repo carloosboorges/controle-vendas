@@ -614,7 +614,7 @@ button:hover {
 }
 
 /* =======================================================
-   GRID DE PERÍODOS COM 5 COLUNAS (ESPAÇOSO E ORGANIZADO)
+   GRID DE PERÍODOS COM 5 COLUNAS ESPAÇOSAS
 ======================================================= */
 .history-periods {
   width: 100%;
@@ -673,8 +673,9 @@ button:hover {
 .period-header-select {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
+  width: 100%;
 }
 
 .period-select {
@@ -704,6 +705,29 @@ button:hover {
 .period-select:hover,
 .period-select:focus {
   color: var(--accent-light) !important;
+}
+
+/* Input de Calendário Nativo Estilizado */
+.period-date-input {
+  background: transparent !important;
+  border: none !important;
+  color: var(--accent-light) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  font-family: inherit !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  outline: none !important;
+  box-shadow: none !important;
+  width: auto !important;
+  color-scheme: dark;
+}
+
+.period-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(1) brightness(0.85);
+  margin-left: 4px;
+  padding: 0;
 }
 
 .profit-goal-btn {

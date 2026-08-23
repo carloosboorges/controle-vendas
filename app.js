@@ -33,7 +33,7 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
-let diaFiltroSelecionado = null;
+let diaFiltroSelecionado = null; // Guardado no formato YYYY-MM-DD para o calendário
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
 
@@ -628,7 +628,6 @@ function mudarDiaFiltro(val) {
 
 function mudarMesFiltro(val) {
   mesFiltroSelecionado = val;
-  diaFiltroSelecionado = null; // Reseta para auto-selecionar o dia mais recente do mês escolhido
   render();
 }
 
@@ -693,6 +692,20 @@ function obterItensDaVenda() {
   }
 
   return lista;
+}
+
+// Converte DD/MM/YYYY para YYYY-MM-DD (para o input date)
+function dataBRparaISO(dataBR) {
+  const partes = String(dataBR || "").split("/");
+  if (partes.length !== 3) return "";
+  return `${partes[2]}-${partes[1].padStart(2, "0")}-${partes[0].padStart(2, "0")}`;
+}
+
+// Converte YYYY-MM-DD para DD/MM/YYYY
+function dataISOparaBR(dataISO) {
+  const partes = String(dataISO || "").split("-");
+  if (partes.length !== 3) return "";
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
 function render() {
@@ -788,7 +801,30 @@ function render() {
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
-  // Mapeamento de Meses disponíveis no histórico
+  // 1. DATA DO CALENDÁRIO VISUAL
+  const hojeBR = agoraData.toLocaleDateString("pt-BR");
+  const hojeISO = dataBRparaISO(hojeBR);
+
+  if (!diaFiltroSelecionado) {
+    diaFiltroSelecionado = hojeISO;
+  }
+
+  const dataFiltroBR = dataISOparaBR(diaFiltroSelecionado);
+  const diaTotal = somaFiltro(v => v.data === dataFiltroBR);
+  const diaVbucks = somaVbucksFiltro(v => v.data === dataFiltroBR);
+  const diaPedidos = qtdPedidosFiltro(v => v.data === dataFiltroBR);
+  const diaItens = qtdItensFiltro(v => v.data === dataFiltroBR);
+
+  // 2. SEMANA
+  const semInicio = inicioSemana(agoraData);
+  const semFim = new Date(semInicio);
+  semFim.setDate(semFim.getDate() + 7);
+  const semanaTotal = somaFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
+  const semanaVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
+  const semanaPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
+  const semanaItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
+
+  // 3. MÊS
   const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const mapaMeses = {};
   const mesAtualKey = `${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
@@ -807,57 +843,12 @@ function render() {
   }
 
   const [selM, selA] = mesFiltroSelecionado.split("/").map(Number);
-
-  // ========================================================
-  // 1. GERAÇÃO DE DATAS LIMITADAS AO MÊS SELECIONADO (Decrescente)
-  // ========================================================
-  const setDatasDoMes = new Set();
-  const hojeKey = agoraData.toLocaleDateString("pt-BR");
-
-  if (selM === agoraData.getMonth() + 1 && selA === agoraData.getFullYear()) {
-    setDatasDoMes.add(hojeKey);
-  }
-
-  historico.forEach(v => {
-    if (v.data) {
-      const d = chaveData(v);
-      if (d && d.getMonth() === (selM - 1) && d.getFullYear() === selA) {
-        setDatasDoMes.add(v.data);
-      }
-    }
-  });
-
-  const listaDatasOrdenada = Array.from(setDatasDoMes).sort((a, b) => {
-    const da = chaveData({ data: a }) || new Date(0);
-    const db = chaveData({ data: b }) || new Date(0);
-    return db.getTime() - da.getTime();
-  });
-
-  if (!diaFiltroSelecionado || !setDatasDoMes.has(diaFiltroSelecionado)) {
-    diaFiltroSelecionado = listaDatasOrdenada[0] || hojeKey;
-  }
-
-  const diaTotal = somaFiltro(v => v.data === diaFiltroSelecionado);
-  const diaVbucks = somaVbucksFiltro(v => v.data === diaFiltroSelecionado);
-  const diaPedidos = qtdPedidosFiltro(v => v.data === diaFiltroSelecionado);
-  const diaItens = qtdItensFiltro(v => v.data === diaFiltroSelecionado);
-
-  // 2. Semana
-  const semInicio = inicioSemana(agoraData);
-  const semFim = new Date(semInicio);
-  semFim.setDate(semFim.getDate() + 7);
-  const semanaTotal = somaFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
-  const semanaVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
-  const semanaPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
-  const semanaItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
-
-  // 3. Mês
   const mesTotal = somaFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
 
-  // 4. Ano
+  // 4. ANO
   const setAnos = new Set();
   setAnos.add(String(agoraData.getFullYear()));
   historico.forEach(v => {
@@ -876,6 +867,7 @@ function render() {
   const anoPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
 
+  // 5. METAS DE LUCRO
   const metasAtingidas = Math.floor(totalHistorico / 310);
   const metasRetiradas = Math.min(state.metasLucro?.retiradas || 0, metasAtingidas);
   const metasDisponiveis = Math.max(0, metasAtingidas - metasRetiradas);
@@ -893,13 +885,6 @@ function render() {
 
   const periodosEl = document.getElementById("historicoPeriodos");
   if (periodosEl) {
-    const optionsDiaHtml = listaDatasOrdenada
-      .map(dKey => {
-        const label = dKey === hojeKey ? `Hoje (${dKey.slice(0, 5)})` : dKey;
-        return `<option value="${dKey}" ${dKey === diaFiltroSelecionado ? "selected" : ""}>${label}</option>`;
-      })
-      .join("");
-
     const optionsMesHtml = Object.entries(mapaMeses)
       .map(([k, label]) => `<option value="${k}" ${k === mesFiltroSelecionado ? "selected" : ""}>${label}</option>`)
       .join("");
@@ -909,23 +894,26 @@ function render() {
       .join("");
 
     periodosEl.innerHTML = `
-    <div class="period-card period-card-select">
+    <!-- Card 1: Calendário Nativo com Seletor Visual -->
+    <div class="period-card">
       <div class="period-header-select">
-        <span>📍</span>
-        <select class="period-select" onchange="mudarDiaFiltro(this.value)">
-          ${optionsDiaHtml}
-        </select>
+        <span>📅</span>
+        <input type="date" class="period-date-input" value="${diaFiltroSelecionado}" onchange="mudarDiaFiltro(this.value)">
       </div>
       <strong>${money(diaTotal)}</strong>
       <small>${diaPedidos} ${diaPedidos === 1 ? "pedido" : "pedidos"} (${diaItens} ${diaItens === 1 ? "item" : "itens"})</small>
       <small class="period-vbucks-text">🪙 ${formatVBucks(diaVbucks)} V-Bucks</small>
     </div>
+
+    <!-- Card 2: Esta Semana -->
     <div class="period-card">
       <span>📅 Esta semana</span>
       <strong>${money(semanaTotal)}</strong>
       <small>${semanaPedidos} ${semanaPedidos === 1 ? "pedido" : "pedidos"} (${semanaItens} ${semanaItens === 1 ? "item" : "itens"})</small>
       <small class="period-vbucks-text">🪙 ${formatVBucks(semanaVbucks)} V-Bucks</small>
     </div>
+
+    <!-- Card 3: Mês Selecionado -->
     <div class="period-card period-card-select">
       <div class="period-header-select">
         <span>🗓️</span>
@@ -937,6 +925,8 @@ function render() {
       <small>${mesPedidos} ${mesPedidos === 1 ? "pedido" : "pedidos"} (${mesItens} ${mesItens === 1 ? "item" : "itens"})</small>
       <small class="period-vbucks-text">🪙 ${formatVBucks(mesVbucks)} V-Bucks</small>
     </div>
+
+    <!-- Card 4: Ano Selecionado -->
     <div class="period-card period-card-select">
       <div class="period-header-select">
         <span>📆</span>
@@ -948,6 +938,8 @@ function render() {
       <small>${anoPedidos} ${anoPedidos === 1 ? "pedido" : "pedidos"} (${anoItens} ${anoItens === 1 ? "item" : "itens"})</small>
       <small class="period-vbucks-text">🪙 ${formatVBucks(anoVbucks)} V-Bucks</small>
     </div>
+
+    <!-- Card 5: Metas de Lucro -->
     <div class="period-card profit-card">
       <span>📈 Lucro</span>
       <strong>${money(lucroHistorico)}</strong>
@@ -1589,7 +1581,7 @@ document.getElementById("valorInput").addEventListener("keydown", e => {
 
 inicializar();
 
-// Temporizador inteligente a cada 1 segundo: só atualiza os timers sem resetar os menus da tela
+// Temporizador a cada 1 segundo para atualizar os timers sem reconstruir os selects da tela
 setInterval(() => {
   if (limparReservasExpiradas()) {
     save();
