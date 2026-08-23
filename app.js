@@ -33,7 +33,7 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
-// Variáveis de controle de visualização do calendário personalizado
+// Variáveis de controle do calendário personalizado
 let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
 let calPopoverAberto = false;
@@ -43,15 +43,24 @@ let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
 
 // ==========================================
-// FUNÇÃO DE COPIAR TEXTO COM UM CLIQUE
+// FUNÇÃO DE COPIAR TEXTO CIRÚRGICA
 // ==========================================
-function copiarTexto(texto, tipo = "Texto") {
+function copiarTexto(texto, tipo = "Texto", event = null) {
+  if (event) event.stopPropagation();
   if (!texto || texto === "—") return;
+  
   navigator.clipboard.writeText(texto).then(() => {
     mostrarNotificacao(`📋 ${tipo} copiado: "${texto}"`, "sucesso");
   }).catch(() => {
     mostrarNotificacao("Não foi possível copiar automaticamente.", "erro");
   });
+}
+
+// Extrai estritamente o nome do item descartando a categoria (Ex: 'Música – Song' -> 'Song')
+function extrairApenasNomeItem(itemStr) {
+  if (!itemStr) return "";
+  const { nome } = parseItemString(itemStr);
+  return nome || itemStr;
 }
 
 // ==========================================
@@ -143,6 +152,10 @@ function gerarHtmlCalendarioPopover() {
       </div>
       <div class="calendar-days-grid">
         ${diasHtml}
+      </div>
+      <div style="font-size:11px; color:var(--muted); text-align:center; margin-top:6px; display:flex; align-items:center; justify-content:center; gap:5px; border-top:1px solid rgba(255,255,255,0.06); padding-top:6px;">
+        <span style="width:6px; height:6px; background:var(--green); border-radius:50%; display:inline-block; box-shadow:0 0 6px var(--green);"></span>
+        <span style="font-weight:600;">Com vendas</span>
       </div>
     </div>
   `;
@@ -1037,18 +1050,31 @@ function render() {
           const i = state.historicoVendas.length - 1 - ri;
           const itens = v.quantidade || 1;
           const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+          
+          // Formata itens individualmente permitindo clicar estritamente em cima do nome
+          const itensListHtml = Array.isArray(v.itens) && v.itens.length
+            ? v.itens.map((itemStr, n) => {
+                const apenasNome = extrairApenasNomeItem(itemStr);
+                return `${n === 0 ? "" : "<br>"}🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(apenasNome)}', 'Item', event)" title="Clique para copiar apenas: ${esc(apenasNome)}">${esc(itemStr)}</span>`;
+              }).join("")
+            : `🎁 <span class="copyable-text" onclick="copiarTexto('${esc(extrairApenasNomeItem(v.item || ""))}', 'Item', event)" title="Clique para copiar apenas: ${esc(extrairApenasNomeItem(v.item || ""))}">${esc(v.item || "Item não informado")}</span>`;
+
           return `<div class="history-card">
           <div class="history-main">
             <div class="history-number">#${String(i + 1).padStart(2, "0")}</div>
             <div class="history-info">
-              <div class="history-account copyable-text" onclick="copiarTexto('${esc(v.conta)}', 'Conta')" style="cursor:pointer;" title="Clique para copiar a conta">${esc(v.conta)}</div>
-              <div class="history-client copyable-text" onclick="copiarTexto('${esc(v.cliente)}', 'Nome do Cliente')" style="cursor:pointer;" title="Clique para copiar o nome">👤 ${esc(v.cliente || "Cliente não informado")}</div>
-              <div class="history-client copyable-text" onclick="copiarTexto('${esc(v.nickCliente)}', 'Nick do Cliente')" style="cursor:pointer;" title="Clique para copiar o nick">🎮 ${esc(v.nickCliente || "Nick não informado")}</div>
-              <div class="history-item copyable-text" onclick="copiarTexto('${esc(Array.isArray(v.itens) && v.itens.length ? v.itens.join(", ") : (v.item || ""))}', 'Item')" style="cursor:pointer;" title="Clique para copiar o item">🎁 ${
-                Array.isArray(v.itens) && v.itens.length
-                  ? v.itens.map((item, n) => `${n === 0 ? "" : "🎁 "}${n + 1}. ${esc(item)}`).join("<br>")
-                  : esc(v.item || "Item não informado")
-              }</div>
+              <div class="history-account">
+                <span class="copyable-text" onclick="copiarTexto('${esc(v.conta)}', 'Conta', event)" title="Clique para copiar a conta">${esc(v.conta)}</span>
+              </div>
+              <div class="history-client">
+                👤 <span class="copyable-text" onclick="copiarTexto('${esc(v.cliente)}', 'Nome do Cliente', event)" title="Clique para copiar o nome">${esc(v.cliente || "Cliente não informado")}</span>
+              </div>
+              <div class="history-client">
+                🎮 <span class="copyable-text" onclick="copiarTexto('${esc(v.nickCliente)}', 'Nick do Cliente', event)" title="Clique para copiar o nick">${esc(v.nickCliente || "Nick não informado")}</span>
+              </div>
+              <div class="history-item">
+                ${itensListHtml}
+              </div>
               <div class="history-date">📅 ${esc(v.data || "—")} às ${esc(v.hora || "—")}</div>
             </div>
             <div class="history-value">${money(v.valor)}</div>
