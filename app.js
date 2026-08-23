@@ -33,6 +33,7 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
+let diaFiltroSelecionado = null;
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
 
@@ -620,6 +621,11 @@ function totais() {
   return t;
 }
 
+function mudarDiaFiltro(val) {
+  diaFiltroSelecionado = val;
+  render();
+}
+
 function mudarMesFiltro(val) {
   mesFiltroSelecionado = val;
   render();
@@ -801,30 +807,35 @@ function render() {
     return x;
   };
 
-  // Funções de agregação de valores e V-Bucks por período
+  // Funções de agregação
   const somaFiltro = fn => historico.filter(fn).reduce((s, v) => s + Number(v.valor || 0), 0);
   const somaVbucksFiltro = fn => historico.filter(fn).reduce((s, v) => s + (v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento)), 0);
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
-  // 1. Hoje
-  const hojeInicio = new Date(agoraData.getFullYear(), agoraData.getMonth(), agoraData.getDate());
-  const amanhaInicio = new Date(hojeInicio);
-  amanhaInicio.setDate(amanhaInicio.getDate() + 1);
-  const hojeTotal = somaFiltro(v => { const d = chaveData(v); return d && d >= hojeInicio && d < amanhaInicio; });
-  const hojeVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d >= hojeInicio && d < amanhaInicio; });
-  const hojePedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= hojeInicio && d < amanhaInicio; });
-  const hojeItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= hojeInicio && d < amanhaInicio; });
+  // 1. Mapa de Datas Específicas
+  const mapaDatas = {};
+  const hojeKey = agoraData.toLocaleDateString("pt-BR");
+  mapaDatas[hojeKey] = `Hoje (${hojeKey.slice(0, 5)})`;
 
-  // 2. Ontem
-  const ontemInicio = new Date(hojeInicio);
-  ontemInicio.setDate(ontemInicio.getDate() - 1);
-  const ontemTotal = somaFiltro(v => { const d = chaveData(v); return d && d >= ontemInicio && d < hojeInicio; });
-  const ontemVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d >= ontemInicio && d < hojeInicio; });
-  const ontemPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= ontemInicio && d < hojeInicio; });
-  const ontemItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= ontemInicio && d < hojeInicio; });
+  historico.forEach(v => {
+    if (v.data) {
+      if (!mapaDatas[v.data]) {
+        mapaDatas[v.data] = v.data === hojeKey ? `Hoje (${v.data.slice(0, 5)})` : v.data;
+      }
+    }
+  });
 
-  // 3. Semana
+  if (!diaFiltroSelecionado || !mapaDatas[diaFiltroSelecionado]) {
+    diaFiltroSelecionado = hojeKey;
+  }
+
+  const diaTotal = somaFiltro(v => v.data === diaFiltroSelecionado);
+  const diaVbucks = somaVbucksFiltro(v => v.data === diaFiltroSelecionado);
+  const diaPedidos = qtdPedidosFiltro(v => v.data === diaFiltroSelecionado);
+  const diaItens = qtdItensFiltro(v => v.data === diaFiltroSelecionado);
+
+  // 2. Semana
   const semInicio = inicioSemana(agoraData);
   const semFim = new Date(semInicio);
   semFim.setDate(semFim.getDate() + 7);
@@ -833,7 +844,7 @@ function render() {
   const semanaPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
   const semanaItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
 
-  // 4. Mês
+  // 3. Mês
   const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const mapaMeses = {};
   const mesAtualKey = `${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
@@ -857,7 +868,7 @@ function render() {
   const mesPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
 
-  // 5. Ano
+  // 4. Ano
   const setAnos = new Set();
   setAnos.add(String(agoraData.getFullYear()));
   historico.forEach(v => {
@@ -893,6 +904,10 @@ function render() {
 
   const periodosEl = document.getElementById("historicoPeriodos");
   if (periodosEl) {
+    const optionsDiaHtml = Object.entries(mapaDatas)
+      .map(([k, label]) => `<option value="${k}" ${k === diaFiltroSelecionado ? "selected" : ""}>${label}</option>`)
+      .join("");
+
     const optionsMesHtml = Object.entries(mapaMeses)
       .map(([k, label]) => `<option value="${k}" ${k === mesFiltroSelecionado ? "selected" : ""}>${label}</option>`)
       .join("");
@@ -902,17 +917,16 @@ function render() {
       .join("");
 
     periodosEl.innerHTML = `
-    <div class="period-card">
-      <span>📍 Hoje</span>
-      <strong>${money(hojeTotal)}</strong>
-      <small>${hojePedidos} ${hojePedidos === 1 ? "pedido" : "pedidos"} (${hojeItens} ${hojeItens === 1 ? "item" : "itens"})</small>
-      <small class="period-vbucks-text">🪙 ${formatVBucks(hojeVbucks)} V-Bucks</small>
-    </div>
-    <div class="period-card">
-      <span>⏮️ Ontem</span>
-      <strong>${money(ontemTotal)}</strong>
-      <small>${ontemPedidos} ${ontemPedidos === 1 ? "pedido" : "pedidos"} (${ontemItens} ${ontemItens === 1 ? "item" : "itens"})</small>
-      <small class="period-vbucks-text">🪙 ${formatVBucks(ontemVbucks)} V-Bucks</small>
+    <div class="period-card period-card-select">
+      <div class="period-header-select">
+        <span>📍</span>
+        <select class="period-select" onchange="mudarDiaFiltro(this.value)">
+          ${optionsDiaHtml}
+        </select>
+      </div>
+      <strong>${money(diaTotal)}</strong>
+      <small>${diaPedidos} ${diaPedidos === 1 ? "pedido" : "pedidos"} (${diaItens} ${diaItens === 1 ? "item" : "itens"})</small>
+      <small class="period-vbucks-text">🪙 ${formatVBucks(diaVbucks)} V-Bucks</small>
     </div>
     <div class="period-card">
       <span>📅 Esta semana</span>
