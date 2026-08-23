@@ -673,7 +673,7 @@ button:hover {
 .period-header-select {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
   width: 100%;
 }
@@ -707,27 +707,122 @@ button:hover {
   color: var(--accent-light) !important;
 }
 
-/* Input de Calendário Nativo Estilizado */
-.period-date-input {
-  background: transparent !important;
-  border: none !important;
-  color: var(--accent-light) !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  font-family: inherit !important;
-  padding: 0 !important;
-  cursor: pointer !important;
-  outline: none !important;
-  box-shadow: none !important;
-  width: auto !important;
-  color-scheme: dark;
+/* =======================================================
+   POPOVER DO CALENDÁRIO PERSONALIZADO
+======================================================= */
+.custom-calendar-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  background: #140929;
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: modalFadeIn 0.2s ease forwards;
 }
 
-.period-date-input::-webkit-calendar-picker-indicator {
+.calendar-header-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.calendar-header-nav strong {
+  font-size: 13px;
+  color: #fff;
+}
+
+.calendar-nav-btn {
+  background: #25183d;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
   cursor: pointer;
-  filter: invert(1) brightness(0.85);
-  margin-left: 4px;
+}
+
+.calendar-nav-btn:hover {
+  background: var(--accent);
+}
+
+.calendar-weekdays-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.calendar-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cal-day-btn {
+  aspect-ratio: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.15s;
+}
+
+.cal-day-btn:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent-light);
+}
+
+/* Dia Atual */
+.cal-day-btn.is-today {
+  border-color: var(--accent-light) !important;
+  background: rgba(142, 68, 255, 0.25);
+  font-weight: 800;
+}
+
+/* Dia Selecionado */
+.cal-day-btn.is-selected {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+/* Dia com Venda (Pontinho verde) */
+.cal-day-btn.has-sales::after {
+  content: "";
+  width: 4px;
+  height: 4px;
+  background: var(--green);
+  border-radius: 50%;
+  position: absolute;
+  bottom: 2px;
+  box-shadow: 0 0 6px var(--green);
+}
+
+/* Dias futuros desativados */
+.cal-day-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.cal-day-empty {
+  aspect-ratio: 1;
 }
 
 .profit-goal-btn {

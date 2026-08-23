@@ -33,7 +33,12 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
-let diaFiltroSelecionado = null; // Guardado no formato YYYY-MM-DD para o calendário
+// Variáveis de controle de visualização do calendário personalizado
+let calViewMes = new Date().getMonth();
+let calViewAno = new Date().getFullYear();
+let calPopoverAberto = false;
+
+let diaFiltroSelecionado = null; // Formato DD/MM/YYYY
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
 
@@ -47,6 +52,104 @@ function copiarTexto(texto, tipo = "Texto") {
   }).catch(() => {
     mostrarNotificacao("Não foi possível copiar automaticamente.", "erro");
   });
+}
+
+// ==========================================
+// CONTROLE DO CALENDÁRIO PERSONALIZADO
+// ==========================================
+function toggleCalendarioPopover(e) {
+  if (e) e.stopPropagation();
+  calPopoverAberto = !calPopoverAberto;
+  render();
+}
+
+function fecharCalendarioPopover() {
+  if (calPopoverAberto) {
+    calPopoverAberto = false;
+    render();
+  }
+}
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".period-card-calendar-container")) {
+    fecharCalendarioPopover();
+  }
+});
+
+function navegarMesCalendario(direcao, e) {
+  if (e) e.stopPropagation();
+  calViewMes += direcao;
+  if (calViewMes < 0) {
+    calViewMes = 11;
+    calViewAno--;
+  } else if (calViewMes > 11) {
+    calViewMes = 0;
+    calViewAno++;
+  }
+  render();
+}
+
+function selecionarDiaCalendario(diaStr, e) {
+  if (e) e.stopPropagation();
+  diaFiltroSelecionado = diaStr;
+  calPopoverAberto = false;
+  render();
+}
+
+function gerarHtmlCalendarioPopover() {
+  const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  const diasSemana = ["D", "S", "T", "Q", "Q", "S", "S"];
+  
+  const primeiroDiaSemana = new Date(calViewAno, calViewMes, 1).getDay();
+  const totalDiasMes = new Date(calViewAno, calViewMes + 1, 0).getDate();
+  
+  const hoje = new Date();
+  const hojeChave = `${String(hoje.getDate()).padStart(2, "0")}/${String(hoje.getMonth() + 1).padStart(2, "0")}/${hoje.getFullYear()}`;
+  
+  const diasComVendas = new Set((state.historicoVendas || []).map(v => v.data));
+
+  let diasHtml = "";
+  for (let i = 0; i < primeiroDiaSemana; i++) {
+    diasHtml += `<div class="cal-day-empty"></div>`;
+  }
+
+  for (let dia = 1; dia <= totalDiasMes; dia++) {
+    const dataStr = `${String(dia).padStart(2, "0")}/${String(calViewMes + 1).padStart(2, "0")}/${calViewAno}`;
+    const dataObj = new Date(calViewAno, calViewMes, dia);
+    const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    
+    const isFuturo = dataObj > hojeZero;
+    const isToday = dataStr === hojeChave;
+    const isSelected = dataStr === diaFiltroSelecionado;
+    const hasSales = diasComVendas.has(dataStr);
+
+    diasHtml += `
+      <button type="button" class="cal-day-btn ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""} ${hasSales ? "has-sales" : ""}"
+        ${isFuturo ? "disabled" : ""} onclick="selecionarDiaCalendario('${dataStr}', event)" title="${isToday ? "Hoje" : dataStr}">
+        ${dia}
+      </button>
+    `;
+  }
+
+  return `
+    <div class="custom-calendar-popover" onclick="event.stopPropagation()">
+      <div class="calendar-header-nav">
+        <button type="button" class="calendar-nav-btn" onclick="navegarMesCalendario(-1, event)">‹</button>
+        <strong>${nomesMeses[calViewMes]} ${calViewAno}</strong>
+        <button type="button" class="calendar-nav-btn" onclick="navegarMesCalendario(1, event)">›</button>
+      </div>
+      <div class="calendar-weekdays-grid">
+        ${diasSemana.map(d => `<span>${d}</span>`).join("")}
+      </div>
+      <div class="calendar-days-grid">
+        ${diasHtml}
+      </div>
+      <div style="font-size:10px; color:var(--muted); text-align:center; margin-top:4px; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:6px; height:6px; background:var(--green); border-radius:50%; display:inline-block;"></span> Com vendas</span>
+        <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:6px; height:6px; border:1px solid var(--accent-light); border-radius:3px; display:inline-block;"></span> Hoje</span>
+      </div>
+    </div>
+  `;
 }
 
 // ==========================================
@@ -621,13 +724,9 @@ function totais() {
   return t;
 }
 
-function mudarDiaFiltro(val) {
-  diaFiltroSelecionado = val;
-  render();
-}
-
 function mudarMesFiltro(val) {
   mesFiltroSelecionado = val;
+  diaFiltroSelecionado = null;
   render();
 }
 
@@ -692,20 +791,6 @@ function obterItensDaVenda() {
   }
 
   return lista;
-}
-
-// Converte DD/MM/YYYY para YYYY-MM-DD (para o input date)
-function dataBRparaISO(dataBR) {
-  const partes = String(dataBR || "").split("/");
-  if (partes.length !== 3) return "";
-  return `${partes[2]}-${partes[1].padStart(2, "0")}-${partes[0].padStart(2, "0")}`;
-}
-
-// Converte YYYY-MM-DD para DD/MM/YYYY
-function dataISOparaBR(dataISO) {
-  const partes = String(dataISO || "").split("-");
-  if (partes.length !== 3) return "";
-  return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
 function render() {
@@ -801,19 +886,16 @@ function render() {
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
-  // 1. DATA DO CALENDÁRIO VISUAL
-  const hojeBR = agoraData.toLocaleDateString("pt-BR");
-  const hojeISO = dataBRparaISO(hojeBR);
-
+  // 1. DATA SELECIONADA DO CALENDÁRIO PERSONALIZADO
+  const hojeChave = `${String(agoraData.getDate()).padStart(2, "0")}/${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
   if (!diaFiltroSelecionado) {
-    diaFiltroSelecionado = hojeISO;
+    diaFiltroSelecionado = hojeChave;
   }
 
-  const dataFiltroBR = dataISOparaBR(diaFiltroSelecionado);
-  const diaTotal = somaFiltro(v => v.data === dataFiltroBR);
-  const diaVbucks = somaVbucksFiltro(v => v.data === dataFiltroBR);
-  const diaPedidos = qtdPedidosFiltro(v => v.data === dataFiltroBR);
-  const diaItens = qtdItensFiltro(v => v.data === dataFiltroBR);
+  const diaTotal = somaFiltro(v => v.data === diaFiltroSelecionado);
+  const diaVbucks = somaVbucksFiltro(v => v.data === diaFiltroSelecionado);
+  const diaPedidos = qtdPedidosFiltro(v => v.data === diaFiltroSelecionado);
+  const diaItens = qtdItensFiltro(v => v.data === diaFiltroSelecionado);
 
   // 2. SEMANA
   const semInicio = inicioSemana(agoraData);
@@ -894,15 +976,16 @@ function render() {
       .join("");
 
     periodosEl.innerHTML = `
-    <!-- Card 1: Calendário Nativo com Seletor Visual -->
-    <div class="period-card">
+    <!-- Card 1: Calendário Popover Personalizado -->
+    <div class="period-card period-card-calendar-container" style="position:relative; cursor:pointer;" onclick="toggleCalendarioPopover(event)">
       <div class="period-header-select">
         <span>📅</span>
-        <input type="date" class="period-date-input" value="${diaFiltroSelecionado}" onchange="mudarDiaFiltro(this.value)">
+        <strong style="font-size:12px; color:var(--accent-light);">${diaFiltroSelecionado === hojeChave ? `Hoje (${diaFiltroSelecionado.slice(0, 5)})` : diaFiltroSelecionado} ▾</strong>
       </div>
       <strong>${money(diaTotal)}</strong>
       <small>${diaPedidos} ${diaPedidos === 1 ? "pedido" : "pedidos"} (${diaItens} ${diaItens === 1 ? "item" : "itens"})</small>
       <small class="period-vbucks-text">🪙 ${formatVBucks(diaVbucks)} V-Bucks</small>
+      ${calPopoverAberto ? gerarHtmlCalendarioPopover() : ""}
     </div>
 
     <!-- Card 2: Esta Semana -->
@@ -1581,7 +1664,7 @@ document.getElementById("valorInput").addEventListener("keydown", e => {
 
 inicializar();
 
-// Temporizador a cada 1 segundo para atualizar os timers sem reconstruir os selects da tela
+// Temporizador a cada 1 segundo para atualizar os timers sem fechar o calendário
 setInterval(() => {
   if (limparReservasExpiradas()) {
     save();
