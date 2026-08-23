@@ -144,10 +144,6 @@ function gerarHtmlCalendarioPopover() {
       <div class="calendar-days-grid">
         ${diasHtml}
       </div>
-      <div style="font-size:10px; color:var(--muted); text-align:center; margin-top:4px; display:flex; align-items:center; justify-content:center; gap:8px;">
-        <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:6px; height:6px; background:var(--green); border-radius:50%; display:inline-block;"></span> Com vendas</span>
-        <span style="display:inline-flex; align-items:center; gap:3px;"><span style="width:6px; height:6px; border:1px solid var(--accent-light); border-radius:3px; display:inline-block;"></span> Hoje</span>
-      </div>
     </div>
   `;
 }
