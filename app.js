@@ -37,6 +37,18 @@ let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
 
 // ==========================================
+// FUNÇÃO DE COPIAR TEXTO COM UM CLIQUE
+// ==========================================
+function copiarTexto(texto, tipo = "Texto") {
+  if (!texto || texto === "—") return;
+  navigator.clipboard.writeText(texto).then(() => {
+    mostrarNotificacao(`📋 ${tipo} copiado: "${texto}"`, "sucesso");
+  }).catch(() => {
+    mostrarNotificacao("Não foi possível copiar automaticamente.", "erro");
+  });
+}
+
+// ==========================================
 // PREVIEW DINÂMICO DE V-BUCKS
 // ==========================================
 function atualizarPreviewVBucks() {
@@ -952,10 +964,10 @@ function render() {
           <div class="history-main">
             <div class="history-number">#${String(i + 1).padStart(2, "0")}</div>
             <div class="history-info">
-              <div class="history-account">${esc(v.conta)}</div>
-              <div class="history-client">👤 ${esc(v.cliente || "Cliente não informado")}</div>
-              <div class="history-client">🎮 ${esc(v.nickCliente || "Nick não informado")}</div>
-              <div class="history-item">🎁 ${
+              <div class="history-account copyable-text" onclick="copiarTexto('${esc(v.conta)}', 'Conta')" style="cursor:pointer;" title="Clique para copiar a conta">${esc(v.conta)}</div>
+              <div class="history-client copyable-text" onclick="copiarTexto('${esc(v.cliente)}', 'Nome do Cliente')" style="cursor:pointer;" title="Clique para copiar o nome">👤 ${esc(v.cliente || "Cliente não informado")}</div>
+              <div class="history-client copyable-text" onclick="copiarTexto('${esc(v.nickCliente)}', 'Nick do Cliente')" style="cursor:pointer;" title="Clique para copiar o nick">🎮 ${esc(v.nickCliente || "Nick não informado")}</div>
+              <div class="history-item copyable-text" onclick="copiarTexto('${esc(Array.isArray(v.itens) && v.itens.length ? v.itens.join(", ") : (v.item || ""))}', 'Item')" style="cursor:pointer;" title="Clique para copiar o item">🎁 ${
                 Array.isArray(v.itens) && v.itens.length
                   ? v.itens.map((item, n) => `${n === 0 ? "" : "🎁 "}${n + 1}. ${esc(item)}`).join("<br>")
                   : esc(v.item || "Item não informado")
