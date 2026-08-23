@@ -628,6 +628,7 @@ function mudarDiaFiltro(val) {
 
 function mudarMesFiltro(val) {
   mesFiltroSelecionado = val;
+  diaFiltroSelecionado = null; // Reseta para auto-selecionar o dia mais recente do mês escolhido
   render();
 }
 
@@ -787,43 +788,7 @@ function render() {
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
-  // ==========================================
-  // 1. GERAÇÃO E ORDENAÇÃO DECRESCENTE DAS DATAS
-  // ==========================================
-  const setDatas = new Set();
-  const hojeKey = agoraData.toLocaleDateString("pt-BR");
-  setDatas.add(hojeKey);
-
-  historico.forEach(v => {
-    if (v.data) setDatas.add(v.data);
-  });
-
-  // Ordena de forma estritamente decrescente (hoje, ontem, anteontem...)
-  const listaDatasOrdenada = Array.from(setDatas).sort((a, b) => {
-    const da = chaveData({ data: a }) || new Date(0);
-    const db = chaveData({ data: b }) || new Date(0);
-    return db.getTime() - da.getTime();
-  });
-
-  if (!diaFiltroSelecionado || !setDatas.has(diaFiltroSelecionado)) {
-    diaFiltroSelecionado = hojeKey;
-  }
-
-  const diaTotal = somaFiltro(v => v.data === diaFiltroSelecionado);
-  const diaVbucks = somaVbucksFiltro(v => v.data === diaFiltroSelecionado);
-  const diaPedidos = qtdPedidosFiltro(v => v.data === diaFiltroSelecionado);
-  const diaItens = qtdItensFiltro(v => v.data === diaFiltroSelecionado);
-
-  // 2. Semana
-  const semInicio = inicioSemana(agoraData);
-  const semFim = new Date(semInicio);
-  semFim.setDate(semFim.getDate() + 7);
-  const semanaTotal = somaFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
-  const semanaVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
-  const semanaPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
-  const semanaItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
-
-  // 3. Mês
+  // Mapeamento de Meses disponíveis no histórico
   const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const mapaMeses = {};
   const mesAtualKey = `${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
@@ -842,6 +807,51 @@ function render() {
   }
 
   const [selM, selA] = mesFiltroSelecionado.split("/").map(Number);
+
+  // ========================================================
+  // 1. GERAÇÃO DE DATAS LIMITADAS AO MÊS SELECIONADO (Decrescente)
+  // ========================================================
+  const setDatasDoMes = new Set();
+  const hojeKey = agoraData.toLocaleDateString("pt-BR");
+
+  if (selM === agoraData.getMonth() + 1 && selA === agoraData.getFullYear()) {
+    setDatasDoMes.add(hojeKey);
+  }
+
+  historico.forEach(v => {
+    if (v.data) {
+      const d = chaveData(v);
+      if (d && d.getMonth() === (selM - 1) && d.getFullYear() === selA) {
+        setDatasDoMes.add(v.data);
+      }
+    }
+  });
+
+  const listaDatasOrdenada = Array.from(setDatasDoMes).sort((a, b) => {
+    const da = chaveData({ data: a }) || new Date(0);
+    const db = chaveData({ data: b }) || new Date(0);
+    return db.getTime() - da.getTime();
+  });
+
+  if (!diaFiltroSelecionado || !setDatasDoMes.has(diaFiltroSelecionado)) {
+    diaFiltroSelecionado = listaDatasOrdenada[0] || hojeKey;
+  }
+
+  const diaTotal = somaFiltro(v => v.data === diaFiltroSelecionado);
+  const diaVbucks = somaVbucksFiltro(v => v.data === diaFiltroSelecionado);
+  const diaPedidos = qtdPedidosFiltro(v => v.data === diaFiltroSelecionado);
+  const diaItens = qtdItensFiltro(v => v.data === diaFiltroSelecionado);
+
+  // 2. Semana
+  const semInicio = inicioSemana(agoraData);
+  const semFim = new Date(semInicio);
+  semFim.setDate(semFim.getDate() + 7);
+  const semanaTotal = somaFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
+  const semanaVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
+  const semanaPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
+  const semanaItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
+
+  // 3. Mês
   const mesTotal = somaFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
