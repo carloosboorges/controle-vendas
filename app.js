@@ -38,7 +38,7 @@ let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
 let calPopoverAberto = false;
 
-let diaFiltroSelecionado = null;
+let diaFiltroSelecionado = null; // Formato DD/MM/YYYY
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
 
@@ -61,7 +61,6 @@ function copiarTexto(texto, tipo = "Texto", event = null) {
   });
 }
 
-// Extrai estritamente o nome do item descartando a categoria
 function extrairApenasNomeItem(itemStr) {
   if (!itemStr) return "";
   const { nome } = parseItemString(itemStr);
@@ -761,6 +760,7 @@ function esc(s) {
   return String(s || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
 }
 
+// Faturamento estritamente da sessão ativa (que zera no botão Nova Sessão)
 function totais() {
   let t = {};
   (state.contas || []).forEach(c => (t[c.nome] = 0));
@@ -993,7 +993,7 @@ function render() {
   const anoPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
 
-  // 5. METAS DE LUCRO
+  // 5. METAS DE LUCRO (R$ 310 / R$ 100)
   const metasAtingidas = Math.floor(totalHistorico / 310);
   const metasRetiradas = Math.min(state.metasLucro?.retiradas || 0, metasAtingidas);
   const metasDisponiveis = Math.max(0, metasAtingidas - metasRetiradas);
@@ -1082,13 +1082,12 @@ function render() {
   // ==========================================
   const totalOriginal = historico.length;
   
-  // Cria array mapeado com o número original da venda (#01, #46...)
   const listaComIndices = historico.map((v, originalIdx) => ({
     ...v,
     originalIdx,
     numeroPedido: `#${String(originalIdx + 1).padStart(2, "0")}`,
     numeroPuro: String(originalIdx + 1)
-  })).reverse(); // Mais recentes primeiro
+  })).reverse();
 
   let listaFiltrada = listaComIndices;
 
@@ -1134,7 +1133,6 @@ function render() {
   const fimIdx = inicioIdx + ITENS_POR_PAGINA;
   const itensPagina = listaFiltrada.slice(inicioIdx, fimIdx);
 
-  // Renderiza os Cards da Página Atual
   const historicoContainer = document.getElementById("historico");
   if (historicoContainer) {
     if (itensPagina.length === 0) {
@@ -1186,7 +1184,6 @@ function render() {
     }
   }
 
-  // Renderiza a barra de controles de paginação
   const paginacaoContainer = document.getElementById("historyPagination");
   if (paginacaoContainer) {
     if (totalItensFiltrados === 0) {
@@ -1194,7 +1191,6 @@ function render() {
     } else {
       let botoesPaginasHtml = "";
       
-      // Gera botões de páginas
       for (let p = 1; p <= totalPaginas; p++) {
         if (
           p === 1 || 
@@ -1227,10 +1223,13 @@ function render() {
   }
 }
 
+// ==========================================
+// RENDERIZAÇÃO DOS CARDS DAS CONTAS (SESSÃO ATIVA)
+// ==========================================
 function renderContasCards(t) {
   if (!t) t = totais();
   const container = document.getElementById("totaisPorConta");
-  if (!container) return;
+  if (!container || !state) return;
 
   container.innerHTML = (state.contas || [])
     .filter(c => c.ativa)
@@ -1240,6 +1239,7 @@ function renderContasCards(t) {
       const reservasAtivas = (state.reservas || [])
         .filter(r => r.conta === c.nome && r.expiresAt > Date.now())
         .sort((a, b) => a.expiresAt - b.expiresAt);
+      
       const tempos = reservasAtivas.map(
         (r, n) => `
         <div class="timer-line">
@@ -1248,9 +1248,15 @@ function renderContasCards(t) {
         </div>
       `
       );
+
       return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
-      <div class="account-card-head"><div class="name">${esc(c.nome)}</div><button type="button" class="btn-danger reset-timer-btn" onclick="removerTimersConta(${state.contas.indexOf(c)})">🗑️ Remover timers</button></div>
-      <div class="amount">${money(t[c.nome] || 0)}</div><div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
+      <div class="account-card-head">
+        <div class="name">${esc(c.nome)}</div>
+        <button type="button" class="btn-danger reset-timer-btn" onclick="removerTimersConta(${state.contas.indexOf(c)})">🗑️ Remover timers</button>
+      </div>
+      
+      <div class="amount">${money(t[c.nome] || 0)}</div>
+      <div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
       <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta conta</div>
       <div class="sales-count">📦 ${quantidade}/5 usadas · ${disponiveis} ${disponiveis === 1 ? "disponível" : "disponíveis"}</div>
       ${quantidade >= 5 ? `<div class="limit">🔴 LIMITE ATINGIDO — 5/5</div>` : ""}
@@ -1828,7 +1834,7 @@ document.getElementById("valorInput").addEventListener("keydown", e => {
 
 inicializar();
 
-// Temporizador a cada 1 segundo para atualizar os timers sem fechar o calendário
+// Temporizador inteligente a cada 1 segundo
 setInterval(() => {
   if (limparReservasExpiradas()) {
     save();
