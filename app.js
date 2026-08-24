@@ -33,23 +33,18 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
-// Controle do Calendário Personalizado
 let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
 let calPopoverAberto = false;
 
-let diaFiltroSelecionado = null; // Formato DD/MM/YYYY
+let diaFiltroSelecionado = null;
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
 
-// Controle de Paginação e Busca do Histórico
 const ITENS_POR_PAGINA = 8;
 let historicoPaginaAtual = 1;
 let historicoTermoBusca = "";
 
-// ==========================================
-// FUNÇÃO DE COPIAR TEXTO CIRÚRGICA
-// ==========================================
 function copiarTexto(texto, tipo = "Texto", event = null) {
   if (event) event.stopPropagation();
   if (!texto || texto === "—") return;
@@ -67,9 +62,6 @@ function extrairApenasNomeItem(itemStr) {
   return nome || itemStr;
 }
 
-// ==========================================
-// CONTROLE DO CALENDÁRIO PERSONALIZADO
-// ==========================================
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
   calPopoverAberto = !calPopoverAberto;
@@ -119,7 +111,7 @@ function gerarHtmlCalendarioPopover() {
   const hoje = new Date();
   const hojeChave = `${String(hoje.getDate()).padStart(2, "0")}/${String(hoje.getMonth() + 1).padStart(2, "0")}/${hoje.getFullYear()}`;
   
-  const diasComVendas = new Set((state.historicoVendas || []).map(v => v.data));
+  const diasComVendas = new Set((state?.historicoVendas || []).map(v => v.data));
 
   let diasHtml = "";
   for (let i = 0; i < primeiroDiaSemana; i++) {
@@ -165,9 +157,6 @@ function gerarHtmlCalendarioPopover() {
   `;
 }
 
-// ==========================================
-// CONTROLE DE BUSCA & PAGINAÇÃO
-// ==========================================
 function filtrarHistoricoInput(val) {
   historicoTermoBusca = String(val || "").trim().toLowerCase();
   historicoPaginaAtual = 1;
@@ -195,9 +184,6 @@ function mudarPaginaHistorico(p) {
   if (sec) sec.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-// ==========================================
-// PREVIEW DINÂMICO DE V-BUCKS
-// ==========================================
 function atualizarPreviewVBucks() {
   const input = document.getElementById("valorInput");
   const badge = document.getElementById("valorVbucksPreview");
@@ -220,9 +206,6 @@ function atualizarPreviewVBucksEdicao() {
   badge.textContent = `🪙 ${vb.toLocaleString("pt-BR")} V-Bucks`;
 }
 
-// ==========================================
-// NOTIFICAÇÕES TOAST
-// ==========================================
 function mostrarNotificacao(msg, tipo = "info") {
   const container = document.getElementById("toastContainer");
   if (!container) return;
@@ -238,9 +221,6 @@ function mostrarNotificacao(msg, tipo = "info") {
   }, 3500);
 }
 
-// ==========================================
-// MODAL DE CONFIRMAÇÃO GENÉRICO
-// ==========================================
 let pendingConfirmCallback = null;
 
 function abrirModalConfirmacao(titulo, descricao, onConfirm) {
@@ -270,9 +250,6 @@ function fecharModalConfirmacao() {
   pendingConfirmCallback = null;
 }
 
-// ==========================================
-// MODAL ALTERAR VALOR BASE
-// ==========================================
 function abrirModalValorBase() {
   const modal = document.getElementById("valorBaseModal");
   const input = document.getElementById("novoValorBaseInput");
@@ -320,9 +297,6 @@ function salvarValorBaseModal() {
   mostrarNotificacao(`Valor base alterado para ${money(state.valorBase100)}!`, "sucesso");
 }
 
-// ==========================================
-// MODAL ADICIONAR CONTA
-// ==========================================
 function abrirModalAddConta() {
   const modal = document.getElementById("addContaModal");
   const nomeInput = document.getElementById("novaContaNomeInput");
@@ -359,9 +333,6 @@ function salvarNovaContaModal() {
   mostrarNotificacao(`Conta ${nome} adicionada com sucesso!`, "sucesso");
 }
 
-// ==========================================
-// MODAL EDITAR CONTA & RECARGA RÁPIDA
-// ==========================================
 function abrirModalEditConta(i) {
   const conta = state.contas[i];
   if (!conta) return;
@@ -445,9 +416,6 @@ function salvarEdicaoContaModal() {
   mostrarNotificacao(`Dados da conta ${conta.nome} atualizados! Saldo: ${formatVBucks(conta.vbucks)} VB`, "sucesso");
 }
 
-// ==========================================
-// AUTENTICAÇÃO E SESSÃO PERSISTENTE
-// ==========================================
 function atualizarInterfaceAuth() {
   const authBtn = document.getElementById("authBtn");
   const formArea = document.getElementById("authFormArea");
@@ -760,7 +728,6 @@ function esc(s) {
   return String(s || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
 }
 
-// Faturamento estritamente da sessão ativa (que zera no botão Nova Sessão)
 function totais() {
   let t = {};
   (state.contas || []).forEach(c => (t[c.nome] = 0));
@@ -844,17 +811,18 @@ function render() {
   if (baseEl) baseEl.textContent = money(state.valorBase100 || 2.5);
 
   limparReservasExpiradas();
-  const t = totais(),
-    total = (state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0);
+  
+  const tSessao = totais();
+  const totalSessao = (state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0);
 
-  document.getElementById("totalGeral").textContent = money(total);
+  document.getElementById("totalGeral").textContent = money(totalSessao);
   
   const qtdPedidosSessao = (state.vendas || []).length;
   const qtdItensSessao = (state.vendas || []).reduce((a, v) => a + (Number(v.quantidade) || 1), 0);
   document.getElementById("qtdVendas").textContent = `${qtdPedidosSessao} (${qtdItensSessao} itens)`;
 
   let top = "—", tv = 0;
-  Object.entries(t).forEach(([n, v]) => {
+  Object.entries(tSessao).forEach(([n, v]) => {
     if (v > tv) {
       top = n;
       tv = v;
@@ -870,7 +838,7 @@ function render() {
     .join("");
   if ([...sel.options].some(o => o.value === old)) sel.value = old;
 
-  renderContasCards(t);
+  renderContasCards(tSessao);
 
   document.getElementById("contas").innerHTML = (state.contas || [])
     .map(
@@ -924,13 +892,11 @@ function render() {
     return x;
   };
 
-  // Funções de agregação dos cards de período
   const somaFiltro = fn => historico.filter(fn).reduce((s, v) => s + Number(v.valor || 0), 0);
   const somaVbucksFiltro = fn => historico.filter(fn).reduce((s, v) => s + (v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento)), 0);
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
-  // 1. DATA SELECIONADA DO CALENDÁRIO
   const hojeChave = `${String(agoraData.getDate()).padStart(2, "0")}/${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
   if (!diaFiltroSelecionado) {
     diaFiltroSelecionado = hojeChave;
@@ -941,7 +907,6 @@ function render() {
   const diaPedidos = qtdPedidosFiltro(v => v.data === diaFiltroSelecionado);
   const diaItens = qtdItensFiltro(v => v.data === diaFiltroSelecionado);
 
-  // 2. SEMANA
   const semInicio = inicioSemana(agoraData);
   const semFim = new Date(semInicio);
   semFim.setDate(semFim.getDate() + 7);
@@ -950,7 +915,6 @@ function render() {
   const semanaPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
   const semanaItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
 
-  // 3. MÊS
   const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const mapaMeses = {};
   const mesAtualKey = `${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
@@ -974,7 +938,6 @@ function render() {
   const mesPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
 
-  // 4. ANO
   const setAnos = new Set();
   setAnos.add(String(agoraData.getFullYear()));
   historico.forEach(v => {
@@ -993,7 +956,6 @@ function render() {
   const anoPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
 
-  // 5. METAS DE LUCRO (R$ 310 / R$ 100)
   const metasAtingidas = Math.floor(totalHistorico / 310);
   const metasRetiradas = Math.min(state.metasLucro?.retiradas || 0, metasAtingidas);
   const metasDisponiveis = Math.max(0, metasAtingidas - metasRetiradas);
@@ -1020,7 +982,6 @@ function render() {
       .join("");
 
     periodosEl.innerHTML = `
-    <!-- Card 1: Calendário Popover Personalizado -->
     <div class="period-card period-card-calendar-container" style="position:relative; cursor:pointer;" onclick="toggleCalendarioPopover(event)">
       <div class="period-header-select">
         <span>📅</span>
@@ -1032,7 +993,6 @@ function render() {
       ${calPopoverAberto ? gerarHtmlCalendarioPopover() : ""}
     </div>
 
-    <!-- Card 2: Esta Semana -->
     <div class="period-card">
       <span>📅 Esta semana</span>
       <strong>${money(semanaTotal)}</strong>
@@ -1040,7 +1000,6 @@ function render() {
       <small class="period-vbucks-text">🪙 ${formatVBucks(semanaVbucks)} V-Bucks</small>
     </div>
 
-    <!-- Card 3: Mês Selecionado -->
     <div class="period-card period-card-select">
       <div class="period-header-select">
         <span>🗓️</span>
@@ -1053,7 +1012,6 @@ function render() {
       <small class="period-vbucks-text">🪙 ${formatVBucks(mesVbucks)} V-Bucks</small>
     </div>
 
-    <!-- Card 4: Ano Selecionado -->
     <div class="period-card period-card-select">
       <div class="period-header-select">
         <span>📆</span>
@@ -1066,7 +1024,6 @@ function render() {
       <small class="period-vbucks-text">🪙 ${formatVBucks(anoVbucks)} V-Bucks</small>
     </div>
 
-    <!-- Card 5: Metas de Lucro -->
     <div class="period-card profit-card">
       <span>📈 Lucro</span>
       <strong>${money(lucroHistorico)}</strong>
@@ -1077,11 +1034,7 @@ function render() {
   `;
   }
 
-  // ==========================================
-  // MOTOR DE BUSCA UNIVERSAL NO HISTÓRICO
-  // ==========================================
   const totalOriginal = historico.length;
-  
   const listaComIndices = historico.map((v, originalIdx) => ({
     ...v,
     originalIdx,
@@ -1116,9 +1069,6 @@ function render() {
     });
   }
 
-  // ==========================================
-  // PAGINAÇÃO (8 POR PÁGINA)
-  // ==========================================
   const totalItensFiltrados = listaFiltrada.length;
   const totalPaginas = Math.ceil(totalItensFiltrados / ITENS_POR_PAGINA) || 1;
 
@@ -1223,9 +1173,6 @@ function render() {
   }
 }
 
-// ==========================================
-// RENDERIZAÇÃO DOS CARDS DAS CONTAS (SESSÃO ATIVA)
-// ==========================================
 function renderContasCards(t) {
   if (!t) t = totais();
   const container = document.getElementById("totaisPorConta");
@@ -1257,7 +1204,7 @@ function renderContasCards(t) {
       
       <div class="amount">${money(t[c.nome] || 0)}</div>
       <div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
-      <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta conta</div>
+      <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta sessão</div>
       <div class="sales-count">📦 ${quantidade}/5 usadas · ${disponiveis} ${disponiveis === 1 ? "disponível" : "disponíveis"}</div>
       ${quantidade >= 5 ? `<div class="limit">🔴 LIMITE ATINGIDO — 5/5</div>` : ""}
       <div class="timer">${tempos.length ? tempos.join("") : `<div class="timer">🟢 5 vagas disponíveis</div>`}</div>
@@ -1360,9 +1307,6 @@ function adicionarVenda() {
   mostrarNotificacao("Venda registrada com sucesso!", "sucesso");
 }
 
-// ==========================================
-// EXCLUSÃO SEGURA POR ID
-// ==========================================
 function excluirHistoricoPorId(vendaId) {
   const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
   if (i < 0) return;
@@ -1564,9 +1508,6 @@ function removerTimersConta(i) {
   });
 }
 
-// ==========================================
-// MODAL DE EDIÇÃO DE VENDA POR ID
-// ==========================================
 function abrirModalEdicaoPorId(vendaId) {
   const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
   if (i < 0) return;
@@ -1834,7 +1775,6 @@ document.getElementById("valorInput").addEventListener("keydown", e => {
 
 inicializar();
 
-// Temporizador inteligente a cada 1 segundo
 setInterval(() => {
   if (limparReservasExpiradas()) {
     save();
