@@ -15,7 +15,7 @@ const CATEGORIAS_ITENS = [
   "Outro"
 ];
 
-// Margem de lucro contínua baseada em R$ 100 de lucro para cada R$ 310 vendidos (~32,26%)
+// Margem de lucro contínua de ~32,26% (R$ 100 a cada R$ 310)
 const MARGEM_LUCRO = 100 / 310;
 const MARGEM_CUSTO = 210 / 310;
 
@@ -36,21 +36,19 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
-// Controle do Calendário Personalizado
+// Controle do Calendário
 let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
 let calPopoverAberto = false;
 
-let diaFiltroSelecionado = null; // Formato DD/MM/YYYY
+let diaFiltroSelecionado = null;
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
 
-// Controle de Paginação e Busca do Histórico
+// Paginação e Busca
 const ITENS_POR_PAGINA = 8;
 let historicoPaginaAtual = 1;
 let historicoTermoBusca = "";
-
-// Controle do Balanço Retrátil
 let balancoAberto = false;
 
 // ==========================================
@@ -74,7 +72,7 @@ function extrairApenasNomeItem(itemStr) {
 }
 
 // ==========================================
-// CONTROLE DO CALENDÁRIO PERSONALIZADO
+// CONTROLE DO CALENDÁRIO
 // ==========================================
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
@@ -784,7 +782,7 @@ function esc(s) {
   return String(s || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
 }
 
-// Totais da sessão ativa do dia (para o controle dos cofrinhos)
+// Faturamento EXCLUSIVO da sessão do dia ativa (zera no botão Nova Sessão)
 function totais() {
   let t = {};
   (state.contas || []).forEach(c => (t[c.nome] = 0));
@@ -792,7 +790,7 @@ function totais() {
   return t;
 }
 
-// Totais acumulados de todo o histórico por conta (para o balanço financeiro)
+// Faturamento acumulado histórico por conta (usado no balanço financeiro retrátil)
 function totaisHistoricoPorConta() {
   let t = {};
   (state.contas || []).forEach(c => (t[c.nome] = 0));
@@ -878,8 +876,10 @@ function render() {
   if (baseEl) baseEl.textContent = money(state.valorBase100 || 2.5);
 
   limparReservasExpiradas();
-  const tSessao = totais(),
-    totalSessao = (state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0);
+  
+  // Total da sessão ativa
+  const tSessao = totais();
+  const totalSessao = (state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0);
 
   document.getElementById("totalGeral").textContent = money(totalSessao);
   
@@ -904,7 +904,7 @@ function render() {
     .join("");
   if ([...sel.options].some(o => o.value === old)) sel.value = old;
 
-  // Renderiza cards de conta estritamente com os dados da sessão do dia
+  // Renderiza cards de conta ESTRITAMENTE com os valores da sessão diária
   renderContasCards(tSessao);
 
   document.getElementById("contas").innerHTML = (state.contas || [])
