@@ -324,7 +324,7 @@
     </div>
   </section>
 
-  <!-- Contas e Envios -->
+  <!-- Contas e Envios (Sessão Diária Ativa) -->
   <section class="panel">
     <h2>💰 Total por Conta & Status de Envios</h2>
     <div id="totaisPorConta" class="account-grid"></div>
@@ -359,8 +359,17 @@
         <span>🛒 TOTAL DE VENDAS</span>
         <strong id="historicoQtdTotal">0 pedidos · 0 itens enviados</strong>
       </div>
-      <div id="lucroMetaAlert" class="profit-goal-alert" style="display:none"></div>
+      
       <div class="history-periods" id="historicoPeriodos"></div>
+
+      <!-- Balanço Retrátil Financeiro por Conta (Geral) -->
+      <div class="financial-toggle-container">
+        <button type="button" class="btn-financial-toggle" id="btnFinancialToggle" onclick="toggleBalancoFinanceiro()">
+          <span>📊 Balanço Financeiro por Conta (Histórico Acumulado)</span>
+          <span id="financialToggleArrow" class="toggle-arrow">▾</span>
+        </button>
+        <div id="financialBalanceContent" class="financial-balance-content" style="display:none;"></div>
+      </div>
     </div>
 
     <!-- Barra de Busca do Histórico -->

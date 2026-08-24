@@ -817,16 +817,72 @@ button:hover {
   aspect-ratio: 1;
 }
 
-.profit-goal-btn {
-  margin-top: 4px;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #fff;
-  border-radius: 6px;
-  padding: 4px 6px;
-  font-size: 11px;
-  font-weight: 800;
+/* =======================================================
+   BALANÇO FINANCEIRO RETRÁTIL POR CONTA
+======================================================= */
+.financial-toggle-container {
   width: 100%;
+  margin-top: 10px;
+}
+
+.btn-financial-toggle {
+  width: 100%;
+  background: #190b33;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-light);
+  box-shadow: none;
+  transition: all 0.2s;
+}
+
+.btn-financial-toggle:hover {
+  background: #241147;
+  border-color: var(--accent-light);
+}
+
+.toggle-arrow {
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.financial-balance-content {
+  background: var(--panel-card);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  padding: 14px 16px;
+  animation: modalFadeIn 0.2s ease forwards;
+}
+
+.financial-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.financial-table th {
+  color: var(--muted);
+  font-weight: 700;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.financial-table td {
+  padding: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: #fff;
+  font-weight: 600;
+}
+
+.financial-table tr:last-child td {
+  border-bottom: none;
 }
 
 /* =======================================================
@@ -1114,18 +1170,6 @@ button:hover {
   padding: 6px 12px;
   font-size: 12px;
   border-radius: 8px;
-}
-
-.profit-goal-alert {
-  margin: 10px 0 12px;
-  padding: 12px 14px;
-  background: rgba(142, 68, 255, 0.15);
-  border: 1px solid var(--accent);
-  border-radius: 12px;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 700;
-  color: #fff;
 }
 
 /* Modais e Toasts */
