@@ -15,6 +15,9 @@ const CATEGORIAS_ITENS = [
   "Outro"
 ];
 
+// Margem de lucro contínua baseada no custo de R$ 210 para faturamento de R$ 310 (100 / 310)
+const MARGEM_LUCRO = 100 / 310;
+
 const DADOS_DEMO = {
   contas: [
     { nome: "Conta Demo 01", ativa: true, usadas: 0, vbucks: 10000 },
@@ -24,8 +27,7 @@ const DADOS_DEMO = {
   reservas: [],
   valorBase100: 2.5,
   historicoVendas: [],
-  lixeiraVendas: [],
-  metasLucro: { retiradas: 0 }
+  lixeiraVendas: []
 };
 
 let currentUser = null;
@@ -61,7 +63,6 @@ function copiarTexto(texto, tipo = "Texto", event = null) {
   });
 }
 
-// Extrai estritamente o nome do item descartando a categoria
 function extrairApenasNomeItem(itemStr) {
   if (!itemStr) return "";
   const { nome } = parseItemString(itemStr);
@@ -761,6 +762,16 @@ function esc(s) {
   return String(s || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
 }
 
+// Calcula faturamento acumulado por conta em todo o histórico
+function totaisHistoricoPorConta() {
+  let t = {};
+  (state.contas || []).forEach(c => (t[c.nome] = 0));
+  (state.historicoVendas || []).forEach(v => {
+    t[v.conta] = (t[v.conta] || 0) + Number(v.valor || 0);
+  });
+  return t;
+}
+
 function totais() {
   let t = {};
   (state.contas || []).forEach(c => (t[c.nome] = 0));
@@ -844,17 +855,17 @@ function render() {
   if (baseEl) baseEl.textContent = money(state.valorBase100 || 2.5);
 
   limparReservasExpiradas();
-  const t = totais(),
-    total = (state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0);
+  const tSessao = totais(),
+    totalSessao = (state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0);
 
-  document.getElementById("totalGeral").textContent = money(total);
+  document.getElementById("totalGeral").textContent = money(totalSessao);
   
   const qtdPedidosSessao = (state.vendas || []).length;
   const qtdItensSessao = (state.vendas || []).reduce((a, v) => a + (Number(v.quantidade) || 1), 0);
   document.getElementById("qtdVendas").textContent = `${qtdPedidosSessao} (${qtdItensSessao} itens)`;
 
   let top = "—", tv = 0;
-  Object.entries(t).forEach(([n, v]) => {
+  Object.entries(tSessao).forEach(([n, v]) => {
     if (v > tv) {
       top = n;
       tv = v;
@@ -870,7 +881,7 @@ function render() {
     .join("");
   if ([...sel.options].some(o => o.value === old)) sel.value = old;
 
-  renderContasCards(t);
+  renderContasCards();
 
   document.getElementById("contas").innerHTML = (state.contas || [])
     .map(
@@ -993,20 +1004,14 @@ function render() {
   const anoPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
 
-  // 5. METAS DE LUCRO
-  const metasAtingidas = Math.floor(totalHistorico / 310);
-  const metasRetiradas = Math.min(state.metasLucro?.retiradas || 0, metasAtingidas);
-  const metasDisponiveis = Math.max(0, metasAtingidas - metasRetiradas);
-  const lucroHistorico = metasAtingidas * 100;
-  const vendasParaProximoLucro = (metasAtingidas + 1) * 310 - totalHistorico;
+  // ==========================================
+  // 5. CÁLCULO DO LUCRO CONTÍNUO (32,26%)
+  // ==========================================
+  const lucroContinuoTotal = totalHistorico * MARGEM_LUCRO;
 
   const lucroAlertEl = document.getElementById("lucroMetaAlert");
   if (lucroAlertEl) {
-    lucroAlertEl.innerHTML =
-      metasDisponiveis > 0
-        ? `🎉 <b>${metasDisponiveis === 1 ? "META DE LUCRO ATINGIDA!" : "METAS DE LUCRO ATINGIDAS!"}</b><br>${metasDisponiveis} ${metasDisponiveis === 1 ? "meta de R$ 100" : "metas de R$ 100"} disponível${metasDisponiveis === 1 ? "" : "eis"} para retirada.`
-        : "";
-    lucroAlertEl.style.display = metasDisponiveis > 0 ? "block" : "none";
+    lucroAlertEl.style.display = "none";
   }
 
   const periodosEl = document.getElementById("historicoPeriodos");
@@ -1066,13 +1071,12 @@ function render() {
       <small class="period-vbucks-text">🪙 ${formatVBucks(anoVbucks)} V-Bucks</small>
     </div>
 
-    <!-- Card 5: Metas de Lucro -->
+    <!-- Card 5: Lucro Total Contínuo (Limpo) -->
     <div class="period-card profit-card">
-      <span>📈 Lucro</span>
-      <strong>${money(lucroHistorico)}</strong>
-      <small>🎯 Meta restante: ${money(vendasParaProximoLucro)}</small>
-      <small>💵 ${metasDisponiveis} ${metasDisponiveis === 1 ? "meta disponível" : "metas disponíveis"}</small>
-      ${metasDisponiveis > 0 ? '<button type="button" class="profit-goal-btn" onclick="marcarMetasRetiradas(); return false;">✓ Já retirei</button>' : ""}
+      <span>📈 Lucro Líquido</span>
+      <strong>${money(lucroContinuoTotal)}</strong>
+      <small style="color:var(--green); font-weight:700;">Margem real: 32,26%</small>
+      <small>Total bruto: ${money(totalHistorico)}</small>
     </div>
   `;
   }
@@ -1082,13 +1086,12 @@ function render() {
   // ==========================================
   const totalOriginal = historico.length;
   
-  // Cria array mapeado com o número original da venda (#01, #46...)
   const listaComIndices = historico.map((v, originalIdx) => ({
     ...v,
     originalIdx,
     numeroPedido: `#${String(originalIdx + 1).padStart(2, "0")}`,
     numeroPuro: String(originalIdx + 1)
-  })).reverse(); // Mais recentes primeiro
+  })).reverse();
 
   let listaFiltrada = listaComIndices;
 
@@ -1134,7 +1137,6 @@ function render() {
   const fimIdx = inicioIdx + ITENS_POR_PAGINA;
   const itensPagina = listaFiltrada.slice(inicioIdx, fimIdx);
 
-  // Renderiza os Cards da Página Atual
   const historicoContainer = document.getElementById("historico");
   if (historicoContainer) {
     if (itensPagina.length === 0) {
@@ -1186,7 +1188,6 @@ function render() {
     }
   }
 
-  // Renderiza a barra de controles de paginação
   const paginacaoContainer = document.getElementById("historyPagination");
   if (paginacaoContainer) {
     if (totalItensFiltrados === 0) {
@@ -1194,7 +1195,6 @@ function render() {
     } else {
       let botoesPaginasHtml = "";
       
-      // Gera botões de páginas
       for (let p = 1; p <= totalPaginas; p++) {
         if (
           p === 1 || 
@@ -1227,10 +1227,14 @@ function render() {
   }
 }
 
-function renderContasCards(t) {
-  if (!t) t = totais();
+// ==========================================
+// RENDERIZAÇÃO DOS CARDS DAS CONTAS COM LUCRO
+// ==========================================
+function renderContasCards() {
   const container = document.getElementById("totaisPorConta");
-  if (!container) return;
+  if (!container || !state) return;
+
+  const faturamentoHistorico = totaisHistoricoPorConta();
 
   container.innerHTML = (state.contas || [])
     .filter(c => c.ativa)
@@ -1240,6 +1244,7 @@ function renderContasCards(t) {
       const reservasAtivas = (state.reservas || [])
         .filter(r => r.conta === c.nome && r.expiresAt > Date.now())
         .sort((a, b) => a.expiresAt - b.expiresAt);
+      
       const tempos = reservasAtivas.map(
         (r, n) => `
         <div class="timer-line">
@@ -1248,10 +1253,20 @@ function renderContasCards(t) {
         </div>
       `
       );
+
+      const fatConta = faturamentoHistorico[c.nome] || 0;
+      const lucroConta = fatConta * MARGEM_LUCRO;
+
       return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
-      <div class="account-card-head"><div class="name">${esc(c.nome)}</div><button type="button" class="btn-danger reset-timer-btn" onclick="removerTimersConta(${state.contas.indexOf(c)})">🗑️ Remover timers</button></div>
-      <div class="amount">${money(t[c.nome] || 0)}</div><div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
-      <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta conta</div>
+      <div class="account-card-head">
+        <div class="name">${esc(c.nome)}</div>
+        <button type="button" class="btn-danger reset-timer-btn" onclick="removerTimersConta(${state.contas.indexOf(c)})">🗑️ Remover timers</button>
+      </div>
+      
+      <div class="amount">${money(fatConta)}</div>
+      <div style="font-size:12px; color:var(--green); font-weight:800; margin-top:2px;">📈 Lucro: ${money(lucroConta)}</div>
+      
+      <div class="sales-count" style="margin-top:6px;">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
       <div class="sales-count">📦 ${quantidade}/5 usadas · ${disponiveis} ${disponiveis === 1 ? "disponível" : "disponíveis"}</div>
       ${quantidade >= 5 ? `<div class="limit">🔴 LIMITE ATINGIDO — 5/5</div>` : ""}
       <div class="timer">${tempos.length ? tempos.join("") : `<div class="timer">🟢 5 vagas disponíveis</div>`}</div>
@@ -1733,23 +1748,6 @@ function salvarEdicaoVenda() {
   mostrarNotificacao(`Venda atualizada com sucesso! (Conta: ${novaContaNome})`, "sucesso");
 }
 
-function marcarMetasRetiradas() {
-  const historico = Array.isArray(state.historicoVendas) ? state.historicoVendas : [];
-  const totalHistoricoAtual = historico.reduce((s, v) => s + (Number(v.valor) || 0), 0);
-  const metasAtingidas = Math.floor(totalHistoricoAtual / 310);
-  const retiradas = state.metasLucro?.retiradas || 0;
-  const disponiveis = Math.max(0, metasAtingidas - retiradas);
-  if (disponiveis <= 0) return;
-
-  const valor = disponiveis * 100;
-  abrirModalConfirmacao("💰 Retirada de Lucro", `Confirmar retirada de R$ ${valor.toFixed(2).replace(".", ",")} de lucro atingido?`, () => {
-    state.metasLucro = state.metasLucro || { retiradas: 0 };
-    state.metasLucro.retiradas += disponiveis;
-    save();
-    mostrarNotificacao("Retirada de lucro confirmada!", "sucesso");
-  });
-}
-
 function solicitarLimpezaHistorico() {
   if (!state.historicoVendas || !state.historicoVendas.length) {
     mostrarNotificacao("O histórico já está vazio.", "info");
@@ -1828,7 +1826,7 @@ document.getElementById("valorInput").addEventListener("keydown", e => {
 
 inicializar();
 
-// Temporizador a cada 1 segundo para atualizar os timers sem fechar o calendário
+// Temporizador inteligente a cada 1 segundo
 setInterval(() => {
   if (limparReservasExpiradas()) {
     save();
