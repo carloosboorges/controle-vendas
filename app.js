@@ -33,14 +33,19 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
-// Variáveis de controle do calendário personalizado
+// Controle do Calendário Personalizado
 let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
 let calPopoverAberto = false;
 
-let diaFiltroSelecionado = null; // Formato DD/MM/YYYY
+let diaFiltroSelecionado = null;
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
+
+// Controle de Paginação e Busca do Histórico
+const ITENS_POR_PAGINA = 8;
+let historicoPaginaAtual = 1;
+let historicoTermoBusca = "";
 
 // ==========================================
 // FUNÇÃO DE COPIAR TEXTO CIRÚRGICA
@@ -56,7 +61,7 @@ function copiarTexto(texto, tipo = "Texto", event = null) {
   });
 }
 
-// Extrai estritamente o nome do item descartando a categoria (Ex: 'Música – Song' -> 'Song')
+// Extrai estritamente o nome do item descartando a categoria
 function extrairApenasNomeItem(itemStr) {
   if (!itemStr) return "";
   const { nome } = parseItemString(itemStr);
@@ -159,6 +164,36 @@ function gerarHtmlCalendarioPopover() {
       </div>
     </div>
   `;
+}
+
+// ==========================================
+// CONTROLE DE BUSCA & PAGINAÇÃO
+// ==========================================
+function filtrarHistoricoInput(val) {
+  historicoTermoBusca = String(val || "").trim().toLowerCase();
+  historicoPaginaAtual = 1;
+  const btnClear = document.getElementById("clearSearchBtn");
+  if (btnClear) {
+    btnClear.style.display = historicoTermoBusca ? "block" : "none";
+  }
+  render();
+}
+
+function limparBuscaHistorico() {
+  historicoTermoBusca = "";
+  historicoPaginaAtual = 1;
+  const input = document.getElementById("historySearchInput");
+  if (input) input.value = "";
+  const btnClear = document.getElementById("clearSearchBtn");
+  if (btnClear) btnClear.style.display = "none";
+  render();
+}
+
+function mudarPaginaHistorico(p) {
+  historicoPaginaAtual = p;
+  render();
+  const sec = document.querySelector(".history-search-bar-box");
+  if (sec) sec.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 // ==========================================
@@ -889,13 +924,13 @@ function render() {
     return x;
   };
 
-  // Funções de agregação
+  // Funções de agregação dos cards de período
   const somaFiltro = fn => historico.filter(fn).reduce((s, v) => s + Number(v.valor || 0), 0);
   const somaVbucksFiltro = fn => historico.filter(fn).reduce((s, v) => s + (v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento)), 0);
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
-  // 1. DATA SELECIONADA DO CALENDÁRIO PERSONALIZADO
+  // 1. DATA SELECIONADA DO CALENDÁRIO
   const hojeChave = `${String(agoraData.getDate()).padStart(2, "0")}/${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
   if (!diaFiltroSelecionado) {
     diaFiltroSelecionado = hojeChave;
@@ -1042,26 +1077,85 @@ function render() {
   `;
   }
 
-  document.getElementById("historico").innerHTML = (state.historicoVendas || []).length
-    ? state.historicoVendas
-        .slice()
-        .reverse()
-        .map((v, ri) => {
-          const i = state.historicoVendas.length - 1 - ri;
-          const itens = v.quantidade || 1;
-          const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
-          
-          // Formata itens individualmente permitindo clicar estritamente em cima do nome
-          const itensListHtml = Array.isArray(v.itens) && v.itens.length
-            ? v.itens.map((itemStr, n) => {
-                const apenasNome = extrairApenasNomeItem(itemStr);
-                return `${n === 0 ? "" : "<br>"}🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(apenasNome)}', 'Item', event)" title="Clique para copiar apenas: ${esc(apenasNome)}">${esc(itemStr)}</span>`;
-              }).join("")
-            : `🎁 <span class="copyable-text" onclick="copiarTexto('${esc(extrairApenasNomeItem(v.item || ""))}', 'Item', event)" title="Clique para copiar apenas: ${esc(extrairApenasNomeItem(v.item || ""))}">${esc(v.item || "Item não informado")}</span>`;
+  // ==========================================
+  // MOTOR DE BUSCA UNIVERSAL NO HISTÓRICO
+  // ==========================================
+  const totalOriginal = historico.length;
+  
+  // Cria array mapeado com o número original da venda (#01, #46...)
+  const listaComIndices = historico.map((v, originalIdx) => ({
+    ...v,
+    originalIdx,
+    numeroPedido: `#${String(originalIdx + 1).padStart(2, "0")}`,
+    numeroPuro: String(originalIdx + 1)
+  })).reverse(); // Mais recentes primeiro
 
-          return `<div class="history-card">
+  let listaFiltrada = listaComIndices;
+
+  if (historicoTermoBusca) {
+    const termo = historicoTermoBusca.replace("#", "").trim();
+    listaFiltrada = listaComIndices.filter(v => {
+      const vb = String(v.vbucks !== undefined ? v.vbucks : valorParaVBucks(v.valor, v.valorBaseMomento));
+      const vbFormat = formatVBucks(vb).toLowerCase();
+      const valReal = String(v.valor || "").replace(".", ",");
+      const valPuro = String(v.valor || "");
+      const itensStr = Array.isArray(v.itens) ? v.itens.join(" ").toLowerCase() : String(v.item || "").toLowerCase();
+
+      return (
+        v.numeroPedido.toLowerCase().includes(historicoTermoBusca) ||
+        v.numeroPuro === termo ||
+        String(v.cliente || "").toLowerCase().includes(historicoTermoBusca) ||
+        String(v.nickCliente || "").toLowerCase().includes(historicoTermoBusca) ||
+        String(v.conta || "").toLowerCase().includes(historicoTermoBusca) ||
+        String(v.data || "").toLowerCase().includes(historicoTermoBusca) ||
+        itensStr.includes(historicoTermoBusca) ||
+        vb === termo ||
+        vbFormat.includes(historicoTermoBusca) ||
+        valReal.includes(historicoTermoBusca) ||
+        valPuro.includes(historicoTermoBusca)
+      );
+    });
+  }
+
+  // ==========================================
+  // PAGINAÇÃO (8 POR PÁGINA)
+  // ==========================================
+  const totalItensFiltrados = listaFiltrada.length;
+  const totalPaginas = Math.ceil(totalItensFiltrados / ITENS_POR_PAGINA) || 1;
+
+  if (historicoPaginaAtual > totalPaginas) {
+    historicoPaginaAtual = totalPaginas;
+  }
+  if (historicoPaginaAtual < 1) {
+    historicoPaginaAtual = 1;
+  }
+
+  const inicioIdx = (historicoPaginaAtual - 1) * ITENS_POR_PAGINA;
+  const fimIdx = inicioIdx + ITENS_POR_PAGINA;
+  const itensPagina = listaFiltrada.slice(inicioIdx, fimIdx);
+
+  // Renderiza os Cards da Página Atual
+  const historicoContainer = document.getElementById("historico");
+  if (historicoContainer) {
+    if (itensPagina.length === 0) {
+      historicoContainer.innerHTML = historicoTermoBusca
+        ? `<div class="empty">Nenhuma venda encontrada para a busca "<b>${esc(historicoTermoBusca)}</b>".</div>`
+        : `<div class="empty">Nenhuma venda registrada ainda.</div>`;
+    } else {
+      historicoContainer.innerHTML = itensPagina.map(v => {
+        const itensCount = v.quantidade || 1;
+        const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+        
+        const itensListHtml = Array.isArray(v.itens) && v.itens.length
+          ? v.itens.map((itemStr, n) => {
+              const apenasNome = extrairApenasNomeItem(itemStr);
+              return `${n === 0 ? "" : "<br>"}🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(apenasNome)}', 'Item', event)" title="Clique para copiar apenas: ${esc(apenasNome)}">${esc(itemStr)}</span>`;
+            }).join("")
+          : `🎁 <span class="copyable-text" onclick="copiarTexto('${esc(extrairApenasNomeItem(v.item || ""))}', 'Item', event)" title="Clique para copiar apenas: ${esc(extrairApenasNomeItem(v.item || ""))}">${esc(v.item || "Item não informado")}</span>`;
+
+        return `<div class="history-card">
           <div class="history-main">
-            <div class="history-number">#${String(i + 1).padStart(2, "0")}</div>
+            <div class="history-number">${v.numeroPedido}</div>
             <div class="history-info">
               <div class="history-account">
                 <span class="copyable-text" onclick="copiarTexto('${esc(v.conta)}', 'Conta', event)" title="Clique para copiar a conta">${esc(v.conta)}</span>
@@ -1080,17 +1174,57 @@ function render() {
             <div class="history-value">${money(v.valor)}</div>
           </div>
           <div class="history-details">
-            <span>🎁 ${itens} ${itens === 1 ? "item" : "itens"}</span>
+            <span>🎁 ${itensCount} ${itensCount === 1 ? "item" : "itens"}</span>
             <span>🪙 ${formatVBucks(vb)} V-Bucks</span>
             <div class="history-actions">
-              <button type="button" class="btn-gray" onclick="abrirModalEdicao(${i})">✏️ Editar</button>
-              <button type="button" class="btn-danger" onclick="excluirHistorico(${i})">🗑️ Excluir</button>
+              <button type="button" class="btn-gray" onclick="abrirModalEdicaoPorId('${esc(v.id)}')">✏️ Editar</button>
+              <button type="button" class="btn-danger" onclick="excluirHistoricoPorId('${esc(v.id)}')">🗑️ Excluir</button>
             </div>
           </div>
         </div>`;
-        })
-        .join("")
-    : `<div class="empty">Nenhuma venda registrada ainda.</div>`;
+      }).join("");
+    }
+  }
+
+  // Renderiza a barra de controles de paginação
+  const paginacaoContainer = document.getElementById("historyPagination");
+  if (paginacaoContainer) {
+    if (totalItensFiltrados === 0) {
+      paginacaoContainer.innerHTML = "";
+    } else {
+      let botoesPaginasHtml = "";
+      
+      // Gera botões de páginas
+      for (let p = 1; p <= totalPaginas; p++) {
+        if (
+          p === 1 || 
+          p === totalPaginas || 
+          (p >= historicoPaginaAtual - 1 && p <= historicoPaginaAtual + 1)
+        ) {
+          botoesPaginasHtml += `
+            <button type="button" class="pagination-btn ${p === historicoPaginaAtual ? "active" : ""}" onclick="mudarPaginaHistorico(${p})">${p}</button>
+          `;
+        } else if (
+          p === historicoPaginaAtual - 2 || 
+          p === historicoPaginaAtual + 2
+        ) {
+          botoesPaginasHtml += `<span style="color:var(--muted); font-size:12px; padding:0 2px;">...</span>`;
+        }
+      }
+
+      const exibindoQtd = itensPagina.length;
+      paginacaoContainer.innerHTML = `
+        <div class="pagination-controls-row">
+          <button type="button" class="pagination-btn" ${historicoPaginaAtual === 1 ? "disabled" : ""} onclick="mudarPaginaHistorico(${historicoPaginaAtual - 1})">‹ Anterior</button>
+          ${botoesPaginasHtml}
+          <button type="button" class="pagination-btn" ${historicoPaginaAtual === totalPaginas ? "disabled" : ""} onclick="mudarPaginaHistorico(${historicoPaginaAtual + 1})">Próxima ›</button>
+        </div>
+        <div class="pagination-info-text">
+          Página ${historicoPaginaAtual} de ${totalPaginas} · Exibindo ${exibindoQtd} de ${totalItensFiltrados} vendas${historicoTermoBusca ? ` (Filtrado de ${totalOriginal})` : ""}
+        </div>
+      `;
+    }
+  }
 }
 
 function renderContasCards(t) {
@@ -1220,9 +1354,13 @@ function adicionarVenda() {
   mostrarNotificacao("Venda registrada com sucesso!", "sucesso");
 }
 
-function excluirHistorico(i) {
+// ==========================================
+// EXCLUSÃO SEGURA POR ID
+// ==========================================
+function excluirHistoricoPorId(vendaId) {
+  const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
+  if (i < 0) return;
   const venda = state.historicoVendas[i];
-  if (!venda) return;
 
   abrirModalConfirmacao("🗑️ Mover para Lixeira", `Deseja mover a venda de ${venda.cliente} (${money(venda.valor)}) para a lixeira? Os V-Bucks serão devolvidos à conta.`, () => {
     const conta = (state.contas || []).find(c => c.nome === venda.conta);
@@ -1421,13 +1559,14 @@ function removerTimersConta(i) {
 }
 
 // ==========================================
-// MODAL DE EDIÇÃO DE VENDA
+// MODAL DE EDIÇÃO DE VENDA POR ID
 // ==========================================
-function abrirModalEdicao(index) {
-  const venda = state.historicoVendas[index];
-  if (!venda) return;
+function abrirModalEdicaoPorId(vendaId) {
+  const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
+  if (i < 0) return;
+  const venda = state.historicoVendas[i];
 
-  document.getElementById("editVendaIndex").value = index;
+  document.getElementById("editVendaId").value = vendaId;
   
   const selectConta = document.getElementById("editContaSelect");
   if (selectConta) {
@@ -1474,15 +1613,17 @@ function abrirModalEdicao(index) {
 }
 
 function removerItemEdicao(idx) {
-  const i = parseInt(document.getElementById("editVendaIndex").value, 10);
+  const vendaId = document.getElementById("editVendaId").value;
+  const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
+  if (i < 0) return;
   const venda = state.historicoVendas[i];
-  if (!venda) return;
+
   const itens = Array.isArray(venda.itens) ? [...venda.itens] : [venda.item || ""];
   if (itens.length > 1) {
     itens.splice(idx, 1);
     venda.itens = itens;
     venda.quantidade = itens.length;
-    abrirModalEdicao(i);
+    abrirModalEdicaoPorId(vendaId);
   }
 }
 
@@ -1492,9 +1633,10 @@ function fecharModalEdicao() {
 }
 
 function salvarEdicaoVenda() {
-  const i = parseInt(document.getElementById("editVendaIndex").value, 10);
+  const vendaId = document.getElementById("editVendaId").value;
+  const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
+  if (i < 0) return;
   const venda = state.historicoVendas[i];
-  if (!venda) return;
 
   const novaContaNome = document.getElementById("editContaSelect").value;
   const contaAntigaNome = venda.conta;

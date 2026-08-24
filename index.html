@@ -148,7 +148,7 @@
         <h3 id="editSaleTitle" style="margin:0;">✏️ Editar Registro de Venda</h3>
         <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEdicao()">✕</button>
       </div>
-      <input type="hidden" id="editVendaIndex">
+      <input type="hidden" id="editVendaId">
       <div class="modal-body-grid">
         <div class="field">
           <label>Conta utilizada</label>
@@ -363,7 +363,25 @@
       <div class="history-periods" id="historicoPeriodos"></div>
     </div>
 
+    <!-- Barra de Busca do Histórico -->
+    <div class="history-search-bar-box" style="margin-top: 16px;">
+      <div class="history-search-input-wrapper">
+        <span class="search-icon">🔍</span>
+        <input 
+          id="historySearchInput" 
+          type="text" 
+          placeholder="Buscar por ID (#46), Nick, Cliente, Item, Conta, V-Bucks (1500) ou Data..."
+          oninput="filtrarHistoricoInput(this.value)"
+        >
+        <button type="button" class="btn-clear-search" id="clearSearchBtn" style="display:none;" onclick="limparBuscaHistorico()">✕</button>
+      </div>
+    </div>
+
+    <!-- Lista de Vendas Paginada -->
     <div id="historico" class="history-cards"></div>
+
+    <!-- Controles de Paginação -->
+    <div id="historyPagination" class="history-pagination-container"></div>
   </section>
 
   <footer id="statusFooter">☁️ Carregando...</footer>
