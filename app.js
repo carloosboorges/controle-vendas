@@ -15,10 +15,6 @@ const CATEGORIAS_ITENS = [
   "Outro"
 ];
 
-// Margem de lucro contínua de ~32,26% (R$ 100 a cada R$ 310)
-const MARGEM_LUCRO = 100 / 310;
-const MARGEM_CUSTO = 210 / 310;
-
 const DADOS_DEMO = {
   contas: [
     { nome: "Conta Demo 01", ativa: true, usadas: 0, vbucks: 10000 },
@@ -28,7 +24,8 @@ const DADOS_DEMO = {
   reservas: [],
   valorBase100: 2.5,
   historicoVendas: [],
-  lixeiraVendas: []
+  lixeiraVendas: [],
+  metasLucro: { retiradas: 0 }
 };
 
 let currentUser = null;
@@ -36,20 +33,19 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
-// Controle do Calendário
+// Controle do Calendário Personalizado
 let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
 let calPopoverAberto = false;
 
-let diaFiltroSelecionado = null;
+let diaFiltroSelecionado = null; // Formato DD/MM/YYYY
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
 
-// Paginação e Busca
+// Controle de Paginação e Busca do Histórico
 const ITENS_POR_PAGINA = 8;
 let historicoPaginaAtual = 1;
 let historicoTermoBusca = "";
-let balancoAberto = false;
 
 // ==========================================
 // FUNÇÃO DE COPIAR TEXTO CIRÚRGICA
@@ -72,7 +68,7 @@ function extrairApenasNomeItem(itemStr) {
 }
 
 // ==========================================
-// CONTROLE DO CALENDÁRIO
+// CONTROLE DO CALENDÁRIO PERSONALIZADO
 // ==========================================
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
@@ -167,24 +163,6 @@ function gerarHtmlCalendarioPopover() {
       </div>
     </div>
   `;
-}
-
-// ==========================================
-// CONTROLE DO BALANÇO RETRÁTIL
-// ==========================================
-function toggleBalancoFinanceiro() {
-  balancoAberto = !balancoAberto;
-  const content = document.getElementById("financialBalanceContent");
-  const arrow = document.getElementById("financialToggleArrow");
-  const btn = document.getElementById("btnFinancialToggle");
-  
-  if (content && arrow) {
-    content.style.display = balancoAberto ? "block" : "none";
-    arrow.textContent = balancoAberto ? "▴" : "▾";
-    if (btn) {
-      btn.style.borderRadius = balancoAberto ? "12px 12px 0 0" : "12px";
-    }
-  }
 }
 
 // ==========================================
@@ -782,21 +760,11 @@ function esc(s) {
   return String(s || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
 }
 
-// Faturamento EXCLUSIVO da sessão do dia ativa (zera no botão Nova Sessão)
+// Faturamento estritamente da sessão ativa (que zera no botão Nova Sessão)
 function totais() {
   let t = {};
   (state.contas || []).forEach(c => (t[c.nome] = 0));
   (state.vendas || []).forEach(v => (t[v.conta] = (t[v.conta] || 0) + Number(v.valor || 0)));
-  return t;
-}
-
-// Faturamento acumulado histórico por conta (usado no balanço financeiro retrátil)
-function totaisHistoricoPorConta() {
-  let t = {};
-  (state.contas || []).forEach(c => (t[c.nome] = 0));
-  (state.historicoVendas || []).forEach(v => {
-    t[v.conta] = (t[v.conta] || 0) + Number(v.valor || 0);
-  });
   return t;
 }
 
@@ -876,19 +844,17 @@ function render() {
   if (baseEl) baseEl.textContent = money(state.valorBase100 || 2.5);
 
   limparReservasExpiradas();
-  
-  // Total da sessão ativa
-  const tSessao = totais();
-  const totalSessao = (state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0);
+  const t = totais(),
+    total = (state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0);
 
-  document.getElementById("totalGeral").textContent = money(totalSessao);
+  document.getElementById("totalGeral").textContent = money(total);
   
   const qtdPedidosSessao = (state.vendas || []).length;
   const qtdItensSessao = (state.vendas || []).reduce((a, v) => a + (Number(v.quantidade) || 1), 0);
   document.getElementById("qtdVendas").textContent = `${qtdPedidosSessao} (${qtdItensSessao} itens)`;
 
   let top = "—", tv = 0;
-  Object.entries(tSessao).forEach(([n, v]) => {
+  Object.entries(t).forEach(([n, v]) => {
     if (v > tv) {
       top = n;
       tv = v;
@@ -904,8 +870,7 @@ function render() {
     .join("");
   if ([...sel.options].some(o => o.value === old)) sel.value = old;
 
-  // Renderiza cards de conta ESTRITAMENTE com os valores da sessão diária
-  renderContasCards(tSessao);
+  renderContasCards(t);
 
   document.getElementById("contas").innerHTML = (state.contas || [])
     .map(
@@ -1028,8 +993,21 @@ function render() {
   const anoPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
 
-  // 5. CÁLCULO DO LUCRO CONTÍNUO GERAL (32,26%)
-  const lucroContinuoGeral = totalHistorico * MARGEM_LUCRO;
+  // 5. METAS DE LUCRO (R$ 310 / R$ 100)
+  const metasAtingidas = Math.floor(totalHistorico / 310);
+  const metasRetiradas = Math.min(state.metasLucro?.retiradas || 0, metasAtingidas);
+  const metasDisponiveis = Math.max(0, metasAtingidas - metasRetiradas);
+  const lucroHistorico = metasAtingidas * 100;
+  const vendasParaProximoLucro = (metasAtingidas + 1) * 310 - totalHistorico;
+
+  const lucroAlertEl = document.getElementById("lucroMetaAlert");
+  if (lucroAlertEl) {
+    lucroAlertEl.innerHTML =
+      metasDisponiveis > 0
+        ? `🎉 <b>${metasDisponiveis === 1 ? "META DE LUCRO ATINGIDA!" : "METAS DE LUCRO ATINGIDAS!"}</b><br>${metasDisponiveis} ${metasDisponiveis === 1 ? "meta de R$ 100" : "metas de R$ 100"} disponível${metasDisponiveis === 1 ? "" : "eis"} para retirada.`
+        : "";
+    lucroAlertEl.style.display = metasDisponiveis > 0 ? "block" : "none";
+  }
 
   const periodosEl = document.getElementById("historicoPeriodos");
   if (periodosEl) {
@@ -1088,56 +1066,15 @@ function render() {
       <small class="period-vbucks-text">🪙 ${formatVBucks(anoVbucks)} V-Bucks</small>
     </div>
 
-    <!-- Card 5: Lucro Total Contínuo (Limpo) -->
+    <!-- Card 5: Metas de Lucro -->
     <div class="period-card profit-card">
-      <span>📈 Lucro Líquido</span>
-      <strong>${money(lucroContinuoGeral)}</strong>
-      <small style="color:var(--green); font-weight:700;">Margem: 32,26%</small>
-      <small>Total bruto: ${money(totalHistorico)}</small>
+      <span>📈 Lucro</span>
+      <strong>${money(lucroHistorico)}</strong>
+      <small>🎯 Meta restante: ${money(vendasParaProximoLucro)}</small>
+      <small>💵 ${metasDisponiveis} ${metasDisponiveis === 1 ? "meta disponível" : "metas disponíveis"}</small>
+      ${metasDisponiveis > 0 ? '<button type="button" class="profit-goal-btn" onclick="marcarMetasRetiradas(); return false;">✓ Já retirei</button>' : ""}
     </div>
   `;
-  }
-
-  // ==========================================
-  // RENDERIZAÇÃO DO BALANÇO FINANCEIRO RETRÁTIL
-  // ==========================================
-  const financialContent = document.getElementById("financialBalanceContent");
-  if (financialContent) {
-    const faturamentoHistorico = totaisHistoricoPorConta();
-    const contasAtivas = (state.contas || []).filter(c => c.ativa);
-
-    const linhasHtml = contasAtivas.map(c => {
-      const fat = faturamentoHistorico[c.nome] || 0;
-      const custo = fat * MARGEM_CUSTO;
-      const lucro = fat * MARGEM_LUCRO;
-
-      return `
-        <tr>
-          <td><b>${esc(c.nome)}</b></td>
-          <td style="color:#fff;">${money(fat)}</td>
-          <td style="color:var(--muted);">${money(custo)}</td>
-          <td style="color:var(--green); font-weight:800;">${money(lucro)}</td>
-        </tr>
-      `;
-    }).join("");
-
-    financialContent.innerHTML = `
-      <div style="overflow-x:auto;">
-        <table class="financial-table">
-          <thead>
-            <tr>
-              <th>Conta</th>
-              <th>Faturamento Total</th>
-              <th>Custo Reposição</th>
-              <th>Lucro Líquido</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${linhasHtml.length ? linhasHtml : `<tr><td colspan="4" style="text-align:center; color:var(--muted); padding:15px;">Nenhuma conta ativa cadastrada.</td></tr>`}
-          </tbody>
-        </table>
-      </div>
-    `;
   }
 
   // ==========================================
@@ -1287,7 +1224,7 @@ function render() {
 }
 
 // ==========================================
-// RENDERIZAÇÃO DOS CARDS DAS CONTAS (SESSÃO DO DIA)
+// RENDERIZAÇÃO DOS CARDS DAS CONTAS (SESSÃO ATIVA)
 // ==========================================
 function renderContasCards(t) {
   if (!t) t = totais();
@@ -1320,7 +1257,7 @@ function renderContasCards(t) {
       
       <div class="amount">${money(t[c.nome] || 0)}</div>
       <div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
-      <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta sessão</div>
+      <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta conta</div>
       <div class="sales-count">📦 ${quantidade}/5 usadas · ${disponiveis} ${disponiveis === 1 ? "disponível" : "disponíveis"}</div>
       ${quantidade >= 5 ? `<div class="limit">🔴 LIMITE ATINGIDO — 5/5</div>` : ""}
       <div class="timer">${tempos.length ? tempos.join("") : `<div class="timer">🟢 5 vagas disponíveis</div>`}</div>
@@ -1802,6 +1739,23 @@ function salvarEdicaoVenda() {
   mostrarNotificacao(`Venda atualizada com sucesso! (Conta: ${novaContaNome})`, "sucesso");
 }
 
+function marcarMetasRetiradas() {
+  const historico = Array.isArray(state.historicoVendas) ? state.historicoVendas : [];
+  const totalHistoricoAtual = historico.reduce((s, v) => s + (Number(v.valor) || 0), 0);
+  const metasAtingidas = Math.floor(totalHistoricoAtual / 310);
+  const retiradas = state.metasLucro?.retiradas || 0;
+  const disponiveis = Math.max(0, metasAtingidas - retiradas);
+  if (disponiveis <= 0) return;
+
+  const valor = disponiveis * 100;
+  abrirModalConfirmacao("💰 Retirada de Lucro", `Confirmar retirada de R$ ${valor.toFixed(2).replace(".", ",")} de lucro atingido?`, () => {
+    state.metasLucro = state.metasLucro || { retiradas: 0 };
+    state.metasLucro.retiradas += disponiveis;
+    save();
+    mostrarNotificacao("Retirada de lucro confirmada!", "sucesso");
+  });
+}
+
 function solicitarLimpezaHistorico() {
   if (!state.historicoVendas || !state.historicoVendas.length) {
     mostrarNotificacao("O histórico já está vazio.", "info");
@@ -1865,7 +1819,7 @@ function fecharModalAdminAction() {
 function novaLive() {
   state.vendas = [];
   save();
-  mostrarNotificacao("Nova sessão iniciada! Cofrinhos diários zerados.", "sucesso");
+  mostrarNotificacao("Nova sessão iniciada!", "sucesso");
 }
 
 document.getElementById("limparValorBtn").addEventListener("click", () => {
