@@ -15,7 +15,7 @@ const CATEGORIAS_ITENS = [
   "Outro"
 ];
 
-// Margem contínua de R$ 100 de lucro para cada R$ 310 vendidos
+// Margem contínua de R$ 100 de lucro para cada R$ 310 vendidos (~32,26%)
 const MARGEM_LUCRO = 100 / 310;
 const MARGEM_CUSTO = 210 / 310;
 
@@ -764,7 +764,7 @@ function esc(s) {
   return String(s || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
 }
 
-// Faturamento EXCLUSIVO da sessão do dia ativa (zera no botão Nova Sessão)
+// Faturamento EXCLUSIVO da sessão do dia ativa
 function totais() {
   let t = {};
   (state?.contas || []).forEach(c => (t[c.nome] = 0));
@@ -772,14 +772,20 @@ function totais() {
   return t;
 }
 
-// Faturamento acumulado histórico por conta (para o balanço financeiro)
+// Totais acumulados históricos por conta (Faturamento e V-Bucks Utilizados)
 function totaisHistoricoPorConta() {
   let t = {};
-  (state?.contas || []).forEach(c => (t[c.nome] = 0));
+  let vbMap = {};
+  (state?.contas || []).forEach(c => {
+    t[c.nome] = 0;
+    vbMap[c.nome] = 0;
+  });
   (state?.historicoVendas || []).forEach(v => {
     t[v.conta] = (t[v.conta] || 0) + Number(v.valor || 0);
+    const vbucksNum = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+    vbMap[v.conta] = (vbMap[v.conta] || 0) + vbucksNum;
   });
-  return t;
+  return { faturamento: t, vbucks: vbMap };
 }
 
 function mudarMesFiltro(val) {
@@ -859,6 +865,7 @@ function render() {
 
   limparReservasExpiradas();
   
+  // Total da sessão ativa
   const tSessao = totais();
   const totalSessao = (state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0);
 
@@ -885,6 +892,7 @@ function render() {
     .join("");
   if ([...sel.options].some(o => o.value === old)) sel.value = old;
 
+  // Renderiza cards de conta estritamente com os valores da sessão diária
   renderContasCards(tSessao);
 
   document.getElementById("contas").innerHTML = (state.contas || [])
@@ -1074,29 +1082,35 @@ function render() {
   }
 
   // ==========================================
-  // BALANÇO FINANCEIRO RETRÁTIL COM LINHA TOTAL
+  // BALANÇO FINANCEIRO RETRÁTIL COM V-BUCKS UTILIZADOS E TOTAL
   // ==========================================
   const financialContent = document.getElementById("financialBalanceContent");
   if (financialContent) {
-    const faturamentoHistorico = totaisHistoricoPorConta();
+    const dadosContas = totaisHistoricoPorConta();
+    const faturamentoHistorico = dadosContas.faturamento;
+    const vbucksHistorico = dadosContas.vbucks;
     const contasAtivas = (state.contas || []).filter(c => c.ativa);
 
     let somaFatGeral = 0;
+    let somaVbucksGeral = 0;
     let somaCustoGeral = 0;
     let somaLucroGeral = 0;
 
     const linhasHtml = contasAtivas.map(c => {
       const fat = faturamentoHistorico[c.nome] || 0;
+      const vbUsados = vbucksHistorico[c.nome] || 0;
       const custo = fat * MARGEM_CUSTO;
       const lucro = fat * MARGEM_LUCRO;
 
       somaFatGeral += fat;
+      somaVbucksGeral += vbUsados;
       somaCustoGeral += custo;
       somaLucroGeral += lucro;
 
       return `
         <tr>
           <td><b>${esc(c.nome)}</b></td>
+          <td style="color:var(--green); font-weight:700;">🪙 ${formatVBucks(vbUsados)} VB</td>
           <td style="color:#fff;">${money(fat)}</td>
           <td style="color:var(--muted);">${money(custo)}</td>
           <td style="color:var(--green); font-weight:800;">${money(lucro)}</td>
@@ -1110,18 +1124,20 @@ function render() {
           <thead>
             <tr>
               <th>Conta</th>
+              <th>V-Bucks Utilizados</th>
               <th>Faturamento Total</th>
               <th>Custo Reposição</th>
               <th>Lucro Líquido</th>
             </tr>
           </thead>
           <tbody>
-            ${linhasHtml.length ? linhasHtml : `<tr><td colspan="4" style="text-align:center; color:var(--muted); padding:15px;">Nenhuma conta ativa cadastrada.</td></tr>`}
+            ${linhasHtml.length ? linhasHtml : `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:15px;">Nenhuma conta ativa cadastrada.</td></tr>`}
           </tbody>
           ${linhasHtml.length ? `
           <tfoot>
             <tr style="border-top: 2px solid var(--accent); background: rgba(142, 68, 255, 0.12);">
               <td style="font-weight:900; color:var(--accent-light);">TOTAL GERAL</td>
+              <td style="font-weight:900; color:var(--green);">🪙 ${formatVBucks(somaVbucksGeral)} VB</td>
               <td style="font-weight:900; color:#fff;">${money(somaFatGeral)}</td>
               <td style="font-weight:900; color:var(--muted);">${money(somaCustoGeral)}</td>
               <td style="font-weight:900; color:var(--green);">${money(somaLucroGeral)}</td>
@@ -1636,6 +1652,8 @@ function abrirModalEdicaoPorId(vendaId) {
 
   document.getElementById("editClientInput").value = venda.cliente || "";
   document.getElementById("editNickInput").value = venda.nickCliente || "";
+  document.getElementById("editDataInput").value = venda.data || "";
+  document.getElementById("editHoraInput").value = venda.hora || "";
   document.getElementById("editValorInput").value = Number(venda.valor || 0).toFixed(2);
   
   atualizarPreviewVBucksEdicao();
@@ -1698,6 +1716,8 @@ function salvarEdicaoVenda() {
 
   const cliente = document.getElementById("editClientInput").value.trim();
   const nick = document.getElementById("editNickInput").value.trim();
+  const novaData = document.getElementById("editDataInput").value.trim();
+  const novaHora = document.getElementById("editHoraInput").value.trim();
   const valor = parseFloat(document.getElementById("editValorInput").value);
 
   const types = [...document.querySelectorAll(".edit-modal-item-type")];
@@ -1714,6 +1734,7 @@ function salvarEdicaoVenda() {
 
   if (!cliente) { mostrarNotificacao("O nome do cliente não pode ficar vazio.", "erro"); return; }
   if (!nick) { mostrarNotificacao("O nick do cliente não pode ficar vazio.", "erro"); return; }
+  if (!novaData) { mostrarNotificacao("A data da venda não pode ficar vazia.", "erro"); return; }
   if (!valor || valor <= 0) { mostrarNotificacao("Digite um valor válido.", "erro"); return; }
   if (!listaItens.length) { mostrarNotificacao("Informe pelo menos um item válido.", "erro"); return; }
 
@@ -1763,6 +1784,8 @@ function salvarEdicaoVenda() {
   venda.conta = novaContaNome;
   venda.cliente = cliente;
   venda.nickCliente = nick;
+  venda.data = novaData;
+  venda.hora = novaHora || venda.hora || "—";
   venda.valor = Number(valor);
   venda.vbucks = Number(vbucksNovos);
   venda.valorBaseMomento = baseUsada;
@@ -1775,6 +1798,8 @@ function salvarEdicaoVenda() {
     sessaoVenda.conta = novaContaNome;
     sessaoVenda.cliente = cliente;
     sessaoVenda.nickCliente = nick;
+    sessaoVenda.data = novaData;
+    sessaoVenda.hora = novaHora || sessaoVenda.hora || "—";
     sessaoVenda.valor = Number(valor);
     sessaoVenda.vbucks = Number(vbucksNovos);
     sessaoVenda.valorBaseMomento = baseUsada;
@@ -1785,7 +1810,7 @@ function salvarEdicaoVenda() {
 
   save();
   fecharModalEdicao();
-  mostrarNotificacao(`Venda atualizada com sucesso! (Conta: ${novaContaNome})`, "sucesso");
+  mostrarNotificacao(`Venda atualizada com sucesso!`, "sucesso");
 }
 
 function solicitarLimpezaHistorico() {
@@ -1866,7 +1891,6 @@ document.getElementById("valorInput").addEventListener("keydown", e => {
 
 inicializar();
 
-// Temporizador inteligente sem sobrescrever banco
 setInterval(() => {
   renderContasCards();
 }, 1000);
