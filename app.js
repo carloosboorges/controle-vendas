@@ -15,17 +15,20 @@ const CATEGORIAS_ITENS = [
   "Outro"
 ];
 
+// Margem contínua de R$ 100 de lucro para cada R$ 310 vendidos
+const MARGEM_LUCRO = 100 / 310;
+const MARGEM_CUSTO = 210 / 310;
+
 const DADOS_DEMO = {
   contas: [
-    { nome: "Conta Demo 01", ativa: true, usadas: 0, vbucks: 10000 },
-    { nome: "Conta Demo 02", ativa: true, usadas: 0, vbucks: 8500 }
+    { nome: "Putz0101", ativa: true, usadas: 0, vbucks: 10000 },
+    { nome: "Putz0202", ativa: true, usadas: 0, vbucks: 8500 }
   ],
   vendas: [],
   reservas: [],
   valorBase100: 2.5,
   historicoVendas: [],
-  lixeiraVendas: [],
-  metasLucro: { retiradas: 0 }
+  lixeiraVendas: []
 };
 
 let currentUser = null;
@@ -33,6 +36,7 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
+// Calendário
 let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
 let calPopoverAberto = false;
@@ -41,10 +45,15 @@ let diaFiltroSelecionado = null;
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
 
+// Paginação e Busca
 const ITENS_POR_PAGINA = 8;
 let historicoPaginaAtual = 1;
 let historicoTermoBusca = "";
+let balancoAberto = false;
 
+// ==========================================
+// FUNÇÕES DE CÓPIA CIRÚRGICA
+// ==========================================
 function copiarTexto(texto, tipo = "Texto", event = null) {
   if (event) event.stopPropagation();
   if (!texto || texto === "—") return;
@@ -62,6 +71,9 @@ function extrairApenasNomeItem(itemStr) {
   return nome || itemStr;
 }
 
+// ==========================================
+// CONTROLE DO CALENDÁRIO POPOVER
+// ==========================================
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
   calPopoverAberto = !calPopoverAberto;
@@ -157,6 +169,27 @@ function gerarHtmlCalendarioPopover() {
   `;
 }
 
+// ==========================================
+// CONTROLE DO BALANÇO RETRÁTIL
+// ==========================================
+function toggleBalancoFinanceiro() {
+  balancoAberto = !balancoAberto;
+  const content = document.getElementById("financialBalanceContent");
+  const arrow = document.getElementById("financialToggleArrow");
+  const btn = document.getElementById("btnFinancialToggle");
+  
+  if (content && arrow) {
+    content.style.display = balancoAberto ? "block" : "none";
+    arrow.textContent = balancoAberto ? "▴" : "▾";
+    if (btn) {
+      btn.style.borderRadius = balancoAberto ? "12px 12px 0 0" : "12px";
+    }
+  }
+}
+
+// ==========================================
+// CONTROLE DE BUSCA & PAGINAÇÃO
+// ==========================================
 function filtrarHistoricoInput(val) {
   historicoTermoBusca = String(val || "").trim().toLowerCase();
   historicoPaginaAtual = 1;
@@ -586,7 +619,7 @@ async function inicializar() {
   atualizarPreviewVBucks();
 
   if (!currentUser) {
-    if (footer) footer.textContent = "👀 Modo Visitante (Alterações locais de teste — não afetam o banco)";
+    if (footer) footer.textContent = "👀 Modo Visitante (Faça login como Admin)";
     state = JSON.parse(JSON.stringify(DADOS_DEMO));
     sanitizarDados();
     render();
@@ -625,6 +658,9 @@ async function inicializar() {
 
 function sanitizarDados() {
   if (!state) return;
+  if (!Array.isArray(state.vendas)) state.vendas = [];
+  if (!Array.isArray(state.reservas)) state.reservas = [];
+  if (!Array.isArray(state.historicoVendas)) state.historicoVendas = [];
   if (!Array.isArray(state.lixeiraVendas)) state.lixeiraVendas = [];
   if (Array.isArray(state.contas)) {
     state.contas.forEach(c => {
@@ -728,10 +764,21 @@ function esc(s) {
   return String(s || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
 }
 
+// Faturamento EXCLUSIVO da sessão do dia ativa (zera no botão Nova Sessão)
 function totais() {
   let t = {};
-  (state.contas || []).forEach(c => (t[c.nome] = 0));
-  (state.vendas || []).forEach(v => (t[v.conta] = (t[v.conta] || 0) + Number(v.valor || 0)));
+  (state?.contas || []).forEach(c => (t[c.nome] = 0));
+  (state?.vendas || []).forEach(v => (t[v.conta] = (t[v.conta] || 0) + Number(v.valor || 0)));
+  return t;
+}
+
+// Faturamento acumulado histórico por conta (para o balanço financeiro)
+function totaisHistoricoPorConta() {
+  let t = {};
+  (state?.contas || []).forEach(c => (t[c.nome] = 0));
+  (state?.historicoVendas || []).forEach(v => {
+    t[v.conta] = (t[v.conta] || 0) + Number(v.valor || 0);
+  });
   return t;
 }
 
@@ -956,20 +1003,8 @@ function render() {
   const anoPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
 
-  const metasAtingidas = Math.floor(totalHistorico / 310);
-  const metasRetiradas = Math.min(state.metasLucro?.retiradas || 0, metasAtingidas);
-  const metasDisponiveis = Math.max(0, metasAtingidas - metasRetiradas);
-  const lucroHistorico = metasAtingidas * 100;
-  const vendasParaProximoLucro = (metasAtingidas + 1) * 310 - totalHistorico;
-
-  const lucroAlertEl = document.getElementById("lucroMetaAlert");
-  if (lucroAlertEl) {
-    lucroAlertEl.innerHTML =
-      metasDisponiveis > 0
-        ? `🎉 <b>${metasDisponiveis === 1 ? "META DE LUCRO ATINGIDA!" : "METAS DE LUCRO ATINGIDAS!"}</b><br>${metasDisponiveis} ${metasDisponiveis === 1 ? "meta de R$ 100" : "metas de R$ 100"} disponível${metasDisponiveis === 1 ? "" : "eis"} para retirada.`
-        : "";
-    lucroAlertEl.style.display = metasDisponiveis > 0 ? "block" : "none";
-  }
+  // Lucro Contínuo Geral (32,26%)
+  const lucroContinuoGeral = totalHistorico * MARGEM_LUCRO;
 
   const periodosEl = document.getElementById("historicoPeriodos");
   if (periodosEl) {
@@ -982,6 +1017,7 @@ function render() {
       .join("");
 
     periodosEl.innerHTML = `
+    <!-- Card 1: Calendário Popover Personalizado -->
     <div class="period-card period-card-calendar-container" style="position:relative; cursor:pointer;" onclick="toggleCalendarioPopover(event)">
       <div class="period-header-select">
         <span>📅</span>
@@ -993,6 +1029,7 @@ function render() {
       ${calPopoverAberto ? gerarHtmlCalendarioPopover() : ""}
     </div>
 
+    <!-- Card 2: Esta Semana -->
     <div class="period-card">
       <span>📅 Esta semana</span>
       <strong>${money(semanaTotal)}</strong>
@@ -1000,6 +1037,7 @@ function render() {
       <small class="period-vbucks-text">🪙 ${formatVBucks(semanaVbucks)} V-Bucks</small>
     </div>
 
+    <!-- Card 3: Mês Selecionado -->
     <div class="period-card period-card-select">
       <div class="period-header-select">
         <span>🗓️</span>
@@ -1012,6 +1050,7 @@ function render() {
       <small class="period-vbucks-text">🪙 ${formatVBucks(mesVbucks)} V-Bucks</small>
     </div>
 
+    <!-- Card 4: Ano Selecionado -->
     <div class="period-card period-card-select">
       <div class="period-header-select">
         <span>📆</span>
@@ -1024,17 +1063,80 @@ function render() {
       <small class="period-vbucks-text">🪙 ${formatVBucks(anoVbucks)} V-Bucks</small>
     </div>
 
+    <!-- Card 5: Lucro Total Contínuo -->
     <div class="period-card profit-card">
-      <span>📈 Lucro</span>
-      <strong>${money(lucroHistorico)}</strong>
-      <small>🎯 Meta restante: ${money(vendasParaProximoLucro)}</small>
-      <small>💵 ${metasDisponiveis} ${metasDisponiveis === 1 ? "meta disponível" : "metas disponíveis"}</small>
-      ${metasDisponiveis > 0 ? '<button type="button" class="profit-goal-btn" onclick="marcarMetasRetiradas(); return false;">✓ Já retirei</button>' : ""}
+      <span>📈 Lucro Líquido</span>
+      <strong>${money(lucroContinuoGeral)}</strong>
+      <small style="color:var(--green); font-weight:700;">Margem: 32,26%</small>
+      <small>Total bruto: ${money(totalHistorico)}</small>
     </div>
   `;
   }
 
+  // ==========================================
+  // BALANÇO FINANCEIRO RETRÁTIL COM LINHA TOTAL
+  // ==========================================
+  const financialContent = document.getElementById("financialBalanceContent");
+  if (financialContent) {
+    const faturamentoHistorico = totaisHistoricoPorConta();
+    const contasAtivas = (state.contas || []).filter(c => c.ativa);
+
+    let somaFatGeral = 0;
+    let somaCustoGeral = 0;
+    let somaLucroGeral = 0;
+
+    const linhasHtml = contasAtivas.map(c => {
+      const fat = faturamentoHistorico[c.nome] || 0;
+      const custo = fat * MARGEM_CUSTO;
+      const lucro = fat * MARGEM_LUCRO;
+
+      somaFatGeral += fat;
+      somaCustoGeral += custo;
+      somaLucroGeral += lucro;
+
+      return `
+        <tr>
+          <td><b>${esc(c.nome)}</b></td>
+          <td style="color:#fff;">${money(fat)}</td>
+          <td style="color:var(--muted);">${money(custo)}</td>
+          <td style="color:var(--green); font-weight:800;">${money(lucro)}</td>
+        </tr>
+      `;
+    }).join("");
+
+    financialContent.innerHTML = `
+      <div style="overflow-x:auto;">
+        <table class="financial-table">
+          <thead>
+            <tr>
+              <th>Conta</th>
+              <th>Faturamento Total</th>
+              <th>Custo Reposição</th>
+              <th>Lucro Líquido</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhasHtml.length ? linhasHtml : `<tr><td colspan="4" style="text-align:center; color:var(--muted); padding:15px;">Nenhuma conta ativa cadastrada.</td></tr>`}
+          </tbody>
+          ${linhasHtml.length ? `
+          <tfoot>
+            <tr style="border-top: 2px solid var(--accent); background: rgba(142, 68, 255, 0.12);">
+              <td style="font-weight:900; color:var(--accent-light);">TOTAL GERAL</td>
+              <td style="font-weight:900; color:#fff;">${money(somaFatGeral)}</td>
+              <td style="font-weight:900; color:var(--muted);">${money(somaCustoGeral)}</td>
+              <td style="font-weight:900; color:var(--green);">${money(somaLucroGeral)}</td>
+            </tr>
+          </tfoot>` : ""}
+        </table>
+      </div>
+    `;
+  }
+
+  // ==========================================
+  // MOTOR DE BUSCA UNIVERSAL NO HISTÓRICO
+  // ==========================================
   const totalOriginal = historico.length;
+  
   const listaComIndices = historico.map((v, originalIdx) => ({
     ...v,
     originalIdx,
@@ -1069,6 +1171,9 @@ function render() {
     });
   }
 
+  // ==========================================
+  // PAGINAÇÃO (8 POR PÁGINA)
+  // ==========================================
   const totalItensFiltrados = listaFiltrada.length;
   const totalPaginas = Math.ceil(totalItensFiltrados / ITENS_POR_PAGINA) || 1;
 
@@ -1173,6 +1278,9 @@ function render() {
   }
 }
 
+// ==========================================
+// RENDERIZAÇÃO DOS CARDS DAS CONTAS (SESSÃO DO DIA)
+// ==========================================
 function renderContasCards(t) {
   if (!t) t = totais();
   const container = document.getElementById("totaisPorConta");
@@ -1680,23 +1788,6 @@ function salvarEdicaoVenda() {
   mostrarNotificacao(`Venda atualizada com sucesso! (Conta: ${novaContaNome})`, "sucesso");
 }
 
-function marcarMetasRetiradas() {
-  const historico = Array.isArray(state.historicoVendas) ? state.historicoVendas : [];
-  const totalHistoricoAtual = historico.reduce((s, v) => s + (Number(v.valor) || 0), 0);
-  const metasAtingidas = Math.floor(totalHistoricoAtual / 310);
-  const retiradas = state.metasLucro?.retiradas || 0;
-  const disponiveis = Math.max(0, metasAtingidas - retiradas);
-  if (disponiveis <= 0) return;
-
-  const valor = disponiveis * 100;
-  abrirModalConfirmacao("💰 Retirada de Lucro", `Confirmar retirada de R$ ${valor.toFixed(2).replace(".", ",")} de lucro atingido?`, () => {
-    state.metasLucro = state.metasLucro || { retiradas: 0 };
-    state.metasLucro.retiradas += disponiveis;
-    save();
-    mostrarNotificacao("Retirada de lucro confirmada!", "sucesso");
-  });
-}
-
 function solicitarLimpezaHistorico() {
   if (!state.historicoVendas || !state.historicoVendas.length) {
     mostrarNotificacao("O histórico já está vazio.", "info");
@@ -1757,10 +1848,10 @@ function fecharModalAdminAction() {
   if (modal) modal.style.display = "none";
 }
 
-function novaLive() {
+async function novaLive() {
   state.vendas = [];
-  save();
-  mostrarNotificacao("Nova sessão iniciada!", "sucesso");
+  await save();
+  mostrarNotificacao("Nova sessão iniciada! Cofrinhos diários zerados.", "sucesso");
 }
 
 document.getElementById("limparValorBtn").addEventListener("click", () => {
@@ -1775,10 +1866,7 @@ document.getElementById("valorInput").addEventListener("keydown", e => {
 
 inicializar();
 
+// Temporizador inteligente sem sobrescrever banco
 setInterval(() => {
-  if (limparReservasExpiradas()) {
-    save();
-  } else {
-    renderContasCards();
-  }
+  renderContasCards();
 }, 1000);
