@@ -36,14 +36,16 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
-// Calendário
+// Controle do Calendário e Virada Automática de Dia
 let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
 let calPopoverAberto = false;
 
+// Se diaFiltroSelecionado for null, significa MODO DINÂMICO (sempre o dia de HOJE)
 let diaFiltroSelecionado = null;
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
+let ultimaDataHojeConhecida = "";
 
 // Paginação e Busca
 const ITENS_POR_PAGINA = 8;
@@ -74,6 +76,11 @@ function extrairApenasNomeItem(itemStr) {
 // ==========================================
 // CONTROLE DO CALENDÁRIO POPOVER
 // ==========================================
+function obterDataHojeFormatada() {
+  const agora = new Date();
+  return `${String(agora.getDate()).padStart(2, "0")}/${String(agora.getMonth() + 1).padStart(2, "0")}/${agora.getFullYear()}`;
+}
+
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
   calPopoverAberto = !calPopoverAberto;
@@ -108,7 +115,15 @@ function navegarMesCalendario(direcao, e) {
 
 function selecionarDiaCalendario(diaStr, e) {
   if (e) e.stopPropagation();
-  diaFiltroSelecionado = diaStr;
+  const hoje = obterDataHojeFormatada();
+  
+  // Se clicou em hoje, reativa o modo dinâmico
+  if (diaStr === hoje) {
+    diaFiltroSelecionado = null;
+  } else {
+    diaFiltroSelecionado = diaStr;
+  }
+  
   calPopoverAberto = false;
   render();
 }
@@ -120,8 +135,8 @@ function gerarHtmlCalendarioPopover() {
   const primeiroDiaSemana = new Date(calViewAno, calViewMes, 1).getDay();
   const totalDiasMes = new Date(calViewAno, calViewMes + 1, 0).getDate();
   
-  const hoje = new Date();
-  const hojeChave = `${String(hoje.getDate()).padStart(2, "0")}/${String(hoje.getMonth() + 1).padStart(2, "0")}/${hoje.getFullYear()}`;
+  const hojeChave = obterDataHojeFormatada();
+  const diaAtivo = diaFiltroSelecionado || hojeChave;
   
   const diasComVendas = new Set((state?.historicoVendas || []).map(v => v.data));
 
@@ -130,14 +145,15 @@ function gerarHtmlCalendarioPopover() {
     diasHtml += `<div class="cal-day-empty"></div>`;
   }
 
+  const agoraZero = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+
   for (let dia = 1; dia <= totalDiasMes; dia++) {
     const dataStr = `${String(dia).padStart(2, "0")}/${String(calViewMes + 1).padStart(2, "0")}/${calViewAno}`;
     const dataObj = new Date(calViewAno, calViewMes, dia);
-    const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
     
-    const isFuturo = dataObj > hojeZero;
+    const isFuturo = dataObj > agoraZero;
     const isToday = dataStr === hojeChave;
-    const isSelected = dataStr === diaFiltroSelecionado;
+    const isSelected = dataStr === diaAtivo;
     const hasSales = diasComVendas.has(dataStr);
 
     diasHtml += `
@@ -764,7 +780,6 @@ function esc(s) {
   return String(s || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
 }
 
-// Faturamento EXCLUSIVO da sessão do dia ativa
 function totais() {
   let t = {};
   (state?.contas || []).forEach(c => (t[c.nome] = 0));
@@ -772,7 +787,6 @@ function totais() {
   return t;
 }
 
-// Totais acumulados históricos por conta (Faturamento e V-Bucks Utilizados)
 function totaisHistoricoPorConta() {
   let t = {};
   let vbMap = {};
@@ -892,7 +906,6 @@ function render() {
     .join("");
   if ([...sel.options].some(o => o.value === old)) sel.value = old;
 
-  // Renderiza cards de conta estritamente com os valores da sessão diária
   renderContasCards(tSessao);
 
   document.getElementById("contas").innerHTML = (state.contas || [])
@@ -952,16 +965,22 @@ function render() {
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
-  const hojeChave = `${String(agoraData.getDate()).padStart(2, "0")}/${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
-  if (!diaFiltroSelecionado) {
-    diaFiltroSelecionado = hojeChave;
-  }
+  // ==========================================
+  // 1. DATA SELECIONADA (VIRADA AUTOMÁTICA)
+  // ==========================================
+  const hojeChave = obterDataHojeFormatada();
+  ultimaDataHojeConhecida = hojeChave;
+  
+  // Se estiver em modo dinâmico (diaFiltroSelecionado === null), usa o dia de HOJE automaticamente
+  const diaParaFiltrar = diaFiltroSelecionado || hojeChave;
+  const isModoHoje = diaParaFiltrar === hojeChave;
 
-  const diaTotal = somaFiltro(v => v.data === diaFiltroSelecionado);
-  const diaVbucks = somaVbucksFiltro(v => v.data === diaFiltroSelecionado);
-  const diaPedidos = qtdPedidosFiltro(v => v.data === diaFiltroSelecionado);
-  const diaItens = qtdItensFiltro(v => v.data === diaFiltroSelecionado);
+  const diaTotal = somaFiltro(v => v.data === diaParaFiltrar);
+  const diaVbucks = somaVbucksFiltro(v => v.data === diaParaFiltrar);
+  const diaPedidos = qtdPedidosFiltro(v => v.data === diaParaFiltrar);
+  const diaItens = qtdItensFiltro(v => v.data === diaParaFiltrar);
 
+  // 2. SEMANA
   const semInicio = inicioSemana(agoraData);
   const semFim = new Date(semInicio);
   semFim.setDate(semFim.getDate() + 7);
@@ -970,6 +989,7 @@ function render() {
   const semanaPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
   const semanaItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
 
+  // 3. MÊS
   const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const mapaMeses = {};
   const mesAtualKey = `${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
@@ -993,6 +1013,7 @@ function render() {
   const mesPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
 
+  // 4. ANO
   const setAnos = new Set();
   setAnos.add(String(agoraData.getFullYear()));
   historico.forEach(v => {
@@ -1011,7 +1032,7 @@ function render() {
   const anoPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
 
-  // Lucro Contínuo Geral (32,26%)
+  // 5. Lucro Contínuo Geral (32,26%)
   const lucroContinuoGeral = totalHistorico * MARGEM_LUCRO;
 
   const periodosEl = document.getElementById("historicoPeriodos");
@@ -1025,11 +1046,11 @@ function render() {
       .join("");
 
     periodosEl.innerHTML = `
-    <!-- Card 1: Calendário Popover Personalizado -->
+    <!-- Card 1: Calendário com Virada de Dia Automática -->
     <div class="period-card period-card-calendar-container" style="position:relative; cursor:pointer;" onclick="toggleCalendarioPopover(event)">
       <div class="period-header-select">
         <span>📅</span>
-        <strong style="font-size:12px; color:var(--accent-light);">${diaFiltroSelecionado === hojeChave ? `Hoje (${diaFiltroSelecionado.slice(0, 5)})` : diaFiltroSelecionado} ▾</strong>
+        <strong style="font-size:12px; color:var(--accent-light);">${isModoHoje ? `Hoje (${diaParaFiltrar.slice(0, 5)})` : diaParaFiltrar} ▾</strong>
       </div>
       <strong>${money(diaTotal)}</strong>
       <small>${diaPedidos} ${diaPedidos === 1 ? "pedido" : "pedidos"} (${diaItens} ${diaItens === 1 ? "item" : "itens"})</small>
@@ -1891,6 +1912,13 @@ document.getElementById("valorInput").addEventListener("keydown", e => {
 
 inicializar();
 
+// Temporizador inteligente a cada 1 segundo (detecta virada de meia-noite automaticamente)
 setInterval(() => {
-  renderContasCards();
+  const hojeAtual = obterDataHojeFormatada();
+  if (ultimaDataHojeConhecida && hojeAtual !== ultimaDataHojeConhecida) {
+    ultimaDataHojeConhecida = hojeAtual;
+    render();
+  } else {
+    renderContasCards();
+  }
 }, 1000);
