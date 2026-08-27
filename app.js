@@ -833,7 +833,7 @@ function parseItemString(str) {
 function formatItemString(tipo, nome) {
   const t = String(tipo || "").trim();
   const n = String(nome || "").trim();
-  if (!t || t === "Outro") return n;
+  if (!t) return n;
   return `${t} – ${n}`;
 }
 
