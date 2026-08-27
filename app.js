@@ -2,7 +2,7 @@ const SUPABASE_URL = "https://oyitmutmtvuoynwhiymy.supabase.co";
 const SUPABASE_KEY = "sb_publishable_6e1fQtQfhVa8LjWUbdPrJw_IwhhxLRF";
 
 const CATEGORIAS_ITENS = [
-  "Traje",
+ "Traje",
   "Gesto",
   "Picareta",
   "Música",
@@ -12,6 +12,7 @@ const CATEGORIAS_ITENS = [
   "Calçado",
   "Acessório",
   "Carro",
+  "Mascote",
   "Outro"
 ];
 
