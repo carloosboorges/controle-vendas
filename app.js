@@ -16,7 +16,6 @@ const CATEGORIAS_ITENS = [
   "Outro"
 ];
 
-// Margem contínua de R$ 100 de lucro para cada R$ 310 vendidos (~32,26%)
 const MARGEM_LUCRO = 100 / 310;
 const MARGEM_CUSTO = 210 / 310;
 
@@ -38,41 +37,39 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
-// Controle do Calendário de Dias
+// Controle dos Popovers Flutuantes
 let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
 let calPopoverAberto = false;
 
-// Controle do Popover de Seleção de Mês
 let mesPopoverAberto = false;
 let mesViewAno = new Date().getFullYear();
 
-// Controle do Popover de Seleção de Ano
 let anoPopoverAberto = false;
 let anoViewDecada = new Date().getFullYear();
+
+// Popover do Apoiador
+let apoiadorPopoverAberto = false;
+let apoiadorPopoverAno = new Date().getFullYear();
+let apoiadorMesSelecionadoTemp = `${String(new Date().getMonth() + 1).padStart(2, "0")}/${new Date().getFullYear()}`;
 
 let diaFiltroSelecionado = null;
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
 let ultimaDataHojeConhecida = "";
 
-// Paginação e Busca
 const ITENS_POR_PAGINA = 8;
 let historicoPaginaAtual = 1;
 let historicoTermoBusca = "";
 let balancoAberto = false;
 
-// ==========================================
-// FUNÇÕES DE CÓPIA CIRÚRGICA
-// ==========================================
 function copiarTexto(texto, tipo = "Texto", event = null) {
   if (event) event.stopPropagation();
   if (!texto || texto === "—") return;
-  
   navigator.clipboard.writeText(texto).then(() => {
     mostrarNotificacao(`📋 ${tipo} copiado: "${texto}"`, "sucesso");
   }).catch(() => {
-    mostrarNotificacao("Não foi possível copiar automaticamente.", "erro");
+    mostrarNotificacao("Não foi possível copiar.", "erro");
   });
 }
 
@@ -82,45 +79,105 @@ function extrairApenasNomeItem(itemStr) {
   return nome || itemStr;
 }
 
-// ==========================================
-// CONTROLE DO CALENDÁRIO POPOVER (DIAS)
-// ==========================================
 function obterDataHojeFormatada() {
   const agora = new Date();
   return `${String(agora.getDate()).padStart(2, "0")}/${String(agora.getMonth() + 1).padStart(2, "0")}/${agora.getFullYear()}`;
 }
 
+// Fechar popovers ao clicar fora
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".period-card-calendar-container") && 
+      !e.target.closest(".period-card-mes-container") && 
+      !e.target.closest(".period-card-ano-container") &&
+      !e.target.closest(".apoiador-popover-container")) {
+    calPopoverAberto = false;
+    mesPopoverAberto = false;
+    anoPopoverAberto = false;
+    apoiadorPopoverAberto = false;
+    render();
+  }
+});
+
+// ==========================================
+// POPOVER DE DIAS (HOJE)
+// ==========================================
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
-  fecharMesPopover();
-  fecharAnoPopover();
+  mesPopoverAberto = false;
+  anoPopoverAberto = false;
+  apoiadorPopoverAberto = false;
   calPopoverAberto = !calPopoverAberto;
   render();
 }
 
-function fecharCalendarioPopover() {
-  if (calPopoverAberto) {
-    calPopoverAberto = false;
-    render();
-  }
-}
-
-// ==========================================
-// CONTROLE DO POPOVER DE SELEÇÃO DE MÊS
-// ==========================================
-function toggleMesPopover(e) {
+function navegarMesCalendario(direcao, e) {
   if (e) e.stopPropagation();
-  fecharCalendarioPopover();
-  fecharAnoPopover();
-  mesPopoverAberto = !mesPopoverAberto;
+  calViewMes += direcao;
+  if (calViewMes < 0) { calViewMes = 11; calViewAno--; }
+  else if (calViewMes > 11) { calViewMes = 0; calViewAno++; }
   render();
 }
 
-function fecharMesPopover() {
-  if (mesPopoverAberto) {
-    mesPopoverAberto = false;
-    render();
+function selecionarDiaCalendario(diaStr, e) {
+  if (e) e.stopPropagation();
+  const hoje = obterDataHojeFormatada();
+  diaFiltroSelecionado = (diaStr === hoje) ? null : diaStr;
+  calPopoverAberto = false;
+  render();
+}
+
+function gerarHtmlCalendarioPopover() {
+  const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  const diasSemana = ["D", "S", "T", "Q", "Q", "S", "S"];
+  const primeiroDiaSemana = new Date(calViewAno, calViewMes, 1).getDay();
+  const totalDiasMes = new Date(calViewAno, calViewMes + 1, 0).getDate();
+  const hojeChave = obterDataHojeFormatada();
+  const diaAtivo = diaFiltroSelecionado || hojeChave;
+  const diasComVendas = new Set((state?.historicoVendas || []).map(v => v.data));
+
+  let diasHtml = "";
+  for (let i = 0; i < primeiroDiaSemana; i++) { diasHtml += `<div class="cal-day-empty"></div>`; }
+  const agoraZero = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+
+  for (let dia = 1; dia <= totalDiasMes; dia++) {
+    const dataStr = `${String(dia).padStart(2, "0")}/${String(calViewMes + 1).padStart(2, "0")}/${calViewAno}`;
+    const dataObj = new Date(calViewAno, calViewMes, dia);
+    const isFuturo = dataObj > agoraZero;
+    const isToday = dataStr === hojeChave;
+    const isSelected = dataStr === diaAtivo;
+    const hasSales = diasComVendas.has(dataStr);
+
+    diasHtml += `
+      <button type="button" class="cal-day-btn ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""} ${hasSales ? "has-sales" : ""}"
+        ${isFuturo ? "disabled" : ""} onclick="selecionarDiaCalendario('${dataStr}', event)">
+        ${dia}
+      </button>
+    `;
   }
+
+  return `
+    <div class="custom-calendar-popover" onclick="event.stopPropagation()">
+      <div class="calendar-header-nav">
+        <button type="button" class="calendar-nav-btn" onclick="navegarMesCalendario(-1, event)">‹</button>
+        <strong>${nomesMeses[calViewMes]} ${calViewAno}</strong>
+        <button type="button" class="calendar-nav-btn" onclick="navegarMesCalendario(1, event)">›</button>
+      </div>
+      <div class="calendar-weekdays-grid">${diasSemana.map(d => `<span>${d}</span>`).join("")}</div>
+      <div class="calendar-days-grid">${diasHtml}</div>
+    </div>
+  `;
+}
+
+// ==========================================
+// POPOVER DE MÊS
+// ==========================================
+function toggleMesPopover(e) {
+  if (e) e.stopPropagation();
+  calPopoverAberto = false;
+  anoPopoverAberto = false;
+  apoiadorPopoverAberto = false;
+  mesPopoverAberto = !mesPopoverAberto;
+  render();
 }
 
 function navegarAnoMesPopover(direcao, e) {
@@ -173,26 +230,20 @@ function gerarHtmlMesPopover() {
 }
 
 // ==========================================
-// CONTROLE DO POPOVER DE SELEÇÃO DE ANO
+// POPOVER DE ANO (CORRIGIDO PARA MOSTRAR ANOS CERTOS)
 // ==========================================
 function toggleAnoPopover(e) {
   if (e) e.stopPropagation();
-  fecharCalendarioPopover();
-  fecharMesPopover();
+  calPopoverAberto = false;
+  mesPopoverAberto = false;
+  apoiadorPopoverAberto = false;
   anoPopoverAberto = !anoPopoverAberto;
   render();
 }
 
-function fecharAnoPopover() {
-  if (anoPopoverAberto) {
-    anoPopoverAberto = false;
-    render();
-  }
-}
-
 function navegarDecadaAnoPopover(direcao, e) {
   if (e) e.stopPropagation();
-  anoViewDecada += direcao * 10;
+  anoViewDecada += direcao * 12;
   render();
 }
 
@@ -203,14 +254,13 @@ function selecionarAnoPopover(anoVal, e) {
   render();
 }
 
-function gerarHtmlAnoPopover(anosDisponiveis) {
+function gerarHtmlAnoPopover() {
   const agoraAno = new Date().getFullYear();
   const anoAtivo = Number(anoFiltroSelecionado || agoraAno);
 
-  // Gerar faixa de 12 anos em torno de anoViewDecada
   let anosHtml = "";
-  const inicio = Math.floor(anoViewDecada / 10) * 10 - 1;
-  const fim = inicio + 11;
+  const inicio = anoViewDecada - 5;
+  const fim = anoViewDecada + 6;
 
   for (let a = inicio; a <= fim; a++) {
     const isSelected = a === anoAtivo;
@@ -228,7 +278,7 @@ function gerarHtmlAnoPopover(anosDisponiveis) {
     <div class="custom-calendar-popover" style="width:260px;" onclick="event.stopPropagation()">
       <div class="calendar-header-nav">
         <button type="button" class="calendar-nav-btn" onclick="navegarDecadaAnoPopover(-1, event)">‹</button>
-        <strong>Período ${Math.floor(anoViewDecada / 10) * 10}s</strong>
+        <strong>Anos em torno de ${anoViewDecada}</strong>
         <button type="button" class="calendar-nav-btn" onclick="navegarDecadaAnoPopover(1, event)">›</button>
       </div>
       <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-top:10px;">
@@ -238,92 +288,68 @@ function gerarHtmlAnoPopover(anosDisponiveis) {
   `;
 }
 
-document.addEventListener("click", (e) => {
-  if (!e.target.closest(".period-card-calendar-container") && !e.target.closest(".period-card-mes-container") && !e.target.closest(".period-card-ano-container")) {
-    fecharCalendarioPopover();
-    fecharMesPopover();
-    fecharAnoPopover();
-  }
-});
-
-function navegarMesCalendario(direcao, e) {
+// ==========================================
+// POPOVER MODERNO NO MODAL DO APOIADOR
+// ==========================================
+function toggleApoiadorPopover(e) {
   if (e) e.stopPropagation();
-  calViewMes += direcao;
-  if (calViewMes < 0) { calViewMes = 11; calViewAno--; }
-  else if (calViewMes > 11) { calViewMes = 0; calViewAno++; }
-  render();
+  apoiadorPopoverAberto = !apoiadorPopoverAberto;
+  atualizarModalApoiadorHTML();
 }
 
-function selecionarDiaCalendario(diaStr, e) {
+function navegarAnoApoiadorPopover(direcao, e) {
   if (e) e.stopPropagation();
-  const hoje = obterDataHojeFormatada();
-  diaFiltroSelecionado = (diaStr === hoje) ? null : diaStr;
-  calPopoverAberto = false;
-  render();
+  apoiadorPopoverAno += direcao;
+  atualizarModalApoiadorHTML();
 }
 
-function gerarHtmlCalendarioPopover() {
+function selecionarMesApoiadorPopover(mesIndex, e) {
+  if (e) e.stopPropagation();
+  apoiadorMesSelecionadoTemp = `${String(mesIndex + 1).padStart(2, "0")}/${apoiadorPopoverAno}`;
+  apoiadorPopoverAberto = false;
+  atualizarModalApoiadorHTML();
+  carregarDadosApoiadorNoFormulario();
+}
+
+function gerarHtmlApoiadorPopover() {
   const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-  const diasSemana = ["D", "S", "T", "Q", "Q", "S", "S"];
-  const primeiroDiaSemana = new Date(calViewAno, calViewMes, 1).getDay();
-  const totalDiasMes = new Date(calViewAno, calViewMes + 1, 0).getDate();
-  const hojeChave = obterDataHojeFormatada();
-  const diaAtivo = diaFiltroSelecionado || hojeChave;
-  const diasComVendas = new Set((state?.historicoVendas || []).map(v => v.data));
+  let gridMesesHtml = "";
+  
+  nomesMeses.forEach((nomeMes, idx) => {
+    const chaveMes = `${String(idx + 1).padStart(2, "0")}/${apoiadorPopoverAno}`;
+    const isSelected = chaveMes === apoiadorMesSelecionadoTemp;
 
-  let diasHtml = "";
-  for (let i = 0; i < primeiroDiaSemana; i++) { diasHtml += `<div class="cal-day-empty"></div>`; }
-
-  const agoraZero = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
-  for (let dia = 1; dia <= totalDiasMes; dia++) {
-    const dataStr = `${String(dia).padStart(2, "0")}/${String(calViewMes + 1).padStart(2, "0")}/${calViewAno}`;
-    const dataObj = new Date(calViewAno, calViewMes, dia);
-    const isFuturo = dataObj > agoraZero;
-    const isToday = dataStr === hojeChave;
-    const isSelected = dataStr === diaAtivo;
-    const hasSales = diasComVendas.has(dataStr);
-
-    diasHtml += `
-      <button type="button" class="cal-day-btn ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""} ${hasSales ? "has-sales" : ""}"
-        ${isFuturo ? "disabled" : ""} onclick="selecionarDiaCalendario('${dataStr}', event)">
-        ${dia}
+    gridMesesHtml += `
+      <button type="button" class="cal-day-btn ${isSelected ? "is-selected" : ""}"
+        style="width:100%; aspect-ratio:unset; padding:10px 4px; font-size:12px; border-radius:8px;"
+        onclick="selecionarMesApoiadorPopover(${idx}, event)">
+        ${nomeMes.slice(0, 3)}
       </button>
     `;
-  }
+  });
 
   return `
-    <div class="custom-calendar-popover" onclick="event.stopPropagation()">
+    <div class="custom-calendar-popover" style="width:260px; top:105%; left:0; transform:none;" onclick="event.stopPropagation()">
       <div class="calendar-header-nav">
-        <button type="button" class="calendar-nav-btn" onclick="navegarMesCalendario(-1, event)">‹</button>
-        <strong>${nomesMeses[calViewMes]} ${calViewAno}</strong>
-        <button type="button" class="calendar-nav-btn" onclick="navegarMesCalendario(1, event)">›</button>
+        <button type="button" class="calendar-nav-btn" onclick="navegarAnoApoiadorPopover(-1, event)">‹</button>
+        <strong>Ano ${apoiadorPopoverAno}</strong>
+        <button type="button" class="calendar-nav-btn" onclick="navegarAnoApoiadorPopover(1, event)">›</button>
       </div>
-      <div class="calendar-weekdays-grid">${diasSemana.map(d => `<span>${d}</span>`).join("")}</div>
-      <div class="calendar-days-grid">${diasHtml}</div>
+      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-top:10px;">
+        ${gridMesesHtml}
+      </div>
     </div>
   `;
 }
 
-// ==========================================
-// GESTÃO DO CÓDIGO APOIADOR
-// ==========================================
 function abrirModalApoiador() {
   const modal = document.getElementById("apoiadorModal");
-  const select = document.getElementById("apoiadorMesSelect");
-  const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const agora = new Date();
+  apoiadorPopoverAno = agora.getFullYear();
+  apoiadorMesSelecionadoTemp = `${String(agora.getMonth() + 1).padStart(2, "0")}/${agora.getFullYear()}`;
+  apoiadorPopoverAberto = false;
   
-  let optionsHtml = "";
-  for (let m = 0; m < 12; m++) {
-    const k = `${String(m + 1).padStart(2, "0")}/${agora.getFullYear()}`;
-    optionsHtml += `<option value="${k}">${nomesMeses[m]} ${agora.getFullYear()}</option>`;
-  }
-  for (let m = 0; m < 12; m++) {
-    const k = `${String(m + 1).padStart(2, "0")}/${agora.getFullYear() - 1}`;
-    optionsHtml += `<option value="${k}">${nomesMeses[m]} ${agora.getFullYear() - 1}</option>`;
-  }
-
-  if (select) select.innerHTML = optionsHtml;
+  atualizarModalApoiadorHTML();
   atualizarListaApoiadorModal();
   if (modal) modal.style.display = "flex";
 }
@@ -333,17 +359,45 @@ function fecharModalApoiador() {
   if (modal) modal.style.display = "none";
 }
 
+function atualizarModalApoiadorHTML() {
+  const container = document.getElementById("apoiadorSeletorContainer");
+  if (!container) return;
+
+  const [m, a] = apoiadorMesSelecionadoTemp.split("/").map(Number);
+  const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  const labelMesAno = `${nomesMeses[m - 1]} ${a}`;
+
+  container.innerHTML = `
+    <div class="apoiador-popover-container" style="position:relative;">
+      <label>Mês / Ano</label>
+      <button type="button" class="period-select" style="width:100%; padding:10px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:#fff; text-align:left; cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="toggleApoiadorPopover(event)">
+        <span>📅 ${labelMesAno}</span>
+        <span>▾</span>
+      </button>
+      ${apoiadorPopoverAberto ? gerarHtmlApoiadorPopover() : ""}
+    </div>
+  `;
+  carregarDadosApoiadorNoFormulario();
+}
+
+function carregarDadosApoiadorNoFormulario() {
+  const reg = (state.apoiadorRegistros || {})[apoiadorMesSelecionadoTemp] || { brutoUsd: 0, liquidoBrl: 0 };
+  const inputBruto = document.getElementById("apoiadorBrutoUsd");
+  const inputLiquido = document.getElementById("apoiadorLiquidoBrl");
+  if (inputBruto) inputBruto.value = reg.brutoUsd || "";
+  if (inputLiquido) inputLiquido.value = reg.liquidoBrl || "";
+}
+
 function salvarRegistroApoiador() {
-  const mesAno = document.getElementById("apoiadorMesSelect").value;
   const brutoUsd = parseFloat(document.getElementById("apoiadorBrutoUsd").value) || 0;
   const liquidoBrl = parseFloat(document.getElementById("apoiadorLiquidoBrl").value) || 0;
 
   if (!state.apoiadorRegistros) state.apoiadorRegistros = {};
-  state.apoiadorRegistros[mesAno] = { brutoUsd, liquidoBrl };
+  state.apoiadorRegistros[apoiadorMesSelecionadoTemp] = { brutoUsd, liquidoBrl };
 
   save();
   atualizarListaApoiadorModal();
-  mostrarNotificacao(`Código apoiador de ${mesAno} salvo com sucesso!`, "sucesso");
+  mostrarNotificacao(`Código apoiador de ${apoiadorMesSelecionadoTemp} salvo com sucesso!`, "sucesso");
 }
 
 function atualizarListaApoiadorModal() {
@@ -377,19 +431,19 @@ function removerRegistroApoiador(k) {
     delete state.apoiadorRegistros[k];
     save();
     atualizarListaApoiadorModal();
+    atualizarModalApoiadorHTML();
     mostrarNotificacao(`Registro de ${k} removido.`, "info");
   }
 }
 
 // ==========================================
-// CONTROLE DO BALANÇO RETRÁTIL
+// FUNÇÕES PADRÃO DE SUPORTE
 // ==========================================
 function toggleBalancoFinanceiro() {
   balancoAberto = !balancoAberto;
   const content = document.getElementById("financialBalanceContent");
   const arrow = document.getElementById("financialToggleArrow");
   const btn = document.getElementById("btnFinancialToggle");
-  
   if (content && arrow) {
     content.style.display = balancoAberto ? "block" : "none";
     arrow.textContent = balancoAberto ? "▴" : "▾";
@@ -415,10 +469,7 @@ function limparBuscaHistorico() {
   render();
 }
 
-function mudarPaginaHistorico(p) {
-  historicoPaginaAtual = p;
-  render();
-}
+function mudarPaginaHistorico(p) { historicoPaginaAtual = p; render(); }
 
 function atualizarPreviewVBucks() {
   const input = document.getElementById("valorInput");
@@ -485,10 +536,7 @@ function abrirModalValorBase() {
   if (modal) modal.style.display = "flex";
 }
 
-function fecharModalValorBase() {
-  const modal = document.getElementById("valorBaseModal");
-  if (modal) modal.style.display = "none";
-}
+function fecharModalValorBase() { document.getElementById("valorBaseModal").style.display = "none"; }
 
 function salvarValorBaseModal() {
   const input = document.getElementById("novoValorBaseInput");
@@ -501,16 +549,11 @@ function salvarValorBaseModal() {
 }
 
 function abrirModalAddConta() {
-  const modal = document.getElementById("addContaModal");
   document.getElementById("novaContaNomeInput").value = "";
   document.getElementById("novaContaVbucksInput").value = "0";
-  if (modal) modal.style.display = "flex";
+  document.getElementById("addContaModal").style.display = "flex";
 }
-
-function fecharModalAddConta() {
-  const modal = document.getElementById("addContaModal");
-  if (modal) modal.style.display = "none";
-}
+function fecharModalAddConta() { document.getElementById("addContaModal").style.display = "none"; }
 
 function salvarNovaContaModal() {
   const nome = document.getElementById("novaContaNomeInput")?.value.trim();
@@ -531,10 +574,7 @@ function abrirModalEditConta(i) {
   document.getElementById("editContaSomarVbucksInput").value = "";
   document.getElementById("editContaModal").style.display = "flex";
 }
-
-function fecharModalEditConta() {
-  document.getElementById("editContaModal").style.display = "none";
-}
+function fecharModalEditConta() { document.getElementById("editContaModal").style.display = "none"; }
 
 function somarPacoteRapido(qtd) {
   const saldoInput = document.getElementById("editContaVbucksInput");
@@ -590,10 +630,7 @@ function abrirModalAuth() {
   document.getElementById("authModal").style.display = "flex";
   atualizarInterfaceAuth();
 }
-
-function fecharModalAuth() {
-  document.getElementById("authModal").style.display = "none";
-}
+function fecharModalAuth() { document.getElementById("authModal").style.display = "none"; }
 
 async function fazerLogin() {
   const email = document.getElementById("authEmail").value.trim();
@@ -614,11 +651,10 @@ async function fazerLogin() {
       localStorage.setItem("vendas_saved_pass", password);
     }
     authToken = data.access_token;
-    refreshToken = data.refresh_token || null;
     currentUser = data.user;
     localStorage.setItem("vendas_auth_token", authToken);
     fecharModalAuth();
-    mostrarNotificacao("Login realizado com sucesso!", "sucesso");
+    mostrarNotificacao("Login realizado!", "sucesso");
     await inicializar();
   } catch (err) {
     mostrarNotificacao("Erro ao conectar.", "erro");
@@ -626,7 +662,7 @@ async function fazerLogin() {
 }
 
 function fazerLogout() {
-  authToken = null; refreshToken = null; currentUser = null;
+  authToken = null; currentUser = null;
   localStorage.removeItem("vendas_auth_token");
   fecharModalAuth();
   inicializar();
@@ -944,7 +980,7 @@ function render() {
         <span style="color:var(--muted);">Apoiador:</span> ${money(lucroApoiadorAno)}<br>
         <strong style="color:var(--green);">Total: ${money(lucroTotalAnoCombinado)}</strong>
       </div>
-      ${anoPopoverAberto ? gerarHtmlAnoPopover(anosLista) : ""}
+      ${anoPopoverAberto ? gerarHtmlAnoPopover() : ""}
     </div>
 
     <div class="period-card profit-card">
@@ -1215,9 +1251,7 @@ function abrirModalLixeira() {
   if (modal) modal.style.display = "flex";
 }
 
-function fecharModalLixeira() {
-  document.getElementById("trashModal").style.display = "none";
-}
+function fecharModalLixeira() { document.getElementById("trashModal").style.display = "none"; }
 
 function valorRapido(v) {
   const input = document.getElementById("valorInput");
