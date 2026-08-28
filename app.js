@@ -37,6 +37,9 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
+// Aba ativa do Histórico ('vendas' ou 'apoiador')
+let abaHistoricoAtiva = 'vendas';
+
 // Controle dos Popovers Flutuantes
 let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
@@ -84,6 +87,28 @@ function obterDataHojeFormatada() {
   return `${String(agora.getDate()).padStart(2, "0")}/${String(agora.getMonth() + 1).padStart(2, "0")}/${agora.getFullYear()}`;
 }
 
+// Alternar abas do histórico
+function mudarAbaHistorico(aba) {
+  abaHistoricoAtiva = aba;
+  const btnVendas = document.getElementById("tabBtnVendas");
+  const btnApoiador = document.getElementById("tabBtnApoiador");
+  const divVendas = document.getElementById("conteudoAbaVendas");
+  const divApoiador = document.getElementById("conteudoAbaApoiador");
+
+  if (aba === 'vendas') {
+    btnVendas.classList.add("active");
+    btnApoiador.classList.remove("active");
+    divVendas.style.display = "block";
+    divApoiador.style.display = "none";
+  } else {
+    btnApoiador.classList.add("active");
+    btnVendas.classList.remove("active");
+    divApoiador.style.display = "block";
+    divVendas.style.display = "none";
+    renderizarHistoricoApoiadorCompleto();
+  }
+}
+
 // Fechar popovers ao clicar fora
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".period-card-calendar-container") && 
@@ -103,9 +128,7 @@ document.addEventListener("click", (e) => {
 // ==========================================
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
-  mesPopoverAberto = false;
-  anoPopoverAberto = false;
-  apoiadorPopoverAberto = false;
+  mesPopoverAberto = false; anoPopoverAberto = false; apoiadorPopoverAberto = false;
   calPopoverAberto = !calPopoverAberto;
   render();
 }
@@ -173,9 +196,7 @@ function gerarHtmlCalendarioPopover() {
 // ==========================================
 function toggleMesPopover(e) {
   if (e) e.stopPropagation();
-  calPopoverAberto = false;
-  anoPopoverAberto = false;
-  apoiadorPopoverAberto = false;
+  calPopoverAberto = false; anoPopoverAberto = false; apoiadorPopoverAberto = false;
   mesPopoverAberto = !mesPopoverAberto;
   render();
 }
@@ -230,13 +251,11 @@ function gerarHtmlMesPopover() {
 }
 
 // ==========================================
-// POPOVER DE ANO (CORRIGIDO PARA MOSTRAR ANOS CERTOS)
+// POPOVER DE ANO
 // ==========================================
 function toggleAnoPopover(e) {
   if (e) e.stopPropagation();
-  calPopoverAberto = false;
-  mesPopoverAberto = false;
-  apoiadorPopoverAberto = false;
+  calPopoverAberto = false; mesPopoverAberto = false; apoiadorPopoverAberto = false;
   anoPopoverAberto = !anoPopoverAberto;
   render();
 }
@@ -350,7 +369,6 @@ function abrirModalApoiador() {
   apoiadorPopoverAberto = false;
   
   atualizarModalApoiadorHTML();
-  atualizarListaApoiadorModal();
   if (modal) modal.style.display = "flex";
 }
 
@@ -396,42 +414,62 @@ function salvarRegistroApoiador() {
   state.apoiadorRegistros[apoiadorMesSelecionadoTemp] = { brutoUsd, liquidoBrl };
 
   save();
-  atualizarListaApoiadorModal();
+  renderizarHistoricoApoiadorCompleto();
   mostrarNotificacao(`Código apoiador de ${apoiadorMesSelecionadoTemp} salvo com sucesso!`, "sucesso");
+  fecharModalApoiador();
 }
 
-function atualizarListaApoiadorModal() {
-  const container = document.getElementById("apoiadorListaContainer");
+function renderizarHistoricoApoiadorCompleto() {
+  const container = document.getElementById("tabelaHistoricoApoiadorCompleto");
   if (!container) return;
   const registros = state.apoiadorRegistros || {};
   const chaves = Object.keys(registros).sort().reverse();
-  
+
   if (chaves.length === 0) {
-    container.innerHTML = `<div style="text-align:center; color:var(--muted); font-size:12px; padding:15px;">Nenhum registro cadastrado.</div>`;
+    container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--muted); font-size:13px;">Nenhum registro de código apoiador cadastrado ainda.</div>`;
     return;
   }
 
-  container.innerHTML = chaves.map(k => {
-    const r = registros[k];
-    return `
-      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg); border:1px solid var(--border); padding:8px 12px; border-radius:8px; font-size:12px;">
-        <div>
-          <strong style="color:var(--accent-light);">📅 ${k}</strong> · 
-          <span>Bruto: $${Number(r.brutoUsd || 0).toFixed(2)} USD</span> · 
-          <span style="color:var(--green); font-weight:700;">Líquido: ${money(r.liquidoBrl)}</span>
-        </div>
-        <button type="button" class="btn-danger" style="padding:4px 8px; font-size:11px;" onclick="removerRegistroApoiador('${k}')">Excluir</button>
-      </div>
-    `;
-  }).join("");
+  const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+  container.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table class="financial-table" style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="padding:12px; text-align:left; border-bottom:1px solid var(--border);">Mês / Ano</th>
+            <th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">Valor Bruto ($ USD)</th>
+            <th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">Valor Líquido (R$)</th>
+            <th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${chaves.map(k => {
+            const r = registros[k];
+            const [m, a] = k.split("/").map(Number);
+            const labelFormatado = `${nomesMeses[m - 1]} de ${a}`;
+            return `
+              <tr>
+                <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:600; color:var(--accent-light);">📅 ${labelFormatado}</td>
+                <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">$${Number(r.brutoUsd || 0).toFixed(2)} USD</td>
+                <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">${money(r.liquidoBrl)}</td>
+                <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">
+                  <button type="button" class="btn-danger" style="padding:4px 8px; font-size:11px;" onclick="removerRegistroApoiadorCompleto('${k}')">Excluir</button>
+                </td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
-function removerRegistroApoiador(k) {
+function removerRegistroApoiadorCompleto(k) {
   if (state.apoiadorRegistros && state.apoiadorRegistros[k]) {
     delete state.apoiadorRegistros[k];
     save();
-    atualizarListaApoiadorModal();
-    atualizarModalApoiadorHTML();
+    renderizarHistoricoApoiadorCompleto();
     mostrarNotificacao(`Registro de ${k} removido.`, "info");
   }
 }
@@ -1105,6 +1143,11 @@ function render() {
       }).join("");
     }
   }
+
+  // Se a aba ativa for a do apoiador, renderiza a tabela dela também
+  if (abaHistoricoAtiva === 'apoiador') {
+    renderizarHistoricoApoiadorCompleto();
+  }
 }
 
 function renderContasCards(t) {
@@ -1131,7 +1174,8 @@ function renderContasCards(t) {
       </div>
       <div class="amount">${money(t[c.nome] || 0)}</div>
       <div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
-      <div class="sales-count">🛒 ${quantidade}/5 usadas</div>
+      <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta sessão</div>
+      <div class="sales-count">📦 ${quantidade}/5 usadas · ${disponiveis} ${disponiveis === 1 ? "disponível" : "disponíveis"}</div>
       <div class="timer">${tempos.length ? tempos.join("") : `🟢 5 vagas disponíveis`}</div>
     </div>`;
   }).join("");
