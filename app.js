@@ -37,10 +37,8 @@ let authToken = localStorage.getItem("vendas_auth_token") || null;
 let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
-// Aba ativa do Histórico ('vendas' ou 'apoiador')
 let abaHistoricoAtiva = 'vendas';
 
-// Controle dos Popovers Flutuantes
 let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
 let calPopoverAberto = false;
@@ -51,7 +49,6 @@ let mesViewAno = new Date().getFullYear();
 let anoPopoverAberto = false;
 let anoViewDecada = new Date().getFullYear();
 
-// Popover do Apoiador
 let apoiadorPopoverAberto = false;
 let apoiadorPopoverAno = new Date().getFullYear();
 let apoiadorMesSelecionadoTemp = `${String(new Date().getMonth() + 1).padStart(2, "0")}/${new Date().getFullYear()}`;
@@ -87,7 +84,6 @@ function obterDataHojeFormatada() {
   return `${String(agora.getDate()).padStart(2, "0")}/${String(agora.getMonth() + 1).padStart(2, "0")}/${agora.getFullYear()}`;
 }
 
-// Alternar abas do histórico
 function mudarAbaHistorico(aba) {
   abaHistoricoAtiva = aba;
   const btnVendas = document.getElementById("tabBtnVendas");
@@ -96,20 +92,19 @@ function mudarAbaHistorico(aba) {
   const divApoiador = document.getElementById("conteudoAbaApoiador");
 
   if (aba === 'vendas') {
-    btnVendas.classList.add("active");
-    btnApoiador.classList.remove("active");
-    divVendas.style.display = "block";
-    divApoiador.style.display = "none";
+    if (btnVendas) btnVendas.classList.add("active");
+    if (btnApoiador) btnApoiador.classList.remove("active");
+    if (divVendas) divVendas.style.display = "block";
+    if (divApoiador) divApoiador.style.display = "none";
   } else {
-    btnApoiador.classList.add("active");
-    btnVendas.classList.remove("active");
-    divApoiador.style.display = "block";
-    divVendas.style.display = "none";
+    if (btnApoiador) btnApoiador.classList.add("active");
+    if (btnVendas) btnVendas.classList.remove("active");
+    if (divApoiador) divApoiador.style.display = "block";
+    if (divVendas) divVendas.style.display = "none";
     renderizarHistoricoApoiadorCompleto();
   }
 }
 
-// Fechar popovers ao clicar fora
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".period-card-calendar-container") && 
       !e.target.closest(".period-card-mes-container") && 
@@ -123,9 +118,6 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// ==========================================
-// POPOVER DE DIAS (HOJE)
-// ==========================================
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
   mesPopoverAberto = false; anoPopoverAberto = false; apoiadorPopoverAberto = false;
@@ -191,9 +183,6 @@ function gerarHtmlCalendarioPopover() {
   `;
 }
 
-// ==========================================
-// POPOVER DE MÊS
-// ==========================================
 function toggleMesPopover(e) {
   if (e) e.stopPropagation();
   calPopoverAberto = false; anoPopoverAberto = false; apoiadorPopoverAberto = false;
@@ -250,9 +239,6 @@ function gerarHtmlMesPopover() {
   `;
 }
 
-// ==========================================
-// POPOVER DE ANO (COM INTERVALO EXATO NO TOPO)
-// ==========================================
 function toggleAnoPopover(e) {
   if (e) e.stopPropagation();
   calPopoverAberto = false; mesPopoverAberto = false; apoiadorPopoverAberto = false;
@@ -307,9 +293,6 @@ function gerarHtmlAnoPopover() {
   `;
 }
 
-// ==========================================
-// POPOVER MODERNO NO MODAL DO APOIADOR
-// ==========================================
 function toggleApoiadorPopover(e) {
   if (e) e.stopPropagation();
   apoiadorPopoverAberto = !apoiadorPopoverAberto;
@@ -474,9 +457,6 @@ function removerRegistroApoiadorCompleto(k) {
   }
 }
 
-// ==========================================
-// FUNÇÕES PADRÃO DE SUPORTE
-// ==========================================
 function toggleBalancoFinanceiro() {
   balancoAberto = !balancoAberto;
   const content = document.getElementById("financialBalanceContent");
@@ -689,10 +669,12 @@ async function fazerLogin() {
       localStorage.setItem("vendas_saved_pass", password);
     }
     authToken = data.access_token;
+    refreshToken = data.refresh_token || null;
     currentUser = data.user;
     localStorage.setItem("vendas_auth_token", authToken);
+    if (refreshToken) localStorage.setItem("vendas_refresh_token", refreshToken);
     fecharModalAuth();
-    mostrarNotificacao("Login realizado!", "sucesso");
+    mostrarNotificacao("Login realizado com sucesso!", "sucesso");
     await inicializar();
   } catch (err) {
     mostrarNotificacao("Erro ao conectar.", "erro");
@@ -700,27 +682,80 @@ async function fazerLogin() {
 }
 
 function fazerLogout() {
-  authToken = null; currentUser = null;
+  authToken = null; refreshToken = null; currentUser = null;
   localStorage.removeItem("vendas_auth_token");
+  localStorage.removeItem("vendas_refresh_token");
   fecharModalAuth();
   inicializar();
 }
 
+async function renovarTokenSupabase() {
+  const storedRefresh = localStorage.getItem("vendas_refresh_token");
+  if (!storedRefresh) return false;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: { "apikey": SUPABASE_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: storedRefresh })
+    });
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      authToken = data.access_token;
+      refreshToken = data.refresh_token;
+      currentUser = data.user;
+      localStorage.setItem("vendas_auth_token", authToken);
+      if (refreshToken) localStorage.setItem("vendas_refresh_token", refreshToken);
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+async function verificarSessao() {
+  if (!authToken) {
+    const renovou = await renovarTokenSupabase();
+    if (!renovou) { currentUser = null; return; }
+  }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${authToken}` }
+    });
+    if (res.ok) {
+      currentUser = await res.json();
+    } else {
+      const renovou = await renovarTokenSupabase();
+      if (!renovou) { currentUser = null; authToken = null; refreshToken = null; localStorage.removeItem("vendas_auth_token"); localStorage.removeItem("vendas_refresh_token"); }
+    }
+  } catch (e) { currentUser = null; }
+}
+
 async function inicializar() {
   const footer = document.getElementById("statusFooter");
+  await verificarSessao();
+  atualizarInterfaceAuth();
   atualizarCamposItens();
   atualizarPreviewVBucks();
 
+  if (!currentUser) {
+    if (footer) footer.textContent = "👀 Modo Visitante (Faça login como Admin)";
+    state = JSON.parse(JSON.stringify(DADOS_DEMO));
+    sanitizarDados();
+    render();
+    return;
+  }
+
   try {
+    if (footer) footer.textContent = "☁️ Carregando dados da nuvem...";
     const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.1&select=*`, {
       headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
     });
     const rows = await res.json();
     state = (Array.isArray(rows) && rows.length > 0 && rows[0].data) ? rows[0].data : JSON.parse(JSON.stringify(DADOS_DEMO));
     sanitizarDados();
-    if (footer) footer.textContent = `🟢 Conectado ao Painel`;
+    if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
     render();
   } catch (err) {
+    if (footer) footer.textContent = "⚠️ Erro ao sincronizar dados com o banco";
     state = JSON.parse(JSON.stringify(DADOS_DEMO));
     sanitizarDados();
     render();
@@ -739,7 +774,11 @@ function sanitizarDados() {
 async function save() {
   sanitizarDados();
   render();
+  const footer = document.getElementById("statusFooter");
+  if (!currentUser) return;
+
   try {
+    if (footer) footer.textContent = "☁️ Salvando na nuvem...";
     await fetch(`${SUPABASE_URL}/rest/v1/app_state`, {
       method: "POST",
       headers: {
@@ -750,7 +789,10 @@ async function save() {
       },
       body: JSON.stringify({ id: 1, data: state, updated_at: new Date().toISOString() })
     });
-  } catch (err) {}
+    if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
+  } catch (err) {
+    if (footer) footer.textContent = "⚠️ Erro ao salvar na nuvem";
+  }
 }
 
 function limparReservasExpiradas() {
@@ -1108,6 +1150,7 @@ function render() {
     const totalItensFiltrados = listaFiltrada.length;
     const totalPaginas = Math.ceil(totalItensFiltrados / ITENS_POR_PAGINA) || 1;
     if (historicoPaginaAtual > totalPaginas) historicoPaginaAtual = totalPaginas;
+    if (historicoPaginaAtual < 1) historicoPaginaAtual = 1;
 
     const itensPagina = listaFiltrada.slice((historicoPaginaAtual - 1) * ITENS_POR_PAGINA, historicoPaginaAtual * ITENS_POR_PAGINA);
 
@@ -1141,6 +1184,33 @@ function render() {
           </div>
         </div>`;
       }).join("");
+    }
+
+    // Renderização dos botões de paginação que haviam sumido
+    const paginacaoContainer = document.getElementById("historyPagination");
+    if (paginacaoContainer) {
+      if (totalItensFiltrados === 0) {
+        paginacaoContainer.innerHTML = "";
+      } else {
+        let botoesPaginasHtml = "";
+        for (let p = 1; p <= totalPaginas; p++) {
+          if (p === 1 || p === totalPaginas || (p >= historicoPaginaAtual - 1 && p <= historicoPaginaAtual + 1)) {
+            botoesPaginasHtml += `<button type="button" class="pagination-btn ${p === historicoPaginaAtual ? "active" : ""}" onclick="mudarPaginaHistorico(${p})">${p}</button>`;
+          } else if (p === historicoPaginaAtual - 2 || p === historicoPaginaAtual + 2) {
+            botoesPaginasHtml += `<span style="color:var(--muted); font-size:12px; padding:0 2px;">...</span>`;
+          }
+        }
+        paginacaoContainer.innerHTML = `
+          <div class="pagination-controls-row">
+            <button type="button" class="pagination-btn" ${historicoPaginaAtual === 1 ? "disabled" : ""} onclick="mudarPaginaHistorico(${historicoPaginaAtual - 1})">‹ Anterior</button>
+            ${botoesPaginasHtml}
+            <button type="button" class="pagination-btn" ${historicoPaginaAtual === totalPaginas ? "disabled" : ""} onclick="mudarPaginaHistorico(${historicoPaginaAtual + 1})">Próxima ›</button>
+          </div>
+          <div class="pagination-info-text">
+            Página ${historicoPaginaAtual} de ${totalPaginas} · Exibindo ${itensPagina.length} de ${totalItensFiltrados} vendas
+          </div>
+        `;
+      }
     }
   }
 
