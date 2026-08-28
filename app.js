@@ -1412,7 +1412,7 @@ function render() {
               <button type="button" class="btn-danger" onclick="excluirHistoricoPorId('${esc(v.id)}')">🗑️ Excluir</button>
             </div>
           </div>
-        `;
+        </div>`;
       }).join("");
     }
 
