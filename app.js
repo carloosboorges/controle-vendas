@@ -38,6 +38,7 @@ let refreshToken = localStorage.getItem("vendas_refresh_token") || null;
 let state = null;
 
 let abaHistoricoAtiva = 'vendas';
+let contasAberto = false;
 
 let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
@@ -82,6 +83,16 @@ function extrairApenasNomeItem(itemStr) {
 function obterDataHojeFormatada() {
   const agora = new Date();
   return `${String(agora.getDate()).padStart(2, "0")}/${String(agora.getMonth() + 1).padStart(2, "0")}/${agora.getFullYear()}`;
+}
+
+function toggleGerenciarContas() {
+  contasAberto = !contasAberto;
+  const content = document.getElementById("contasContent");
+  const arrow = document.getElementById("contasToggleArrow");
+  if (content && arrow) {
+    content.style.display = contasAberto ? "block" : "none";
+    arrow.textContent = contasAberto ? "▴" : "▾";
+  }
 }
 
 function mudarAbaHistorico(aba) {
@@ -1186,7 +1197,6 @@ function render() {
       }).join("");
     }
 
-    // Renderização dos botões de paginação que haviam sumido
     const paginacaoContainer = document.getElementById("historyPagination");
     if (paginacaoContainer) {
       if (totalItensFiltrados === 0) {

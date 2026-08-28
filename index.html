@@ -354,13 +354,18 @@
     <div id="totaisPorConta" class="account-grid"></div>
   </section>
 
-  <!-- Gerenciador de Contas -->
-  <section class="panel">
-    <h2>⚙️ Gerenciar Contas</h2>
-    <div class="section-actions">
-      <button type="button" class="btn-green" onclick="abrirModalAddConta()">➕ Adicionar Conta</button>
+  <!-- Gerenciador de Contas (Retrátil / Escondido) -->
+  <section class="panel" style="padding: 14px 20px;">
+    <button type="button" class="btn-financial-toggle" id="btnContasToggle" onclick="toggleGerenciarContas()" style="width:100%; display:flex; justify-content:space-between; align-items:center; background:transparent; border:none; color:var(--text); font-weight:700; font-size:1rem; cursor:pointer; padding:6px 0;">
+      <span>⚙️ Gerenciar Contas & Saldos</span>
+      <span id="contasToggleArrow" class="toggle-arrow">▾</span>
+    </button>
+    <div id="contasContent" class="financial-balance-content" style="display:none; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 14px;">
+      <div class="section-actions" style="margin-bottom: 12px;">
+        <button type="button" class="btn-green" onclick="abrirModalAddConta()">➕ Adicionar Conta</button>
+      </div>
+      <div id="contas"></div>
     </div>
-    <div id="contas"></div>
   </section>
 
   <!-- Histórico com Abas de Alternância -->
