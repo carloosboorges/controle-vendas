@@ -1359,17 +1359,10 @@ function render() {
     const searchSummaryContainer = document.getElementById("searchSummaryContainer");
     if (searchSummaryContainer) {
       if (historicoTermoBusca) {
-        const somaValorBusca = listaFiltrada.reduce((acc, v) => acc + Number(v.valor || 0), 0);
-        const somaVbucksBusca = listaFiltrada.reduce((acc, v) => acc + (v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento)), 0);
-        
         searchSummaryContainer.style.display = "block";
         searchSummaryContainer.innerHTML = `
-          <div class="search-summary-box">
-            <div>🔍 <b>Busca:</b> "${esc(historicoTermoBusca)}" · <b>${totalItensFiltrados}</b> ${totalItensFiltrados === 1 ? 'pedido' : 'pedidos'}</div>
-            <div style="text-align: right;">
-              <span style="color: var(--green); font-weight: 800; margin-right: 12px;">Total Pago: ${money(somaValorBusca)}</span>
-              <span style="color: var(--accent-light); font-weight: 800;">🪙 ${formatVBucks(somaVbucksBusca)} VB</span>
-            </div>
+          <div class="search-summary-box" style="justify-content: center; text-align: center;">
+            <div>🔍 <b>Busca:</b> "${esc(historicoTermoBusca)}" · <b>${totalItensFiltrados}</b> ${totalItensFiltrados === 1 ? 'pedido encontrado' : 'pedidos encontrados'}</div>
           </div>
         `;
       } else {
