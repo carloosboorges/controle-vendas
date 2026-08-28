@@ -249,26 +249,32 @@ input:focus {
   box-shadow: 0 0 12px var(--accent-glow);
 }
 
-/* Estilização moderna e forçada para os selects (dropdowns) */
+/* Estilização refinada para os selects (dropdowns) e suas opções internas */
 select {
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   appearance: none !important;
-  background-color: #090412 !important;
+  background-color: #120924 !important;
   border: 1px solid var(--border) !important;
   border-radius: 12px !important;
   color: #fff !important;
   padding: 12px 14px !important;
-  padding-right: 36px !important;
+  padding-right: 38px !important;
   font-family: inherit !important;
   font-size: 14px !important;
   cursor: pointer !important;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b37afc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b37afc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3e") !important;
   background-repeat: no-repeat !important;
-  background-position: right 12px center !important;
+  background-position: right 14px center !important;
   background-size: 16px !important;
-  transition: all 0.2s !important;
+  transition: all 0.2s ease !important;
   width: 100%;
+}
+
+select option {
+  background-color: #140929 !important;
+  color: #fff !important;
+  padding: 10px !important;
 }
 
 select:hover {
@@ -1437,16 +1443,16 @@ footer {
   width: 280px;
 }
 
-/* Correção do layout do Modal do Apoiador para não vazar */
+/* CORREÇÃO DO MODAL DO APOIADOR (EVITA QUE O INPUT ESTOURE A JANELA) */
 #apoiadorModal .modal-card-large {
-  max-width: 550px;
+  max-width: 520px;
   width: 90%;
 }
 
 .apoiador-form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
   margin-bottom: 14px;
 }
 
@@ -1459,6 +1465,7 @@ footer {
 /* Garante que o popover do apoiador apareça perfeitamente sobre o modal */
 .apoiador-popover-container {
   position: relative;
+  grid-column: 1 / -1;
 }
 
 /* Estilo para as abas de alternância do Histórico */
@@ -1499,41 +1506,4 @@ footer {
   align-items: center;
   font-size: 13px;
   color: #fff;
-
-  /* =======================================================
-   ESTILIZAÇÃO MODERNA E FORÇADA PARA OS SELECTS (DROPDOWNS)
-   ======================================================= */
-select, 
-.toolbar select, 
-.modal-card select, 
-.period-select {
-  -webkit-appearance: none !important;
-  -moz-appearance: none !important;
-  appearance: none !important;
-  background-color: #120924 !important;
-  border: 1px solid var(--border, #3b2269) !important;
-  border-radius: 12px !important;
-  color: #ffffff !important;
-  padding: 12px 14px !important;
-  padding-right: 38px !important;
-  font-family: 'Poppins', sans-serif !important;
-  font-size: 14px !important;
-  cursor: pointer !important;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b37afc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3e") !important;
-  background-repeat: no-repeat !important;
-  background-position: right 14px center !important;
-  background-size: 16px !important;
-  transition: all 0.2s ease !important;
-  width: 100% !important;
-}
-
-select:hover {
-  border-color: var(--accent-light, #b37afc) !important;
-}
-
-select:focus {
-  outline: none !important;
-  border-color: var(--border-focus, #a855f7) !important;
-  box-shadow: 0 0 12px var(--accent-glow, rgba(142, 68, 255, 0.45)) !important;
-}
 }
