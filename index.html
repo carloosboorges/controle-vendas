@@ -191,11 +191,6 @@
           </div>
         </div>
 
-        <div class="field">
-          <label>💬 Observação / Recado</label>
-          <input id="editObservacaoInput" type="text" maxlength="150" placeholder="Ex.: Presente para outra conta">
-        </div>
-
         <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:10px;">
           <div class="field">
             <label>📅 Data da Venda (DD/MM/AAAA)</label>
@@ -218,6 +213,11 @@
         <div>
           <label style="font-size:13px; color:var(--muted); font-weight:600; margin-bottom:6px; display:block;">Itens do Pedido</label>
           <div id="editItensListContainer" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+
+        <div class="field" style="margin-top: 10px;">
+          <label>💬 Observação (opcional)</label>
+          <input id="editObservacaoInput" type="text" maxlength="150" placeholder="Ex.: Presente para outra conta">
         </div>
       </div>
 
@@ -320,14 +320,16 @@
         <label>Nick do cliente</label>
         <input id="nickClienteInput" type="text" maxlength="80" placeholder="Ex.: JoaoFortnite">
       </div>
-      <div class="field" style="grid-column: 1 / -1;">
-        <label>💬 Observação / Recado (opcional)</label>
-        <input id="observacaoInput" type="text" maxlength="150" placeholder="Ex.: Presente para a conta secundária de fulano">
-      </div>
     </div>
 
     <!-- Área de Seleção dos Itens Vendidos -->
     <div id="itensGroupContainer" class="itens-group-container" style="margin-top: 14px;"></div>
+
+    <!-- Observação por último, abaixo dos itens -->
+    <div class="field" style="margin-top: 14px;">
+      <label>💬 Observação (opcional)</label>
+      <input id="observacaoInput" type="text" maxlength="150" placeholder="Ex.: Presente para a conta secundária de fulano">
+    </div>
 
     <!-- Botões de Ação -->
     <div class="form-actions-row" style="margin-top: 16px; display: flex; gap: 10px;">
@@ -380,11 +382,11 @@
   <!-- Histórico com Abas de Alternância -->
   <section class="panel">
     <div class="history-top-bar">
-      <div class="history-tabs-bar" style="margin: 0; border: none; padding: 0;">
-        <button type="button" class="history-tab-btn active" id="tabBtnVendas" onclick="mudarAbaHistorico('vendas')">📜 Histórico de Vendas</button>
-        <button type="button" class="history-tab-btn" id="tabBtnApoiador" onclick="mudarAbaHistorico('apoiador')">🤝 Histórico Código Apoiador</button>
+      <div class="history-tabs-bar" style="margin: 0; border: none; padding: 0; display: flex; width: 100%; gap: 10px;">
+        <button type="button" class="history-tab-btn active" id="tabBtnVendas" onclick="mudarAbaHistorico('vendas')" style="flex: 1; text-align: center;">📜 Histórico de Vendas</button>
+        <button type="button" class="history-tab-btn" id="tabBtnApoiador" onclick="mudarAbaHistorico('apoiador')" style="flex: 1; text-align: center;">🤝 Histórico Código Apoiador</button>
       </div>
-      <div style="display: flex; gap: 8px;">
+      <div style="display: flex; gap: 8px; margin-top: 10px;">
         <button type="button" class="btn-gray btn-compact" onclick="abrirModalLixeira()" id="lixeiraBtn">🗑️ Lixeira (0)</button>
       </div>
     </div>

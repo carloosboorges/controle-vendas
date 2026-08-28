@@ -103,13 +103,33 @@ function mudarAbaHistorico(aba) {
   const divApoiador = document.getElementById("conteudoAbaApoiador");
 
   if (aba === 'vendas') {
-    if (btnVendas) btnVendas.classList.add("active");
-    if (btnApoiador) btnApoiador.classList.remove("active");
+    if (btnVendas) {
+      btnVendas.classList.add("active");
+      btnVendas.style.background = "var(--accent-color, #a855f7)";
+      btnVendas.style.color = "#fff";
+      btnVendas.style.opacity = "1";
+    }
+    if (btnApoiador) {
+      btnApoiador.classList.remove("active");
+      btnApoiador.style.background = "transparent";
+      btnApoiador.style.color = "var(--muted, #9ca3af)";
+      btnApoiador.style.opacity = "0.6";
+    }
     if (divVendas) divVendas.style.display = "block";
     if (divApoiador) divApoiador.style.display = "none";
   } else {
-    if (btnApoiador) btnApoiador.classList.add("active");
-    if (btnVendas) btnVendas.classList.remove("active");
+    if (btnApoiador) {
+      btnApoiador.classList.add("active");
+      btnApoiador.style.background = "var(--accent-color, #a855f7)";
+      btnApoiador.style.color = "#fff";
+      btnApoiador.style.opacity = "1";
+    }
+    if (btnVendas) {
+      btnVendas.classList.remove("active");
+      btnVendas.style.background = "transparent";
+      btnVendas.style.color = "var(--muted, #9ca3af)";
+      btnVendas.style.opacity = "0.6";
+    }
     if (divApoiador) divApoiador.style.display = "block";
     if (divVendas) divVendas.style.display = "none";
     renderizarHistoricoApoiadorCompleto();
@@ -1173,12 +1193,12 @@ function render() {
       historicoContainer.innerHTML = itensPagina.map(v => {
         const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
         const itensListHtml = Array.isArray(v.itens) && v.itens.length
-          ? v.itens.map((itemStr, n) => `${n === 0 ? "" : "<br>"}🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(extrairApenasNomeItem(itemStr))}', 'Item', event)">${esc(itemStr)}</span>`).join("")
-          : `🎁 ${esc(v.item)}`;
+          ? v.itens.map((itemStr, n) => `${n === 0 ? "" : "<br>"}🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(extrairApenasNomeItem(itemStr))}', 'Item', event)" title="Clique para copiar">${esc(itemStr)}</span>`).join("")
+          : `🎁 <span class="copyable-text" onclick="copiarTexto('${esc(extrairApenasNomeItem(v.item))}', 'Item', event)" title="Clique para copiar">${esc(v.item)}</span>`;
 
         const observacaoHtml = v.observacao ? `
           <div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 4px 8px; border-radius: 6px; border-left: 3px solid var(--accent);">
-            💬 <b>Obs:</b> ${esc(v.observacao)}
+            💬 <b>Observação:</b> ${esc(v.observacao)}
           </div>
         ` : "";
 
@@ -1186,12 +1206,18 @@ function render() {
           <div class="history-main">
             <div class="history-number">${v.numeroPedido}</div>
             <div class="history-info">
-              <div class="history-account">${esc(v.conta)}</div>
-              <div class="history-client">👤 ${esc(v.cliente)}</div>
-              <div class="history-client">🎮 ${esc(v.nickCliente)}</div>
+              <div class="history-account">
+                <span class="copyable-text" onclick="copiarTexto('${esc(v.conta)}', 'Conta', event)" title="Clique para copiar">${esc(v.conta)}</span>
+              </div>
+              <div class="history-client">
+                👤 <span class="copyable-text" onclick="copiarTexto('${esc(v.cliente)}', 'Cliente', event)" title="Clique para copiar">${esc(v.cliente)}</span>
+              </div>
+              <div class="history-client">
+                🎮 <span class="copyable-text" onclick="copiarTexto('${esc(v.nickCliente)}', 'Nick', event)" title="Clique para copiar">${esc(v.nickCliente)}</span>
+              </div>
               <div class="history-item">${itensListHtml}</div>
-              ${observacaoHtml}
               <div class="history-date">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
+              ${observacaoHtml}
             </div>
             <div class="history-value">${money(v.valor)}</div>
           </div>
