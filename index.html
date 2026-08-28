@@ -381,19 +381,16 @@
 
   <!-- Histórico com Abas de Alternância -->
   <section class="panel">
-    <div class="history-top-bar">
+    <div class="history-top-bar" style="margin-bottom: 15px;">
       <div class="history-tabs-bar" style="margin: 0; border: none; padding: 0; display: flex; width: 100%; gap: 10px;">
         <button type="button" class="history-tab-btn active" id="tabBtnVendas" onclick="mudarAbaHistorico('vendas')" style="flex: 1; text-align: center;">📜 Histórico de Vendas</button>
         <button type="button" class="history-tab-btn" id="tabBtnApoiador" onclick="mudarAbaHistorico('apoiador')" style="flex: 1; text-align: center;">🤝 Histórico Código Apoiador</button>
-      </div>
-      <div style="display: flex; gap: 8px; margin-top: 10px;">
-        <button type="button" class="btn-gray btn-compact" onclick="abrirModalLixeira()" id="lixeiraBtn">🗑️ Lixeira (0)</button>
       </div>
     </div>
     
     <!-- Conteúdo da Aba Vendas -->
     <div id="conteudoAbaVendas">
-      <div class="history-content-full" style="margin-top: 15px;">
+      <div class="history-content-full">
         <div class="history-total-card" style="display:flex; justify-content:space-between; align-items:center;">
           <div>
             <div class="history-total-label">💰 TOTAL DO HISTÓRICO</div>
@@ -437,6 +434,12 @@
 
       <!-- Lista de Vendas Paginada -->
       <div id="historico" class="history-cards"></div>
+
+      <!-- Painel de Rodapé do Histórico (Lixeira reposicionada com folga e elegância) -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 14px 18px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px;">
+        <div style="font-size: 13px; color: var(--muted);">Gerencie vendas excluídas ou limpe registros antigos:</div>
+        <button type="button" class="btn-gray" onclick="abrirModalLixeira()" id="lixeiraBtn" style="font-size: 13px; padding: 8px 16px;">🗑️ Lixeira (0)</button>
+      </div>
 
       <!-- Controles de Paginação -->
       <div id="historyPagination" class="history-pagination-container"></div>

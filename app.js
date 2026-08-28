@@ -767,6 +767,9 @@ async function inicializar() {
   atualizarCamposItens();
   atualizarPreviewVBucks();
 
+  // Garante que o estado visual das abas comece perfeitamente sincronizado
+  mudarAbaHistorico('vendas');
+
   if (!currentUser) {
     if (footer) footer.textContent = "👀 Modo Visitante (Faça login como Admin)";
     state = JSON.parse(JSON.stringify(DADOS_DEMO));
