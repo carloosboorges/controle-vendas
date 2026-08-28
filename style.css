@@ -1389,4 +1389,20 @@ footer {
   .history-periods {
     grid-template-columns: 1fr;
   }
+
+  /* Estilo para o popover flutuante de seleção de mês */
+.custom-calendar-popover {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 8px;
+  background: var(--card-bg, #181820);
+  border: 1px solid var(--border-color, #2a2a38);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  z-index: 1000;
+  width: 280px;
+}
 }
