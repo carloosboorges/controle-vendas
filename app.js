@@ -1150,11 +1150,13 @@ function render() {
     if (historicoTermoBusca) {
       listaFiltrada = listaComIndices.filter(v => {
         const itensStr = Array.isArray(v.itens) ? v.itens.join(" ").toLowerCase() : String(v.item || "").toLowerCase();
+        const obsStr = String(v.observacao || "").toLowerCase();
         return v.numeroPedido.toLowerCase().includes(historicoTermoBusca) ||
           String(v.cliente || "").toLowerCase().includes(historicoTermoBusca) ||
           String(v.nickCliente || "").toLowerCase().includes(historicoTermoBusca) ||
           String(v.conta || "").toLowerCase().includes(historicoTermoBusca) ||
-          itensStr.includes(historicoTermoBusca);
+          itensStr.includes(historicoTermoBusca) ||
+          obsStr.includes(historicoTermoBusca);
       });
     }
 
@@ -1174,6 +1176,12 @@ function render() {
           ? v.itens.map((itemStr, n) => `${n === 0 ? "" : "<br>"}🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(extrairApenasNomeItem(itemStr))}', 'Item', event)">${esc(itemStr)}</span>`).join("")
           : `🎁 ${esc(v.item)}`;
 
+        const observacaoHtml = v.observacao ? `
+          <div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 4px 8px; border-radius: 6px; border-left: 3px solid var(--accent);">
+            💬 <b>Obs:</b> ${esc(v.observacao)}
+          </div>
+        ` : "";
+
         return `<div class="history-card">
           <div class="history-main">
             <div class="history-number">${v.numeroPedido}</div>
@@ -1182,6 +1190,7 @@ function render() {
               <div class="history-client">👤 ${esc(v.cliente)}</div>
               <div class="history-client">🎮 ${esc(v.nickCliente)}</div>
               <div class="history-item">${itensListHtml}</div>
+              ${observacaoHtml}
               <div class="history-date">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
             </div>
             <div class="history-value">${money(v.valor)}</div>
@@ -1266,6 +1275,7 @@ function adicionarVenda() {
   const valor = parseFloat(document.getElementById("valorInput").value);
   const cliente = document.getElementById("clienteInput").value.trim();
   const nickCliente = document.getElementById("nickClienteInput").value.trim();
+  const observacao = document.getElementById("observacaoInput")?.value.trim() || "";
   const quantidade = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
   const itens = obterItensDaVenda();
   const baseAtual = state.valorBase100 || 2.5;
@@ -1287,7 +1297,7 @@ function adicionarVenda() {
 
   const novaVenda = {
     id: vendaId, conta, valor: Number(valor), vbucks: vbucksNecessarios, valorBaseMomento: baseAtual,
-    quantidade, cliente, nickCliente, item: itens[0] || "", itens,
+    quantidade, cliente, nickCliente, observacao, item: itens[0] || "", itens,
     data: d.toLocaleDateString("pt-BR"), hora: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), criadoEmMs: agora
   };
 
@@ -1300,11 +1310,100 @@ function adicionarVenda() {
   document.getElementById("valorInput").value = "";
   document.getElementById("clienteInput").value = "";
   document.getElementById("nickClienteInput").value = "";
+  document.getElementById("observacaoInput").value = "";
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens();
   atualizarPreviewVBucks();
   save();
   mostrarNotificacao("Venda registrada com sucesso!", "sucesso");
+}
+
+function abrirModalEdicaoPorId(vendaId) {
+  const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
+  if (i < 0) return;
+  const venda = state.historicoVendas[i];
+
+  document.getElementById("editVendaId").value = vendaId;
+  const selectConta = document.getElementById("editContaSelect");
+  if (selectConta) {
+    selectConta.innerHTML = (state.contas || []).map(c => `
+      <option value="${esc(c.nome)}" ${c.nome === venda.conta ? "selected" : ""}>
+        ${esc(c.nome)} (${formatVBucks(c.vbucks)} VB)
+      </option>
+    `).join("");
+    selectConta.value = venda.conta;
+  }
+
+  document.getElementById("editClientInput").value = venda.cliente || "";
+  document.getElementById("editNickInput").value = venda.nickCliente || "";
+  document.getElementById("editObservacaoInput").value = venda.observacao || "";
+  document.getElementById("editDataInput").value = venda.data || "";
+  document.getElementById("editHoraInput").value = venda.hora || "";
+  document.getElementById("editValorInput").value = Number(venda.valor || 0).toFixed(2);
+  
+  atualizarPreviewVBucksEdicao();
+
+  const container = document.getElementById("editItensListContainer");
+  const itens = Array.isArray(venda.itens) && venda.itens.length ? venda.itens : [venda.item || ""];
+
+  container.innerHTML = itens.map((itemStr, idx) => {
+    const { tipo, nome } = parseItemString(itemStr);
+    const optionsHtml = CATEGORIAS_ITENS.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join("");
+    return `
+      <div class="item-picker-box">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="font-size:12px;">Item ${idx + 1}</label>
+          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="removerItemEdicao(${idx})">✕</button>` : ""}
+        </div>
+        <div class="item-picker-row">
+          <select class="item-type-select edit-modal-item-type">${optionsHtml}</select>
+          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item">
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  document.getElementById("editSaleModal").style.display = "flex";
+}
+
+function salvarEdicaoVenda() {
+  const vendaId = document.getElementById("editVendaId").value;
+  const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
+  if (i < 0) return;
+  const venda = state.historicoVendas[i];
+
+  const cliente = document.getElementById("editClientInput").value.trim();
+  const nick = document.getElementById("editNickInput").value.trim();
+  const observacao = document.getElementById("editObservacaoInput").value.trim();
+  const novaData = document.getElementById("editDataInput").value.trim();
+  const novaHora = document.getElementById("editHoraInput").value.trim();
+  const valor = parseFloat(document.getElementById("editValorInput").value);
+
+  if (!cliente || !nick || !novaData || !valor) {
+    mostrarNotificacao("Preencha os campos obrigatórios.", "erro");
+    return;
+  }
+
+  venda.cliente = cliente;
+  venda.nickCliente = nick;
+  venda.observacao = observacao;
+  venda.data = novaData;
+  venda.hora = novaHora || venda.hora || "—";
+  venda.valor = Number(valor);
+
+  const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
+  if (sessaoVenda) {
+    sessaoVenda.cliente = cliente;
+    sessaoVenda.nickCliente = nick;
+    sessaoVenda.observacao = observacao;
+    sessaoVenda.data = novaData;
+    sessaoVenda.hora = novaHora;
+    sessaoVenda.valor = Number(valor);
+  }
+
+  save();
+  fecharModalEdicao();
+  mostrarNotificacao("Alterações salvas com sucesso!", "sucesso");
 }
 
 function excluirHistoricoPorId(vendaId) {
@@ -1375,6 +1474,7 @@ function abrirModalLixeira() {
 }
 
 function fecharModalLixeira() { document.getElementById("trashModal").style.display = "none"; }
+function fecharModalEdicao() { document.getElementById("editSaleModal").style.display = "none"; }
 
 function valorRapido(v) {
   const input = document.getElementById("valorInput");
