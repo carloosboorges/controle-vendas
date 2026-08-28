@@ -418,9 +418,9 @@
         </div>
       </div>
 
-      <!-- Barra de Busca do Histórico -->
-      <div class="history-search-bar-box" style="margin-top: 16px;">
-        <div class="history-search-input-wrapper">
+      <!-- Barra de Busca do Histórico com Botão de Lixeira Discreto à Direita -->
+      <div class="history-search-bar-box" style="margin-top: 16px; display: flex; gap: 10px; align-items: center;">
+        <div class="history-search-input-wrapper" style="flex: 1;">
           <span class="search-icon">🔍</span>
           <input 
             id="historySearchInput" 
@@ -430,16 +430,11 @@
           >
           <button type="button" class="btn-clear-search" id="clearSearchBtn" style="display:none;" onclick="limparBuscaHistorico()">✕</button>
         </div>
+        <button type="button" class="btn-gray btn-compact" onclick="abrirModalLixeira()" id="lixeiraBtn" title="Ver Vendas Excluídas" style="white-space: nowrap; height: 42px; padding: 0 14px; font-size: 13px;">🗑️ Lixeira (0)</button>
       </div>
 
       <!-- Lista de Vendas Paginada -->
       <div id="historico" class="history-cards"></div>
-
-      <!-- Painel de Rodapé do Histórico (Lixeira reposicionada com folga e elegância) -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 14px 18px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px;">
-        <div style="font-size: 13px; color: var(--muted);">Gerencie vendas excluídas ou limpe registros antigos:</div>
-        <button type="button" class="btn-gray" onclick="abrirModalLixeira()" id="lixeiraBtn" style="font-size: 13px; padding: 8px 16px;">🗑️ Lixeira (0)</button>
-      </div>
 
       <!-- Controles de Paginação -->
       <div id="historyPagination" class="history-pagination-container"></div>
