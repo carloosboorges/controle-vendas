@@ -767,7 +767,6 @@ async function inicializar() {
   atualizarCamposItens();
   atualizarPreviewVBucks();
 
-  // Garante que o estado visual das abas comece perfeitamente sincronizado
   mudarAbaHistorico('vendas');
 
   if (!currentUser) {
@@ -1189,6 +1188,28 @@ function render() {
     if (historicoPaginaAtual < 1) historicoPaginaAtual = 1;
 
     const itensPagina = listaFiltrada.slice((historicoPaginaAtual - 1) * ITENS_POR_PAGINA, historicoPaginaAtual * ITENS_POR_PAGINA);
+
+    // CÁLCULO DO TOTAL DA BUSCA ATUAL
+    const searchSummaryContainer = document.getElementById("searchSummaryContainer");
+    if (searchSummaryContainer) {
+      if (historicoTermoBusca) {
+        const somaValorBusca = listaFiltrada.reduce((acc, v) => acc + Number(v.valor || 0), 0);
+        const somaVbucksBusca = listaFiltrada.reduce((acc, v) => acc + (v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento)), 0);
+        searchSummaryContainer.style.display = "block";
+        searchSummaryContainer.innerHTML = `
+          <div class="search-summary-box">
+            <div>🔍 <b>Busca:</b> "${esc(historicoTermoBusca)}" · <b>${totalItensFiltrados}</b> ${totalItensFiltrados === 1 ? 'pedido encontrado' : 'pedidos encontrados'}</div>
+            <div style="text-align: right;">
+              <span style="color: var(--green); font-weight: 700; margin-right: 12px;">Total: ${money(somaValorBusca)}</span>
+              <span style="color: var(--accent-light);">🪙 ${formatVBucks(somaVbucksBusca)} VB</span>
+            </div>
+          </div>
+        `;
+      } else {
+        searchSummaryContainer.style.display = "none";
+        searchSummaryContainer.innerHTML = "";
+      }
+    }
 
     if (itensPagina.length === 0) {
       historicoContainer.innerHTML = `<div class="empty">Nenhuma venda encontrada.</div>`;

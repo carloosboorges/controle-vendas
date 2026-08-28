@@ -1499,4 +1499,41 @@ footer {
   align-items: center;
   font-size: 13px;
   color: #fff;
+
+  /* =======================================================
+   ESTILIZAÇÃO MODERNA E FORÇADA PARA OS SELECTS (DROPDOWNS)
+   ======================================================= */
+select, 
+.toolbar select, 
+.modal-card select, 
+.period-select {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-color: #120924 !important;
+  border: 1px solid var(--border, #3b2269) !important;
+  border-radius: 12px !important;
+  color: #ffffff !important;
+  padding: 12px 14px !important;
+  padding-right: 38px !important;
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b37afc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px !important;
+  transition: all 0.2s ease !important;
+  width: 100% !important;
+}
+
+select:hover {
+  border-color: var(--accent-light, #b37afc) !important;
+}
+
+select:focus {
+  outline: none !important;
+  border-color: var(--border-focus, #a855f7) !important;
+  box-shadow: 0 0 12px var(--accent-glow, rgba(142, 68, 255, 0.45)) !important;
+}
 }
