@@ -2,7 +2,7 @@ const SUPABASE_URL = "https://oyitmutmtvuoynwhiymy.supabase.co";
 const SUPABASE_KEY = "sb_publishable_6e1fQtQfhVa8LjWUbdPrJw_IwhhxLRF";
 
 const CATEGORIAS_ITENS = [
-  "Traje",
+ "Traje",
   "Gesto",
   "Picareta",
   "Música",
@@ -29,8 +29,7 @@ const DADOS_DEMO = {
   reservas: [],
   valorBase100: 2.5,
   historicoVendas: [],
-  lixeiraVendas: [],
-  apoiadorRegistros: {} // Formato: { "MM/AAAA": { brutoUsd: 200, liquidoBrl: 950 } }
+  lixeiraVendas: []
 };
 
 let currentUser = null;
@@ -42,10 +41,6 @@ let state = null;
 let calViewMes = new Date().getMonth();
 let calViewAno = new Date().getFullYear();
 let calPopoverAberto = false;
-
-// Controle do Popover de Seleção de Mês
-let mesPopoverAberto = false;
-let mesViewAno = new Date().getFullYear();
 
 // Se diaFiltroSelecionado for null, significa MODO DINÂMICO (sempre o dia de HOJE)
 let diaFiltroSelecionado = null;
@@ -80,7 +75,7 @@ function extrairApenasNomeItem(itemStr) {
 }
 
 // ==========================================
-// CONTROLE DO CALENDÁRIO POPOVER (DIAS)
+// CONTROLE DO CALENDÁRIO POPOVER
 // ==========================================
 function obterDataHojeFormatada() {
   const agora = new Date();
@@ -89,7 +84,6 @@ function obterDataHojeFormatada() {
 
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
-  fecharMesPopover();
   calPopoverAberto = !calPopoverAberto;
   render();
 }
@@ -101,77 +95,9 @@ function fecharCalendarioPopover() {
   }
 }
 
-// ==========================================
-// CONTROLE DO POPOVER DE SELEÇÃO DE MÊS
-// ==========================================
-function toggleMesPopover(e) {
-  if (e) e.stopPropagation();
-  fecharCalendarioPopover();
-  mesPopoverAberto = !mesPopoverAberto;
-  render();
-}
-
-function fecharMesPopover() {
-  if (mesPopoverAberto) {
-    mesPopoverAberto = false;
-    render();
-  }
-}
-
-function navegarAnoMesPopover(direcao, e) {
-  if (e) e.stopPropagation();
-  mesViewAno += direcao;
-  render();
-}
-
-function selecionarMesPopover(mesIndex, e) {
-  if (e) e.stopPropagation();
-  mesFiltroSelecionado = `${String(mesIndex + 1).padStart(2, "0")}/${mesViewAno}`;
-  diaFiltroSelecionado = null;
-  mesPopoverAberto = false;
-  render();
-}
-
-function gerarHtmlMesPopover() {
-  const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-  
-  const agora = new Date();
-  const mesAtualKey = `${String(agora.getMonth() + 1).padStart(2, "0")}/${agora.getFullYear()}`;
-  const mesAtivo = mesFiltroSelecionado || mesAtualKey;
-
-  let gridMesesHtml = "";
-  nomesMeses.forEach((nomeMes, idx) => {
-    const chaveMes = `${String(idx + 1).padStart(2, "0")}/${mesViewAno}`;
-    const isSelected = chaveMes === mesAtivo;
-    const isCurrent = chaveMes === mesualKey = `${String(agora.getMonth() + 1).padStart(2, "0")}/${agora.getFullYear()}`;
-
-    gridMesesHtml += `
-      <button type="button" class="cal-day-btn ${chaveMes === mesAtualKey ? "is-today" : ""} ${isSelected ? "is-selected" : ""}"
-        style="width:100%; aspect-ratio:unset; padding:10px 4px; font-size:12px; border-radius:8px;"
-        onclick="selecionarMesPopover(${idx}, event)">
-        ${nomeMes.slice(0, 3)}
-      </button>
-    `;
-  });
-
-  return `
-    <div class="custom-calendar-popover" style="width:260px;" onclick="event.stopPropagation()">
-      <div class="calendar-header-nav">
-        <button type="button" class="calendar-nav-btn" onclick="navegarAnoMesPopover(-1, event)">‹</button>
-        <strong>Ano ${mesViewAno}</strong>
-        <button type="button" class="calendar-nav-btn" onclick="navegarAnoMesPopover(1, event)">›</button>
-      </div>
-      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-top:10px;">
-        ${gridMesesHtml}
-      </div>
-    </div>
-  `;
-}
-
 document.addEventListener("click", (e) => {
-  if (!e.target.closest(".period-card-calendar-container") && !e.target.closest(".period-card-mes-container")) {
+  if (!e.target.closest(".period-card-calendar-container")) {
     fecharCalendarioPopover();
-    fecharMesPopover();
   }
 });
 
@@ -192,6 +118,7 @@ function selecionarDiaCalendario(diaStr, e) {
   if (e) e.stopPropagation();
   const hoje = obterDataHojeFormatada();
   
+  // Se clicou em hoje, reativa o modo dinâmico
   if (diaStr === hoje) {
     diaFiltroSelecionado = null;
   } else {
@@ -257,85 +184,6 @@ function gerarHtmlCalendarioPopover() {
       </div>
     </div>
   `;
-}
-
-// ==========================================
-// GESTÃO DO CÓDIGO APOIADOR
-// ==========================================
-function abrirModalApoiador() {
-  const modal = document.getElementById("apoiadorModal");
-  const select = document.getElementById("apoiadorMesSelect");
-  
-  const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-  const agora = new Date();
-  
-  let optionsHtml = "";
-  for (let m = 0; m < 12; m++) {
-    const k = `${String(m + 1).padStart(2, "0")}/${agora.getFullYear()}`;
-    optionsHtml += `<option value="${k}">${nomesMeses[m]} ${agora.getFullYear()}</option>`;
-  }
-  // Adicionar ano anterior e próximo se necessário
-  for (let m = 0; m < 12; m++) {
-    const k = `${String(m + 1).padStart(2, "0")}/${agora.getFullYear() - 1}`;
-    optionsHtml += `<option value="${k}">${nomesMeses[m]} ${agora.getFullYear() - 1}</option>`;
-  }
-
-  if (select) select.innerHTML = optionsHtml;
-  atualizarListaApoiadorModal();
-  if (modal) modal.style.display = "flex";
-}
-
-function fecharModalApoiador() {
-  const modal = document.getElementById("apoiadorModal");
-  if (modal) modal.style.display = "none";
-}
-
-function salvarRegistroApoiador() {
-  const mesAno = document.getElementById("apoiadorMesSelect").value;
-  const brutoUsd = parseFloat(document.getElementById("apoiadorBrutoUsd").value) || 0;
-  const liquidoBrl = parseFloat(document.getElementById("apoiadorLiquidoBrl").value) || 0;
-
-  if (!state.apoiadorRegistros) state.apoiadorRegistros = {};
-  state.apoiadorRegistros[mesAno] = { brutoUsd, liquidoBrl };
-
-  save();
-  atualizarListaApoiadorModal();
-  mostrarNotificacao(`Código apoiador de ${mesAno} salvo com sucesso!`, "sucesso");
-}
-
-function atualizarListaApoiadorModal() {
-  const container = document.getElementById("apoiadorListaContainer");
-  if (!container) return;
-  const registros = state.apoiadorRegistros || {};
-  
-  const chaves = Object.keys(registros).sort().reverse();
-  if (chaves.length === 0) {
-    container.innerHTML = `<div style="text-align:center; color:var(--muted); font-size:12px; padding:15px;">Nenhum registro de apoiador cadastrado ainda.</div>`;
-    return;
-  }
-
-  container.innerHTML = chaves.map(k => {
-    const r = registros[k];
-    return `
-      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg); border:1px solid var(--border); padding:8px 12px; border-radius:8px; font-size:12px;">
-        <div>
-          <strong style="color:var(--accent-light);">📅 ${k}</strong> · 
-          <span>Bruto: $${Number(r.brutoUsd || 0).toFixed(2)} USD</span> · 
-          <span style="color:var(--green); font-weight:700;">Líquido: ${money(r.liquidoBrl)}</span>
-        </div>
-        <button type="button" class="btn-danger" style="padding:4px 8px; font-size:11px;" onclick="removerRegistroApoiador('${k}')">Excluir</button>
-      </div>
-    `;
-  }).join("");
-}
-
-function removerRegistroApoiador(k) {
-  if (state.apoiadorRegistros && state.apoiadorRegistros[k]) {
-    delete state.apoiadorRegistros[k];
-    save();
-    atualizarListaApoiadorModal();
-    mostrarNotificacao(`Registro de ${k} removido.`, "info");
-  }
 }
 
 // ==========================================
@@ -831,7 +679,6 @@ function sanitizarDados() {
   if (!Array.isArray(state.reservas)) state.reservas = [];
   if (!Array.isArray(state.historicoVendas)) state.historicoVendas = [];
   if (!Array.isArray(state.lixeiraVendas)) state.lixeiraVendas = [];
-  if (!state.apoiadorRegistros || typeof state.apoiadorRegistros !== "object") state.apoiadorRegistros = {};
   if (Array.isArray(state.contas)) {
     state.contas.forEach(c => {
       c.vbucks = Number(c.vbucks) || 0;
@@ -956,6 +803,12 @@ function totaisHistoricoPorConta() {
   return { faturamento: t, vbucks: vbMap };
 }
 
+function mudarMesFiltro(val) {
+  mesFiltroSelecionado = val;
+  diaFiltroSelecionado = null;
+  render();
+}
+
 function mudarAnoFiltro(val) {
   anoFiltroSelecionado = val;
   render();
@@ -1027,6 +880,7 @@ function render() {
 
   limparReservasExpiradas();
   
+  // Total da sessão ativa
   const tSessao = totais();
   const totalSessao = (state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0);
 
@@ -1112,9 +966,13 @@ function render() {
   const qtdPedidosFiltro = fn => historico.filter(fn).length;
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
+  // ==========================================
+  // 1. DATA SELECIONADA (VIRADA AUTOMÁTICA)
+  // ==========================================
   const hojeChave = obterDataHojeFormatada();
   ultimaDataHojeConhecida = hojeChave;
   
+  // Se estiver em modo dinâmico (diaFiltroSelecionado === null), usa o dia de HOJE automaticamente
   const diaParaFiltrar = diaFiltroSelecionado || hojeChave;
   const isModoHoje = diaParaFiltrar === hojeChave;
 
@@ -1123,6 +981,7 @@ function render() {
   const diaPedidos = qtdPedidosFiltro(v => v.data === diaParaFiltrar);
   const diaItens = qtdItensFiltro(v => v.data === diaParaFiltrar);
 
+  // 2. SEMANA
   const semInicio = inicioSemana(agoraData);
   const semFim = new Date(semInicio);
   semFim.setDate(semFim.getDate() + 7);
@@ -1131,6 +990,7 @@ function render() {
   const semanaPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
   const semanaItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
 
+  // 3. MÊS
   const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const mapaMeses = {};
   const mesAtualKey = `${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
@@ -1144,21 +1004,17 @@ function render() {
     }
   });
 
-  if (!mesFiltroSelecionado || (!mapaMeses[mesFiltroSelecionado] && !(state.apoiadorRegistros && state.apoiadorRegistros[mesFiltroSelecionado]))) {
+  if (!mesFiltroSelecionado || !mapaMeses[mesFiltroSelecionado]) {
     mesFiltroSelecionado = mesAtualKey;
   }
 
   const [selM, selA] = mesFiltroSelecionado.split("/").map(Number);
-  const mesTotalSkins = somaFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
+  const mesTotal = somaFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
 
-  const lucroSkinsMes = mesTotalSkins * MARGEM_LUCRO;
-  const regApoiadorMes = (state.apoiadorRegistros || {})[mesFiltroSelecionado] || { brutoUsd: 0, liquidoBrl: 0 };
-  const lucroApoiadorMes = Number(regApoiadorMes.liquidoBrl || 0);
-  const lucroTotalMesCombinado = lucroSkinsMes + lucroApoiadorMes;
-
+  // 4. ANO
   const setAnos = new Set();
   setAnos.add(String(agoraData.getFullYear()));
   historico.forEach(v => {
@@ -1172,33 +1028,26 @@ function render() {
   }
 
   const selAnoNum = Number(anoFiltroSelecionado);
-  const anoTotalSkins = somaFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
+  const anoTotal = somaFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
 
-  const lucroSkinsAno = anoTotalSkins * MARGEM_LUCRO;
-  let lucroApoiadorAno = 0;
-  Object.entries(state.apoiadorRegistros || {}).forEach(([k, reg]) => {
-    if (k.endsWith(`/${selAnoNum}`)) {
-      lucroApoiadorAno += Number(reg.liquidoBrl || 0);
-    }
-  });
-  const lucroTotalAnoCombinado = lucroSkinsAno + lucroApoiadorAno;
-
-  let totalLiquidoApoiadorGlobal = 0;
-  Object.values(state.apoiadorRegistros || {}).forEach(reg => {
-    totalLiquidoApoiadorGlobal += Number(reg.liquidoBrl || 0);
-  });
-
-  const lucroContinuoGeralSkins = totalHistorico * MARGEM_LUCRO;
-  const lucroLiquidoGlobalTotal = lucroContinuoGeralSkins + totalLiquidoApoiadorGlobal;
+  // 5. Lucro Contínuo Geral (32,26%)
+  const lucroContinuoGeral = totalHistorico * MARGEM_LUCRO;
 
   const periodosEl = document.getElementById("historicoPeriodos");
   if (periodosEl) {
-    const nomeMesSelecionadoLabel = `${nomesMes[selM - 1]} ${selA}`;
+    const optionsMesHtml = Object.entries(mapaMeses)
+      .map(([k, label]) => `<option value="${k}" ${k === mesFiltroSelecionado ? "selected" : ""}>${label}</option>`)
+      .join("");
+
+    const optionsAnoHtml = anosLista
+      .map(a => `<option value="${a}" ${a === anoFiltroSelecionado ? "selected" : ""}>Ano ${a}</option>`)
+      .join("");
 
     periodosEl.innerHTML = `
+    <!-- Card 1: Calendário com Virada de Dia Automática -->
     <div class="period-card period-card-calendar-container" style="position:relative; cursor:pointer;" onclick="toggleCalendarioPopover(event)">
       <div class="period-header-select">
         <span>📅</span>
@@ -1210,6 +1059,7 @@ function render() {
       ${calPopoverAberto ? gerarHtmlCalendarioPopover() : ""}
     </div>
 
+    <!-- Card 2: Esta Semana -->
     <div class="period-card">
       <span>📅 Esta semana</span>
       <strong>${money(semanaTotal)}</strong>
@@ -1217,46 +1067,45 @@ function render() {
       <small class="period-vbucks-text">🪙 ${formatVBucks(semanaVbucks)} V-Bucks</small>
     </div>
 
-    <div class="period-card period-card-mes-container" style="position:relative; cursor:pointer;" onclick="toggleMesPopover(event)">
+    <!-- Card 3: Mês Selecionado -->
+    <div class="period-card period-card-select">
       <div class="period-header-select">
         <span>🗓️</span>
-        <strong style="font-size:12px; color:var(--accent-light);">${nomeMesSelecionadoLabel} ▾</strong>
+        <select class="period-select" onchange="mudarMesFiltro(this.value)">
+          ${optionsMesHtml}
+        </select>
       </div>
-      <strong>${money(mesTotalSkins)}</strong>
+      <strong>${money(mesTotal)}</strong>
       <small>${mesPedidos} ${mesPedidos === 1 ? "pedido" : "pedidos"} (${mesItens} ${mesItens === 1 ? "item" : "itens"})</small>
-      <div style="font-size:11px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06); padding-top:4px;">
-        <span style="color:var(--muted);">Skins:</span> ${money(lucroSkinsMes)}<br>
-        <span style="color:var(--muted);">Apoiador:</span> ${money(lucroApoiadorMes)} <small style="color:var(--muted);">($${Number(regApoiadorMes.brutoUsd || 0).toFixed(2)})</small><br>
-        <strong style="color:var(--green);">Total Mês: ${money(lucroTotalMesCombinado)}</strong>
-      </div>
-      ${mesPopoverAberto ? gerarHtmlMesPopover() : ""}
+      <small class="period-vbucks-text">🪙 ${formatVBucks(mesVbucks)} V-Bucks</small>
     </div>
 
+    <!-- Card 4: Ano Selecionado -->
     <div class="period-card period-card-select">
       <div class="period-header-select">
         <span>📆</span>
         <select class="period-select" onchange="mudarAnoFiltro(this.value)">
-          ${anosLista.map(a => `<option value="${a}" ${a === anoFiltroSelecionado ? "selected" : ""}>Ano ${a}</option>`).join("")}
+          ${optionsAnoHtml}
         </select>
       </div>
-      <strong>${money(anoTotalSkins)}</strong>
+      <strong>${money(anoTotal)}</strong>
       <small>${anoPedidos} ${anoPedidos === 1 ? "pedido" : "pedidos"} (${anoItens} ${anoItens === 1 ? "item" : "itens"})</small>
-      <div style="font-size:11px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06); padding-top:4px;">
-        <span style="color:var(--muted);">Skins:</span> ${money(lucroSkinsAno)}<br>
-        <span style="color:var(--muted);">Apoiador:</span> ${money(lucroApoiadorAno)}<br>
-        <strong style="color:var(--green);">Total Ano: ${money(lucroTotalAnoCombinado)}</strong>
-      </div>
+      <small class="period-vbucks-text">🪙 ${formatVBucks(anoVbucks)} V-Bucks</small>
     </div>
 
+    <!-- Card 5: Lucro Total Contínuo -->
     <div class="period-card profit-card">
-      <span>📈 Lucro Líquido Global</span>
-      <strong>${money(lucroLiquidoGlobalTotal)}</strong>
-      <small style="color:var(--green); font-weight:700;">Site (Skins): ${money(lucroContinuoGeralSkins)}</small>
-      <small style="color:var(--accent-light); font-weight:700;">Apoiador: ${money(totalLiquidoApoiadorGlobal)}</small>
+      <span>📈 Lucro Líquido</span>
+      <strong>${money(lucroContinuoGeral)}</strong>
+      <small style="color:var(--green); font-weight:700;">Margem: 32,26%</small>
+      <small>Total bruto: ${money(totalHistorico)}</small>
     </div>
   `;
   }
 
+  // ==========================================
+  // BALANÇO FINANCEIRO RETRÁTIL COM V-BUCKS UTILIZADOS E TOTAL
+  // ==========================================
   const financialContent = document.getElementById("financialBalanceContent");
   if (financialContent) {
     const dadosContas = totaisHistoricoPorConta();
@@ -1300,7 +1149,7 @@ function render() {
               <th>V-Bucks Utilizados</th>
               <th>Faturamento Total</th>
               <th>Custo Reposição</th>
-              <th>Lucro Líquido (Skins)</th>
+              <th>Lucro Líquido</th>
             </tr>
           </thead>
           <tbody>
@@ -1309,7 +1158,7 @@ function render() {
           ${linhasHtml.length ? `
           <tfoot>
             <tr style="border-top: 2px solid var(--accent); background: rgba(142, 68, 255, 0.12);">
-              <td style="font-weight:900; color:var(--accent-light);">TOTAL GERAL (SKINS)</td>
+              <td style="font-weight:900; color:var(--accent-light);">TOTAL GERAL</td>
               <td style="font-weight:900; color:var(--green);">🪙 ${formatVBucks(somaVbucksGeral)} VB</td>
               <td style="font-weight:900; color:#fff;">${money(somaFatGeral)}</td>
               <td style="font-weight:900; color:var(--muted);">${money(somaCustoGeral)}</td>
@@ -1321,6 +1170,9 @@ function render() {
     `;
   }
 
+  // ==========================================
+  // MOTOR DE BUSCA UNIVERSAL NO HISTÓRICO
+  // ==========================================
   const totalOriginal = historico.length;
   
   const listaComIndices = historico.map((v, originalIdx) => ({
@@ -1357,6 +1209,9 @@ function render() {
     });
   }
 
+  // ==========================================
+  // PAGINAÇÃO (8 POR PÁGINA)
+  // ==========================================
   const totalItensFiltrados = listaFiltrada.length;
   const totalPaginas = Math.ceil(totalItensFiltrados / ITENS_POR_PAGINA) || 1;
 
@@ -1417,7 +1272,7 @@ function render() {
               <button type="button" class="btn-danger" onclick="excluirHistoricoPorId('${esc(v.id)}')">🗑️ Excluir</button>
             </div>
           </div>
-        `;
+        </div>`;
       }).join("");
     }
   }
@@ -1461,6 +1316,9 @@ function render() {
   }
 }
 
+// ==========================================
+// RENDERIZAÇÃO DOS CARDS DAS CONTAS (SESSÃO DO DIA)
+// ==========================================
 function renderContasCards(t) {
   if (!t) t = totais();
   const container = document.getElementById("totaisPorConta");
@@ -2055,6 +1913,7 @@ document.getElementById("valorInput").addEventListener("keydown", e => {
 
 inicializar();
 
+// Temporizador inteligente a cada 1 segundo (detecta virada de meia-noite automaticamente)
 setInterval(() => {
   const hojeAtual = obterDataHojeFormatada();
   if (ultimaDataHojeConhecida && hojeAtual !== ultimaDataHojeConhecida) {
