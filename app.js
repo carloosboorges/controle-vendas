@@ -62,6 +62,10 @@ let ultimaDataHojeConhecida = "";
 const ITENS_POR_PAGINA = 8;
 let historicoPaginaAtual = 1;
 let historicoTermoBusca = "";
+
+let clientesPaginaAtual = 1;
+let clientesTermoBusca = "";
+
 let balancoAberto = false;
 
 function copiarTexto(texto, tipo = "Texto", event = null) {
@@ -470,9 +474,33 @@ function renderizarHistoricoApoiadorCompleto() {
   `;
 }
 
+function filtrarClientesInput(val) {
+  clientesTermoBusca = String(val || "").trim().toLowerCase();
+  clientesPaginaAtual = 1;
+  const btnClear = document.getElementById("clearClienteSearchBtn");
+  if (btnClear) btnClear.style.display = clientesTermoBusca ? "block" : "none";
+  renderizarHistoricoClientesCompleto();
+}
+
+function limparBuscaClientes() {
+  clientesTermoBusca = "";
+  clientesPaginaAtual = 1;
+  const input = document.getElementById("clienteSearchInput");
+  if (input) input.value = "";
+  const btnClear = document.getElementById("clearClienteSearchBtn");
+  if (btnClear) btnClear.style.display = "none";
+  renderizarHistoricoClientesCompleto();
+}
+
+function mudarPaginaClientes(p) {
+  clientesPaginaAtual = p;
+  renderizarHistoricoClientesCompleto();
+}
+
 function renderizarHistoricoClientesCompleto() {
   const container = document.getElementById("tabelaHistoricoClientesCompleto");
   const resumoEl = document.getElementById("totalClientesResumo");
+  const paginacaoContainer = document.getElementById("clientesPagination");
   if (!container) return;
 
   const historico = state.historicoVendas || [];
@@ -491,14 +519,26 @@ function renderizarHistoricoClientesCompleto() {
     clientesMap[nomeCliente].totalPedidos += 1;
   });
 
-  const listaClientes = Object.values(clientesMap).sort((a, b) => b.totalGasto - a.totalGasto);
+  let listaClientes = Object.values(clientesMap).sort((a, b) => b.totalGasto - a.totalGasto);
 
-  if (resumoEl) {
-    resumoEl.textContent = `${listaClientes.length} ${listaClientes.length === 1 ? 'cliente cadastrado' : 'clientes cadastrados'}`;
+  if (clientesTermoBusca) {
+    listaClientes = listaClientes.filter(c => c.nome.toLowerCase().includes(clientesTermoBusca));
   }
 
-  if (listaClientes.length === 0) {
-    container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--muted); font-size:13px;">Nenhum cliente registrado no histórico ainda.</div>`;
+  const totalClientesFiltrados = listaClientes.length;
+  const totalPaginas = Math.ceil(totalClientesFiltrados / ITENS_POR_PAGINA) || 1;
+  if (clientesPaginaAtual > totalPaginas) clientesPaginaAtual = totalPaginas;
+  if (clientesPaginaAtual < 1) clientesPaginaAtual = 1;
+
+  const clientesPagina = listaClientes.slice((clientesPaginaAtual - 1) * ITENS_POR_PAGINA, clientesPaginaAtual * ITENS_POR_PAGINA);
+
+  if (resumoEl) {
+    resumoEl.textContent = `${totalClientesFiltrados} ${totalClientesFiltrados === 1 ? 'cliente encontrado' : 'clientes encontrados'}`;
+  }
+
+  if (clientesPagina.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--muted); font-size:13px;">Nenhum cliente encontrado.</div>`;
+    if (paginacaoContainer) paginacaoContainer.innerHTML = "";
     return;
   }
 
@@ -514,7 +554,7 @@ function renderizarHistoricoClientesCompleto() {
           </tr>
         </thead>
         <tbody>
-          ${listaClientes.map(c => `
+          ${clientesPagina.map(c => `
             <tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesCliente('${esc(c.nome).replace(/'/g, "\\'")}')" title="Clique para ver detalhes">
               <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">👤 ${esc(c.nome)} 🔍</td>
               <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--muted);">${c.totalPedidos} ${c.totalPedidos === 1 ? 'pedido' : 'pedidos'}</td>
@@ -526,6 +566,31 @@ function renderizarHistoricoClientesCompleto() {
       </table>
     </div>
   `;
+
+  if (paginacaoContainer) {
+    if (totalClientesFiltrados <= ITENS_POR_PAGINA) {
+      paginacaoContainer.innerHTML = "";
+    } else {
+      let botoesPaginasHtml = "";
+      for (let p = 1; p <= totalPaginas; p++) {
+        if (p === 1 || p === totalPaginas || (p >= clientesPaginaAtual - 1 && p <= clientesPaginaAtual + 1)) {
+          botoesPaginasHtml += `<button type="button" class="pagination-btn ${p === clientesPaginaAtual ? "active" : ""}" onclick="mudarPaginaClientes(${p})">${p}</button>`;
+        } else if (p === clientesPaginaAtual - 2 || p === clientesPaginaAtual + 2) {
+          botoesPaginasHtml += `<span style="color:var(--muted); font-size:12px; padding:0 2px;">...</span>`;
+        }
+      }
+      paginacaoContainer.innerHTML = `
+        <div class="pagination-controls-row">
+          <button type="button" class="pagination-btn" ${clientesPaginaAtual === 1 ? "disabled" : ""} onclick="mudarPaginaClientes(${clientesPaginaAtual - 1})">‹ Anterior</button>
+          ${botoesPaginasHtml}
+          <button type="button" class="pagination-btn" ${clientesPaginaAtual === totalPaginas ? "disabled" : ""} onclick="mudarPaginaClientes(${clientesPaginaAtual + 1})">Próxima ›</button>
+        </div>
+        <div class="pagination-info-text">
+          Página ${clientesPaginaAtual} de ${totalPaginas} · Exibindo ${clientesPagina.length} de ${totalClientesFiltrados} clientes
+        </div>
+      `;
+    }
+  }
 }
 
 function abrirModalDetalhesCliente(nomeCliente) {

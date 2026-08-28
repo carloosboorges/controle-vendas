@@ -495,8 +495,26 @@
           <h3 style="margin: 0; color: var(--accent-light);">👥 Histórico e Ranking de Clientes</h3>
           <div id="totalClientesResumo" style="font-size: 13px; color: var(--muted); font-weight: 600;">0 clientes cadastrados</div>
         </div>
+        
+        <!-- Barra de Busca (Lupa) para Clientes -->
+        <div class="history-search-bar-box" style="margin-bottom: 15px;">
+          <div class="history-search-input-wrapper" style="flex: 1;">
+            <span class="search-icon">🔍</span>
+            <input 
+              id="clienteSearchInput" 
+              type="text" 
+              placeholder="Pesquisar cliente pelo nome completo..."
+              oninput="filtrarClientesInput(this.value)"
+            >
+            <button type="button" class="btn-clear-search" id="clearClienteSearchBtn" style="display:none;" onclick="limparBuscaClientes()">✕</button>
+          </div>
+        </div>
+
         <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px;">Clique sobre o nome de qualquer cliente para ver o histórico detalhado de todas as compras dele:</p>
         <div id="tabelaHistoricoClientesCompleto"></div>
+
+        <!-- Controles de Paginação para Clientes -->
+        <div id="clientesPagination" class="history-pagination-container"></div>
       </div>
     </div>
   </section>
