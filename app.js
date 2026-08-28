@@ -105,14 +105,14 @@ function mudarAbaHistorico(aba) {
   if (aba === 'vendas') {
     if (btnVendas) {
       btnVendas.classList.add("active");
-      btnVendas.style.background = "var(--accent-color, #a855f7)";
+      btnVendas.style.background = "var(--accent)";
       btnVendas.style.color = "#fff";
       btnVendas.style.opacity = "1";
     }
     if (btnApoiador) {
       btnApoiador.classList.remove("active");
       btnApoiador.style.background = "transparent";
-      btnApoiador.style.color = "var(--muted, #9ca3af)";
+      btnApoiador.style.color = "var(--muted)";
       btnApoiador.style.opacity = "0.6";
     }
     if (divVendas) divVendas.style.display = "block";
@@ -120,14 +120,14 @@ function mudarAbaHistorico(aba) {
   } else {
     if (btnApoiador) {
       btnApoiador.classList.add("active");
-      btnApoiador.style.background = "var(--accent-color, #a855f7)";
+      btnApoiador.style.background = "var(--accent)";
       btnApoiador.style.color = "#fff";
       btnApoiador.style.opacity = "1";
     }
     if (btnVendas) {
       btnVendas.classList.remove("active");
       btnVendas.style.background = "transparent";
-      btnVendas.style.color = "var(--muted, #9ca3af)";
+      btnVendas.style.color = "var(--muted)";
       btnVendas.style.opacity = "0.6";
     }
     if (divApoiador) divApoiador.style.display = "block";
@@ -1189,19 +1189,20 @@ function render() {
 
     const itensPagina = listaFiltrada.slice((historicoPaginaAtual - 1) * ITENS_POR_PAGINA, historicoPaginaAtual * ITENS_POR_PAGINA);
 
-    // CÁLCULO DO TOTAL DA BUSCA ATUAL
+    // CÁLCULO DO TOTAL DA BUSCA ATUAL (REAIS E V-BUCKS)
     const searchSummaryContainer = document.getElementById("searchSummaryContainer");
     if (searchSummaryContainer) {
       if (historicoTermoBusca) {
         const somaValorBusca = listaFiltrada.reduce((acc, v) => acc + Number(v.valor || 0), 0);
         const somaVbucksBusca = listaFiltrada.reduce((acc, v) => acc + (v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento)), 0);
+        
         searchSummaryContainer.style.display = "block";
         searchSummaryContainer.innerHTML = `
           <div class="search-summary-box">
-            <div>🔍 <b>Busca:</b> "${esc(historicoTermoBusca)}" · <b>${totalItensFiltrados}</b> ${totalItensFiltrados === 1 ? 'pedido encontrado' : 'pedidos encontrados'}</div>
+            <div>🔍 <b>Busca:</b> "${esc(historicoTermoBusca)}" · <b>${totalItensFiltrados}</b> ${totalItensFiltrados === 1 ? 'pedido' : 'pedidos'}</div>
             <div style="text-align: right;">
-              <span style="color: var(--green); font-weight: 700; margin-right: 12px;">Total: ${money(somaValorBusca)}</span>
-              <span style="color: var(--accent-light);">🪙 ${formatVBucks(somaVbucksBusca)} VB</span>
+              <span style="color: var(--green); font-weight: 800; margin-right: 12px;">Total Pago: ${money(somaValorBusca)}</span>
+              <span style="color: var(--accent-light); font-weight: 800;">🪙 ${formatVBucks(somaVbucksBusca)} VB</span>
             </div>
           </div>
         `;
