@@ -99,40 +99,31 @@ function mudarAbaHistorico(aba) {
   abaHistoricoAtiva = aba;
   const btnVendas = document.getElementById("tabBtnVendas");
   const btnApoiador = document.getElementById("tabBtnApoiador");
+  const btnClientes = document.getElementById("tabBtnClientes");
+  
   const divVendas = document.getElementById("conteudoAbaVendas");
   const divApoiador = document.getElementById("conteudoAbaApoiador");
+  const divClientes = document.getElementById("conteudoAbaClientes");
+
+  if (btnVendas) btnVendas.classList.remove("active");
+  if (btnApoiador) btnApoiador.classList.remove("active");
+  if (btnClientes) btnClientes.classList.remove("active");
+
+  if (divVendas) divVendas.style.display = "none";
+  if (divApoiador) divApoiador.style.display = "none";
+  if (divClientes) divClientes.style.display = "none";
 
   if (aba === 'vendas') {
-    if (btnVendas) {
-      btnVendas.classList.add("active");
-      btnVendas.style.background = "var(--accent)";
-      btnVendas.style.color = "#fff";
-      btnVendas.style.opacity = "1";
-    }
-    if (btnApoiador) {
-      btnApoiador.classList.remove("active");
-      btnApoiador.style.background = "transparent";
-      btnApoiador.style.color = "var(--muted)";
-      btnApoiador.style.opacity = "0.6";
-    }
+    if (btnVendas) btnVendas.classList.add("active");
     if (divVendas) divVendas.style.display = "block";
-    if (divApoiador) divApoiador.style.display = "none";
-  } else {
-    if (btnApoiador) {
-      btnApoiador.classList.add("active");
-      btnApoiador.style.background = "var(--accent)";
-      btnApoiador.style.color = "#fff";
-      btnApoiador.style.opacity = "1";
-    }
-    if (btnVendas) {
-      btnVendas.classList.remove("active");
-      btnVendas.style.background = "transparent";
-      btnVendas.style.color = "var(--muted)";
-      btnVendas.style.opacity = "0.6";
-    }
+  } else if (aba === 'apoiador') {
+    if (btnApoiador) btnApoiador.classList.add("active");
     if (divApoiador) divApoiador.style.display = "block";
-    if (divVendas) divVendas.style.display = "none";
     renderizarHistoricoApoiadorCompleto();
+  } else if (aba === 'clientes') {
+    if (btnClientes) btnClientes.classList.add("active");
+    if (divClientes) divClientes.style.display = "block";
+    renderizarHistoricoClientesCompleto();
   }
 }
 
@@ -473,6 +464,64 @@ function renderizarHistoricoApoiadorCompleto() {
               </tr>
             `;
           }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderizarHistoricoClientesCompleto() {
+  const container = document.getElementById("tabelaHistoricoClientesCompleto");
+  const resumoEl = document.getElementById("totalClientesResumo");
+  if (!container) return;
+
+  const historico = state.historicoVendas || [];
+  const clientesMap = {};
+
+  historico.forEach(v => {
+    const nomeCliente = String(v.cliente || "").trim();
+    if (!nomeCliente) return;
+
+    if (!clientesMap[nomeCliente]) {
+      clientesMap[nomeCliente] = { nome: nomeCliente, totalGasto: 0, totalVbucks: 0, totalPedidos: 0 };
+    }
+
+    clientesMap[nomeCliente].totalGasto += Number(v.valor || 0);
+    clientesMap[nomeCliente].totalVbucks += v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+    clientesMap[nomeCliente].totalPedidos += 1;
+  });
+
+  const listaClientes = Object.values(clientesMap).sort((a, b) => b.totalGasto - a.totalGasto);
+
+  if (resumoEl) {
+    resumoEl.textContent = `${listaClientes.length} ${listaClientes.length === 1 ? 'cliente cadastrado' : 'clientes cadastrados'}`;
+  }
+
+  if (listaClientes.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--muted); font-size:13px;">Nenhum cliente registrado no histórico ainda.</div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table class="financial-table" style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="padding:12px; text-align:left; border-bottom:1px solid var(--border);">Nome do Cliente</th>
+            <th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">Total de Pedidos</th>
+            <th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">V-Bucks Acumulados</th>
+            <th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">Total Gasto (R$)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${listaClientes.map(c => `
+            <tr>
+              <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:#fff;">👤 ${esc(c.nome)}</td>
+              <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--muted);">${c.totalPedidos} ${c.totalPedidos === 1 ? 'pedido' : 'pedidos'}</td>
+              <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">🪙 ${formatVBucks(c.totalVbucks)} VB</td>
+              <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:900;">${money(c.totalGasto)}</td>
+            </tr>
+          `).join("")}
         </tbody>
       </table>
     </div>
@@ -1189,7 +1238,6 @@ function render() {
 
     const itensPagina = listaFiltrada.slice((historicoPaginaAtual - 1) * ITENS_POR_PAGINA, historicoPaginaAtual * ITENS_POR_PAGINA);
 
-    // CÁLCULO DO TOTAL DA BUSCA ATUAL (REAIS E V-BUCKS)
     const searchSummaryContainer = document.getElementById("searchSummaryContainer");
     if (searchSummaryContainer) {
       if (historicoTermoBusca) {
@@ -1253,7 +1301,7 @@ function render() {
               <button type="button" class="btn-danger" onclick="excluirHistoricoPorId('${esc(v.id)}')">🗑️ Excluir</button>
             </div>
           </div>
-        </div>`;
+        `;
       }).join("");
     }
 
@@ -1286,6 +1334,8 @@ function render() {
 
   if (abaHistoricoAtiva === 'apoiador') {
     renderizarHistoricoApoiadorCompleto();
+  } else if (abaHistoricoAtiva === 'clientes') {
+    renderizarHistoricoClientesCompleto();
   }
 }
 

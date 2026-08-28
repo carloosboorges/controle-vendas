@@ -385,6 +385,7 @@
       <div class="history-tabs-bar" style="margin: 0; border: none; padding: 0; display: flex; width: 100%; gap: 10px;">
         <button type="button" class="history-tab-btn active" id="tabBtnVendas" onclick="mudarAbaHistorico('vendas')" style="flex: 1; text-align: center;">📜 Histórico de Vendas</button>
         <button type="button" class="history-tab-btn" id="tabBtnApoiador" onclick="mudarAbaHistorico('apoiador')" style="flex: 1; text-align: center;">🤝 Histórico Código Apoiador</button>
+        <button type="button" class="history-tab-btn" id="tabBtnClientes" onclick="mudarAbaHistorico('clientes')" style="flex: 1; text-align: center;">👥 Histórico de Clientes</button>
       </div>
     </div>
     
@@ -452,6 +453,18 @@
         </div>
         <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px;">Acompanhe abaixo todos os valores brutos em dólares e líquidos recebidos em reais mês a mês:</p>
         <div id="tabelaHistoricoApoiadorCompleto"></div>
+      </div>
+    </div>
+
+    <!-- Conteúdo da Aba Clientes -->
+    <div id="conteudoAbaClientes" style="display: none; margin-top: 20px;">
+      <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: var(--accent-light);">👥 Histórico e Ranking de Clientes</h3>
+          <div id="totalClientesResumo" style="font-size: 13px; color: var(--muted); font-weight: 600;">0 clientes cadastrados</div>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px;">Acompanhe abaixo o total gasto, a quantidade de V-Bucks acumulada e o total de pedidos de cada cliente:</p>
+        <div id="tabelaHistoricoClientesCompleto"></div>
       </div>
     </div>
   </section>
