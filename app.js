@@ -251,7 +251,7 @@ function gerarHtmlMesPopover() {
 }
 
 // ==========================================
-// POPOVER DE ANO
+// POPOVER DE ANO (COM INTERVALO EXATO NO TOPO)
 // ==========================================
 function toggleAnoPopover(e) {
   if (e) e.stopPropagation();
@@ -297,7 +297,7 @@ function gerarHtmlAnoPopover() {
     <div class="custom-calendar-popover" style="width:260px;" onclick="event.stopPropagation()">
       <div class="calendar-header-nav">
         <button type="button" class="calendar-nav-btn" onclick="navegarDecadaAnoPopover(-1, event)">‹</button>
-        <strong>Anos em torno de ${anoViewDecada}</strong>
+        <strong>${inicio} – ${fim}</strong>
         <button type="button" class="calendar-nav-btn" onclick="navegarDecadaAnoPopover(1, event)">›</button>
       </div>
       <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-top:10px;">
@@ -1144,7 +1144,6 @@ function render() {
     }
   }
 
-  // Se a aba ativa for a do apoiador, renderiza a tabela dela também
   if (abaHistoricoAtiva === 'apoiador') {
     renderizarHistoricoApoiadorCompleto();
   }
