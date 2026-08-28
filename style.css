@@ -1443,7 +1443,7 @@ footer {
   width: 280px;
 }
 
-/* CORREÇÃO DO MODAL DO APOIADOR (EVITA QUE O INPUT ESTOURE A JANELA) */
+/* LAYOUT CORRIGIDO DO MODAL DO APOIADOR (Mês em cima, Bruto e Líquido lado a lado embaixo) */
 #apoiadorModal .modal-card-large {
   max-width: 520px;
   width: 90%;
@@ -1456,16 +1456,16 @@ footer {
   margin-bottom: 14px;
 }
 
+/* O seletor de Mês/Ano ocupa a linha inteira no topo */
+.apoiador-popover-container {
+  position: relative;
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 600px) {
   .apoiador-form-grid {
     grid-template-columns: 1fr;
   }
-}
-
-/* Garante que o popover do apoiador apareça perfeitamente sobre o modal */
-.apoiador-popover-container {
-  position: relative;
-  grid-column: 1 / -1;
 }
 
 /* Estilo para as abas de alternância do Histórico */
