@@ -515,8 +515,8 @@ function renderizarHistoricoClientesCompleto() {
         </thead>
         <tbody>
           ${listaClientes.map(c => `
-            <tr>
-              <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:#fff;">👤 ${esc(c.nome)}</td>
+            <tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesCliente('${esc(c.nome).replace(/'/g, "\\'")}')" title="Clique para ver detalhes">
+              <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">👤 ${esc(c.nome)} 🔍</td>
               <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--muted);">${c.totalPedidos} ${c.totalPedidos === 1 ? 'pedido' : 'pedidos'}</td>
               <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">🪙 ${formatVBucks(c.totalVbucks)} VB</td>
               <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:900;">${money(c.totalGasto)}</td>
@@ -526,6 +526,59 @@ function renderizarHistoricoClientesCompleto() {
       </table>
     </div>
   `;
+}
+
+function abrirModalDetalhesCliente(nomeCliente) {
+  const modal = document.getElementById("clienteDetalhesModal");
+  const tituloEl = document.getElementById("detalhesClienteTitulo");
+  const gastoEl = document.getElementById("detalhesClienteTotalGasto");
+  const vbucksEl = document.getElementById("detalhesClienteTotalVbucks");
+  const pedidosEl = document.getElementById("detalhesClienteTotalPedidos");
+  const listaPedidosEl = document.getElementById("detalhesClienteListaPedidos");
+  if (!modal) return;
+
+  const vendasCliente = (state.historicoVendas || []).filter(v => String(v.cliente || "").trim() === nomeCliente);
+  
+  let totalG = 0, totalVb = 0;
+  vendasCliente.forEach(v => {
+    totalG += Number(v.valor || 0);
+    totalVb += v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+  });
+
+  if (tituloEl) tituloEl.textContent = `👤 Histórico de: ${nomeCliente}`;
+  if (gastoEl) gastoEl.textContent = money(totalG);
+  if (vbucksEl) vbucksEl.textContent = `🪙 ${formatVBucks(totalVb)} VB`;
+  if (pedidosEl) pedidosEl.textContent = vendasCliente.length;
+
+  if (vendasCliente.length === 0) {
+    listaPedidosEl.innerHTML = `<div style="text-align:center; padding:20px; color:var(--muted);">Nenhum pedido encontrado.</div>`;
+  } else {
+    listaPedidosEl.innerHTML = vendasCliente.map((v, i) => {
+      const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+      const itensStr = Array.isArray(v.itens) && v.itens.length ? v.itens.join(", ") : (v.item || "—");
+      return `
+        <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+          <div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--accent-light);">📦 Pedido #${vendasCliente.length - i} · Conta: ${esc(v.conta)}</div>
+            <div style="font-size: 13px; color: #fff; margin-top: 3px;">🎮 Nick: <b>${esc(v.nickCliente)}</b></div>
+            <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">🎁 Itens: ${esc(itensStr)}</div>
+            <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
+          </div>
+          <div style="text-align: right; flex-shrink: 0;">
+            <div style="font-size: 16px; font-weight: 900; color: var(--green);">${money(v.valor)}</div>
+            <div style="font-size: 11px; color: var(--accent-light); font-weight: 700; margin-top: 2px;">🪙 ${formatVBucks(vb)} VB</div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  modal.style.display = "flex";
+}
+
+function fecharModalDetalhesCliente() {
+  const modal = document.getElementById("clienteDetalhesModal");
+  if (modal) modal.style.display = "none";
 }
 
 function removerRegistroApoiadorCompleto(k) {

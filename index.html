@@ -58,6 +58,38 @@
     </div>
   </div>
 
+  <!-- Modal de Detalhes do Cliente (Histórico Completo) -->
+  <div id="clienteDetalhesModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card modal-card-large" style="max-width: 650px;">
+      <div class="modal-head">
+        <h3 id="detalhesClienteTitulo" style="margin:0; color:var(--accent-light);">👤 Detalhes do Cliente</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalDetalhesCliente()">✕</button>
+      </div>
+      
+      <div style="margin: 15px 0; background: rgba(142,68,255,0.08); border: 1px solid rgba(168,85,247,0.25); border-radius: 12px; padding: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center;">
+        <div>
+          <div style="font-size: 11px; color: var(--muted); text-transform: uppercase;">Total Gasto</div>
+          <div id="detalhesClienteTotalGasto" style="font-size: 18px; font-weight: 900; color: var(--green); margin-top: 4px;">R$ 0,00</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: var(--muted); text-transform: uppercase;">V-Bucks Resgatados</div>
+          <div id="detalhesClienteTotalVbucks" style="font-size: 18px; font-weight: 900; color: var(--accent-light); margin-top: 4px;">0 VB</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: var(--muted); text-transform: uppercase;">Total de Pedidos</div>
+          <div id="detalhesClienteTotalPedidos" style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 4px;">0</div>
+        </div>
+      </div>
+
+      <div style="font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 8px;">📜 Histórico de Pedidos Realizados:</div>
+      <div id="detalhesClienteListaPedidos" style="max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;"></div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top: 20px;">
+        <button type="button" class="btn-gray" onclick="fecharModalDetalhesCliente()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal de Gerenciamento do Código Apoiador -->
   <div id="apoiadorModal" class="modal-overlay" style="display:none;">
     <div class="modal-card modal-card-large" style="overflow: visible;">
@@ -463,7 +495,7 @@
           <h3 style="margin: 0; color: var(--accent-light);">👥 Histórico e Ranking de Clientes</h3>
           <div id="totalClientesResumo" style="font-size: 13px; color: var(--muted); font-weight: 600;">0 clientes cadastrados</div>
         </div>
-        <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px;">Acompanhe abaixo o total gasto, a quantidade de V-Bucks acumulada e o total de pedidos de cada cliente:</p>
+        <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px;">Clique sobre o nome de qualquer cliente para ver o histórico detalhado de todas as compras dele:</p>
         <div id="tabelaHistoricoClientesCompleto"></div>
       </div>
     </div>
