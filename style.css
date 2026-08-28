@@ -1405,4 +1405,23 @@ footer {
   z-index: 1000;
   width: 280px;
 }
+
+/* Correção do layout do Modal do Apoiador para não vazar */
+#apoiadorModal .modal-card-large {
+  max-width: 550px;
+  width: 90%;
+}
+
+.apoiador-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 600px) {
+  .apoiador-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
 }

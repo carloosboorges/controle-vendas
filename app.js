@@ -47,6 +47,10 @@ let calPopoverAberto = false;
 let mesPopoverAberto = false;
 let mesViewAno = new Date().getFullYear();
 
+// Controle do Popover de Seleção de Ano
+let anoPopoverAberto = false;
+let anoViewDecada = new Date().getFullYear();
+
 let diaFiltroSelecionado = null;
 let mesFiltroSelecionado = null;
 let anoFiltroSelecionado = null;
@@ -89,6 +93,7 @@ function obterDataHojeFormatada() {
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
   fecharMesPopover();
+  fecharAnoPopover();
   calPopoverAberto = !calPopoverAberto;
   render();
 }
@@ -106,6 +111,7 @@ function fecharCalendarioPopover() {
 function toggleMesPopover(e) {
   if (e) e.stopPropagation();
   fecharCalendarioPopover();
+  fecharAnoPopover();
   mesPopoverAberto = !mesPopoverAberto;
   render();
 }
@@ -166,23 +172,85 @@ function gerarHtmlMesPopover() {
   `;
 }
 
+// ==========================================
+// CONTROLE DO POPOVER DE SELEÇÃO DE ANO
+// ==========================================
+function toggleAnoPopover(e) {
+  if (e) e.stopPropagation();
+  fecharCalendarioPopover();
+  fecharMesPopover();
+  anoPopoverAberto = !anoPopoverAberto;
+  render();
+}
+
+function fecharAnoPopover() {
+  if (anoPopoverAberto) {
+    anoPopoverAberto = false;
+    render();
+  }
+}
+
+function navegarDecadaAnoPopover(direcao, e) {
+  if (e) e.stopPropagation();
+  anoViewDecada += direcao * 10;
+  render();
+}
+
+function selecionarAnoPopover(anoVal, e) {
+  if (e) e.stopPropagation();
+  anoFiltroSelecionado = String(anoVal);
+  anoPopoverAberto = false;
+  render();
+}
+
+function gerarHtmlAnoPopover(anosDisponiveis) {
+  const agoraAno = new Date().getFullYear();
+  const anoAtivo = Number(anoFiltroSelecionado || agoraAno);
+
+  // Gerar faixa de 12 anos em torno de anoViewDecada
+  let anosHtml = "";
+  const inicio = Math.floor(anoViewDecada / 10) * 10 - 1;
+  const fim = inicio + 11;
+
+  for (let a = inicio; a <= fim; a++) {
+    const isSelected = a === anoAtivo;
+    const isCurrent = a === agoraAno;
+    anosHtml += `
+      <button type="button" class="cal-day-btn ${isCurrent ? "is-today" : ""} ${isSelected ? "is-selected" : ""}"
+        style="width:100%; aspect-ratio:unset; padding:10px 4px; font-size:12px; border-radius:8px;"
+        onclick="selecionarAnoPopover(${a}, event)">
+        ${a}
+      </button>
+    `;
+  }
+
+  return `
+    <div class="custom-calendar-popover" style="width:260px;" onclick="event.stopPropagation()">
+      <div class="calendar-header-nav">
+        <button type="button" class="calendar-nav-btn" onclick="navegarDecadaAnoPopover(-1, event)">‹</button>
+        <strong>Período ${Math.floor(anoViewDecada / 10) * 10}s</strong>
+        <button type="button" class="calendar-nav-btn" onclick="navegarDecadaAnoPopover(1, event)">›</button>
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-top:10px;">
+        ${anosHtml}
+      </div>
+    </div>
+  `;
+}
+
 document.addEventListener("click", (e) => {
-  if (!e.target.closest(".period-card-calendar-container") && !e.target.closest(".period-card-mes-container")) {
+  if (!e.target.closest(".period-card-calendar-container") && !e.target.closest(".period-card-mes-container") && !e.target.closest(".period-card-ano-container")) {
     fecharCalendarioPopover();
     fecharMesPopover();
+    fecharAnoPopover();
   }
 });
 
 function navegarMesCalendario(direcao, e) {
   if (e) e.stopPropagation();
   calViewMes += direcao;
-  if (calViewMes < 0) {
-    calViewMes = 11;
-    calViewAno--;
-  } else if (calViewMes > 11) {
-    calViewMes = 0;
-    calViewAno++;
-  }
+  if (calViewMes < 0) { calViewMes = 11; calViewAno--; }
+  else if (calViewMes > 11) { calViewMes = 0; calViewAno++; }
   render();
 }
 
@@ -197,21 +265,16 @@ function selecionarDiaCalendario(diaStr, e) {
 function gerarHtmlCalendarioPopover() {
   const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const diasSemana = ["D", "S", "T", "Q", "Q", "S", "S"];
-  
   const primeiroDiaSemana = new Date(calViewAno, calViewMes, 1).getDay();
   const totalDiasMes = new Date(calViewAno, calViewMes + 1, 0).getDate();
-  
   const hojeChave = obterDataHojeFormatada();
   const diaAtivo = diaFiltroSelecionado || hojeChave;
   const diasComVendas = new Set((state?.historicoVendas || []).map(v => v.data));
 
   let diasHtml = "";
-  for (let i = 0; i < primeiroDiaSemana; i++) {
-    diasHtml += `<div class="cal-day-empty"></div>`;
-  }
+  for (let i = 0; i < primeiroDiaSemana; i++) { diasHtml += `<div class="cal-day-empty"></div>`; }
 
   const agoraZero = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
-
   for (let dia = 1; dia <= totalDiasMes; dia++) {
     const dataStr = `${String(dia).padStart(2, "0")}/${String(calViewMes + 1).padStart(2, "0")}/${calViewAno}`;
     const dataObj = new Date(calViewAno, calViewMes, dia);
@@ -222,7 +285,7 @@ function gerarHtmlCalendarioPopover() {
 
     diasHtml += `
       <button type="button" class="cal-day-btn ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""} ${hasSales ? "has-sales" : ""}"
-        ${isFuturo ? "disabled" : ""} onclick="selecionarDiaCalendario('${dataStr}', event)" title="${isToday ? "Hoje" : dataStr}">
+        ${isFuturo ? "disabled" : ""} onclick="selecionarDiaCalendario('${dataStr}', event)">
         ${dia}
       </button>
     `;
@@ -235,12 +298,8 @@ function gerarHtmlCalendarioPopover() {
         <strong>${nomesMeses[calViewMes]} ${calViewAno}</strong>
         <button type="button" class="calendar-nav-btn" onclick="navegarMesCalendario(1, event)">›</button>
       </div>
-      <div class="calendar-weekdays-grid">
-        ${diasSemana.map(d => `<span>${d}</span>`).join("")}
-      </div>
-      <div class="calendar-days-grid">
-        ${diasHtml}
-      </div>
+      <div class="calendar-weekdays-grid">${diasSemana.map(d => `<span>${d}</span>`).join("")}</div>
+      <div class="calendar-days-grid">${diasHtml}</div>
     </div>
   `;
 }
@@ -294,7 +353,7 @@ function atualizarListaApoiadorModal() {
   const chaves = Object.keys(registros).sort().reverse();
   
   if (chaves.length === 0) {
-    container.innerHTML = `<div style="text-align:center; color:var(--muted); font-size:12px; padding:15px;">Nenhum registro de apoiador cadastrado ainda.</div>`;
+    container.innerHTML = `<div style="text-align:center; color:var(--muted); font-size:12px; padding:15px;">Nenhum registro cadastrado.</div>`;
     return;
   }
 
@@ -338,9 +397,6 @@ function toggleBalancoFinanceiro() {
   }
 }
 
-// ==========================================
-// CONTROLE DE BUSCA & PAGINAÇÃO
-// ==========================================
 function filtrarHistoricoInput(val) {
   historicoTermoBusca = String(val || "").trim().toLowerCase();
   historicoPaginaAtual = 1;
@@ -362,8 +418,6 @@ function limparBuscaHistorico() {
 function mudarPaginaHistorico(p) {
   historicoPaginaAtual = p;
   render();
-  const sec = document.querySelector(".history-search-bar-box");
-  if (sec) sec.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 function atualizarPreviewVBucks() {
@@ -402,23 +456,19 @@ function mostrarNotificacao(msg, tipo = "info") {
 }
 
 let pendingConfirmCallback = null;
-
 function abrirModalConfirmacao(titulo, descricao, onConfirm) {
   const modal = document.getElementById("genericConfirmModal");
   const titleEl = document.getElementById("genericConfirmTitle");
   const descEl = document.getElementById("genericConfirmDesc");
   const okBtn = document.getElementById("genericConfirmOkBtn");
-
   if (titleEl) titleEl.textContent = titulo;
   if (descEl) descEl.textContent = descricao;
-
   pendingConfirmCallback = onConfirm;
   okBtn.onclick = () => {
     const cb = pendingConfirmCallback;
     fecharModalConfirmacao();
     if (typeof cb === "function") cb();
   };
-
   if (modal) modal.style.display = "flex";
 }
 
@@ -443,34 +493,17 @@ function fecharModalValorBase() {
 function salvarValorBaseModal() {
   const input = document.getElementById("novoValorBaseInput");
   const valor = parseFloat(input?.value);
-
-  if (!Number.isFinite(valor) || valor <= 0) {
-    mostrarNotificacao("Digite um valor válido maior que zero.", "erro");
-    return;
-  }
-
-  const atual = state.valorBase100 || 2.5;
-  if (Array.isArray(state.historicoVendas)) {
-    state.historicoVendas.forEach(v => {
-      if (v.vbucks === undefined) {
-        v.vbucks = valorParaVBucks(v.valor, v.valorBaseMomento || atual);
-        v.valorBaseMomento = v.valorBaseMomento || atual;
-      }
-    });
-  }
+  if (!Number.isFinite(valor) || valor <= 0) { mostrarNotificacao("Digite um valor válido.", "erro"); return; }
   state.valorBase100 = Math.round(valor * 100) / 100;
   save();
-  atualizarPreviewVBucks();
   fecharModalValorBase();
   mostrarNotificacao(`Valor base alterado para ${money(state.valorBase100)}!`, "sucesso");
 }
 
 function abrirModalAddConta() {
   const modal = document.getElementById("addContaModal");
-  const nomeInput = document.getElementById("novaContaNomeInput");
-  const vbInput = document.getElementById("novaContaVbucksInput");
-  if (nomeInput) nomeInput.value = "";
-  if (vbInput) vbInput.value = "0";
+  document.getElementById("novaContaNomeInput").value = "";
+  document.getElementById("novaContaVbucksInput").value = "0";
   if (modal) modal.style.display = "flex";
 }
 
@@ -480,24 +513,13 @@ function fecharModalAddConta() {
 }
 
 function salvarNovaContaModal() {
-  const nomeInput = document.getElementById("novaContaNomeInput");
-  const vbInput = document.getElementById("novaContaVbucksInput");
-  const nome = nomeInput?.value.trim();
-  const vbucks = parseInt(String(vbInput?.value || "0").replace(/\D/g, ""), 10) || 0;
-
-  if (!nome) {
-    mostrarNotificacao("Digite o nome ou nick da conta.", "erro");
-    return;
-  }
-  if (state.contas.some(c => c.nome.toLowerCase() === nome.toLowerCase())) {
-    mostrarNotificacao("Já existe uma conta com esse nome.", "erro");
-    return;
-  }
-
+  const nome = document.getElementById("novaContaNomeInput")?.value.trim();
+  const vbucks = parseInt(String(document.getElementById("novaContaVbucksInput")?.value || "0").replace(/\D/g, ""), 10) || 0;
+  if (!nome) { mostrarNotificacao("Digite o nome da conta.", "erro"); return; }
   state.contas.push({ nome, ativa: false, vbucks: Number(vbucks) || 0 });
   save();
   fecharModalAddConta();
-  mostrarNotificacao(`Conta ${nome} adicionada com sucesso!`, "sucesso");
+  mostrarNotificacao(`Conta ${nome} adicionada!`, "sucesso");
 }
 
 function abrirModalEditConta(i) {
@@ -506,38 +528,29 @@ function abrirModalEditConta(i) {
   document.getElementById("editContaIndex").value = i;
   document.getElementById("editContaNomeInput").value = conta.nome;
   document.getElementById("editContaVbucksInput").value = Number(conta.vbucks) || 0;
-  const somarInput = document.getElementById("editContaSomarVbucksInput");
-  if (somarInput) somarInput.value = "";
-  const modal = document.getElementById("editContaModal");
-  if (modal) modal.style.display = "flex";
+  document.getElementById("editContaSomarVbucksInput").value = "";
+  document.getElementById("editContaModal").style.display = "flex";
 }
 
 function fecharModalEditConta() {
-  const modal = document.getElementById("editContaModal");
-  if (modal) modal.style.display = "none";
+  document.getElementById("editContaModal").style.display = "none";
 }
 
 function somarPacoteRapido(qtd) {
   const saldoInput = document.getElementById("editContaVbucksInput");
   if (!saldoInput) return;
-  const atual = parseInt(String(saldoInput.value || "0").replace(/\D/g, ""), 10) || 0;
-  saldoInput.value = atual + qtd;
-  mostrarNotificacao(`+${qtd.toLocaleString("pt-BR")} V-Bucks somados ao saldo!`, "sucesso");
+  saldoInput.value = (parseInt(String(saldoInput.value || "0").replace(/\D/g, ""), 10) || 0) + qtd;
+  mostrarNotificacao(`+${qtd.toLocaleString("pt-BR")} VB somados!`, "sucesso");
 }
 
 function aplicarSomaVbucksModal() {
   const saldoInput = document.getElementById("editContaVbucksInput");
   const somarInput = document.getElementById("editContaSomarVbucksInput");
-  if (!saldoInput || !somarInput) return;
-  const saldoAtual = parseInt(String(saldoInput.value || "0").replace(/\D/g, ""), 10) || 0;
-  const valorSomar = parseInt(String(somarInput.value || "0").replace(/\D/g, ""), 10) || 0;
-
+  const valorSomar = parseInt(String(somarInput?.value || "0").replace(/\D/g, ""), 10) || 0;
   if (valorSomar > 0) {
-    saldoInput.value = saldoAtual + valorSomar;
+    saldoInput.value = (parseInt(String(saldoInput.value || "0").replace(/\D/g, ""), 10) || 0) + valorSomar;
     somarInput.value = "";
-    mostrarNotificacao(`+${valorSomar.toLocaleString("pt-BR")} V-Bucks somados ao saldo!`, "sucesso");
-  } else {
-    mostrarNotificacao("Digite uma quantidade válida para somar.", "info");
+    mostrarNotificacao(`+${valorSomar.toLocaleString("pt-BR")} VB somados!`, "sucesso");
   }
 }
 
@@ -547,23 +560,12 @@ function salvarEdicaoContaModal() {
   if (!conta) return;
   const novoNome = document.getElementById("editContaNomeInput").value.trim();
   const novoVbucks = parseInt(String(document.getElementById("editContaVbucksInput").value || "0").replace(/\D/g, ""), 10);
-
-  if (!novoNome) { mostrarNotificacao("O nome da conta não pode ficar vazio.", "erro"); return; }
-  if (!Number.isFinite(novoVbucks) || novoVbucks < 0) { mostrarNotificacao("Quantidade de V-Bucks inválida.", "erro"); return; }
-
-  const nomeAntigo = conta.nome;
+  if (!novoNome) return;
   conta.nome = novoNome;
   conta.vbucks = Number(novoVbucks) || 0;
-
-  if (nomeAntigo !== novoNome) {
-    state.vendas.forEach(v => { if (v.conta === nomeAntigo) v.conta = novoNome; });
-    state.historicoVendas.forEach(v => { if (v.conta === nomeAntigo) v.conta = novoNome; });
-    state.reservas.forEach(r => { if (r.conta === nomeAntigo) r.conta = novoNome; });
-  }
-
   save();
   fecharModalEditConta();
-  mostrarNotificacao(`Dados da conta ${conta.nome} atualizados!`, "sucesso");
+  mostrarNotificacao("Conta atualizada!", "sucesso");
 }
 
 function atualizarInterfaceAuth() {
@@ -585,30 +587,19 @@ function atualizarInterfaceAuth() {
 }
 
 function abrirModalAuth() {
-  const modal = document.getElementById("authModal");
-  if (modal) modal.style.display = "flex";
-  const salvoEmail = localStorage.getItem("vendas_saved_email") || "";
-  const salvoPass = localStorage.getItem("vendas_saved_pass") || "";
-  const checkLembrar = document.getElementById("lembrarCredenciais");
-  if (salvoEmail && salvoPass) {
-    document.getElementById("authEmail").value = salvoEmail;
-    document.getElementById("authPassword").value = salvoPass;
-    if (checkLembrar) checkLembrar.checked = true;
-  }
+  document.getElementById("authModal").style.display = "flex";
   atualizarInterfaceAuth();
 }
 
 function fecharModalAuth() {
-  const modal = document.getElementById("authModal");
-  if (modal) modal.style.display = "none";
+  document.getElementById("authModal").style.display = "none";
 }
 
 async function fazerLogin() {
   const email = document.getElementById("authEmail").value.trim();
   const password = document.getElementById("authPassword").value.trim();
   const lembrar = document.getElementById("lembrarCredenciais")?.checked;
-
-  if (!email || !password) { mostrarNotificacao("Preencha o e-mail e a senha.", "erro"); return; }
+  if (!email || !password) return;
 
   try {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
@@ -617,113 +608,45 @@ async function fazerLogin() {
       body: JSON.stringify({ email, password })
     });
     const data = await res.json();
-    if (!res.ok || !data.access_token) {
-      mostrarNotificacao("Falha no login: credenciais inválidas.", "erro");
-      return;
-    }
+    if (!res.ok || !data.access_token) { mostrarNotificacao("Credenciais inválidas.", "erro"); return; }
     if (lembrar) {
       localStorage.setItem("vendas_saved_email", email);
       localStorage.setItem("vendas_saved_pass", password);
-    } else {
-      localStorage.removeItem("vendas_saved_email");
-      localStorage.removeItem("vendas_saved_pass");
     }
     authToken = data.access_token;
     refreshToken = data.refresh_token || null;
     currentUser = data.user;
     localStorage.setItem("vendas_auth_token", authToken);
-    if (refreshToken) localStorage.setItem("vendas_refresh_token", refreshToken);
     fecharModalAuth();
     mostrarNotificacao("Login realizado com sucesso!", "sucesso");
     await inicializar();
   } catch (err) {
-    mostrarNotificacao("Erro ao conectar com o serviço de login.", "erro");
+    mostrarNotificacao("Erro ao conectar.", "erro");
   }
 }
 
 function fazerLogout() {
-  authToken = null;
-  refreshToken = null;
-  currentUser = null;
+  authToken = null; refreshToken = null; currentUser = null;
   localStorage.removeItem("vendas_auth_token");
-  localStorage.removeItem("vendas_refresh_token");
   fecharModalAuth();
-  mostrarNotificacao("Você saiu da conta.", "info");
   inicializar();
-}
-
-async function renovarTokenSupabase() {
-  const storedRefresh = localStorage.getItem("vendas_refresh_token");
-  if (!storedRefresh) return false;
-  try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-      method: "POST",
-      headers: { "apikey": SUPABASE_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: storedRefresh })
-    });
-    const data = await res.json();
-    if (res.ok && data.access_token) {
-      authToken = data.access_token;
-      refreshToken = data.refresh_token;
-      currentUser = data.user;
-      localStorage.setItem("vendas_auth_token", authToken);
-      localStorage.setItem("vendas_refresh_token", refreshToken);
-      return true;
-    }
-  } catch (e) {}
-  return false;
-}
-
-async function verificarSessao() {
-  if (!authToken) {
-    const renovou = await renovarTokenSupabase();
-    if (!renovou) { currentUser = null; return; }
-  }
-  try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${authToken}` }
-    });
-    if (res.ok) {
-      currentUser = await res.json();
-    } else {
-      const renovou = await renovarTokenSupabase();
-      if (!renovou) { currentUser = null; authToken = null; refreshToken = null; localStorage.removeItem("vendas_auth_token"); localStorage.removeItem("vendas_refresh_token"); }
-    }
-  } catch (e) { currentUser = null; }
 }
 
 async function inicializar() {
   const footer = document.getElementById("statusFooter");
-  await verificarSessao();
-  atualizarInterfaceAuth();
   atualizarCamposItens();
   atualizarPreviewVBucks();
 
-  if (!currentUser) {
-    if (footer) footer.textContent = "👀 Modo Visitante (Faça login como Admin)";
-    state = JSON.parse(JSON.stringify(DADOS_DEMO));
-    sanitizarDados();
-    render();
-    return;
-  }
-
   try {
-    if (footer) footer.textContent = "☁️ Carregando dados da nuvem...";
     const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.1&select=*`, {
-      method: "GET",
       headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
     });
     const rows = await res.json();
-    if (Array.isArray(rows) && rows.length > 0 && rows[0].data) {
-      state = rows[0].data;
-    } else {
-      state = JSON.parse(JSON.stringify(DADOS_DEMO));
-    }
+    state = (Array.isArray(rows) && rows.length > 0 && rows[0].data) ? rows[0].data : JSON.parse(JSON.stringify(DADOS_DEMO));
     sanitizarDados();
-    if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
+    if (footer) footer.textContent = `🟢 Conectado ao Painel`;
     render();
   } catch (err) {
-    if (footer) footer.textContent = "⚠️ Erro ao sincronizar dados com o banco";
     state = JSON.parse(JSON.stringify(DADOS_DEMO));
     sanitizarDados();
     render();
@@ -736,20 +659,13 @@ function sanitizarDados() {
   if (!Array.isArray(state.reservas)) state.reservas = [];
   if (!Array.isArray(state.historicoVendas)) state.historicoVendas = [];
   if (!Array.isArray(state.lixeiraVendas)) state.lixeiraVendas = [];
-  if (!state.apoiadorRegistros || typeof state.apoiadorRegistros !== "object") state.apoiadorRegistros = {};
-  if (Array.isArray(state.contas)) {
-    state.contas.forEach(c => { c.vbucks = Number(c.vbucks) || 0; });
-  }
+  if (!state.apoiadorRegistros) state.apoiadorRegistros = {};
 }
 
 async function save() {
   sanitizarDados();
   render();
-  const footer = document.getElementById("statusFooter");
-  if (!currentUser) return;
-
   try {
-    if (footer) footer.textContent = "☁️ Salvando na nuvem...";
     await fetch(`${SUPABASE_URL}/rest/v1/app_state`, {
       method: "POST",
       headers: {
@@ -760,10 +676,7 @@ async function save() {
       },
       body: JSON.stringify({ id: 1, data: state, updated_at: new Date().toISOString() })
     });
-    if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
-  } catch (err) {
-    if (footer) footer.textContent = "⚠️ Erro ao salvar na nuvem";
-  }
+  } catch (err) {}
 }
 
 function limparReservasExpiradas() {
@@ -787,7 +700,6 @@ function tempoRestante(ms) {
 
 function valorParaVBucks(valor, baseCustom) {
   const base = Number(baseCustom || state?.valorBase100 || 2.5);
-  if (!Number.isFinite(base) || base <= 0) return 0;
   return Math.round((Number(valor) / base) * 100);
 }
 
@@ -807,30 +719,24 @@ function totaisHistoricoPorConta() {
   (state?.contas || []).forEach(c => { t[c.nome] = 0; vbMap[c.nome] = 0; });
   (state?.historicoVendas || []).forEach(v => {
     t[v.conta] = (t[v.conta] || 0) + Number(v.valor || 0);
-    const vbucksNum = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
-    vbMap[v.conta] = (vbMap[v.conta] || 0) + vbucksNum;
+    vbMap[v.conta] = (vbMap[v.conta] || 0) + (v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento));
   });
   return { faturamento: t, vbucks: vbMap };
 }
-
-function mudarAnoFiltro(val) { anoFiltroSelecionado = val; render(); }
 
 function parseItemString(str) {
   const s = String(str || "").trim();
   const sep = s.indexOf("–") >= 0 ? "–" : (s.indexOf("-") >= 0 ? "-" : null);
   if (!sep) return { tipo: "Outro", nome: s };
   const partes = s.split(sep);
-  const tipoCandidato = partes[0].trim();
-  const nomeCandidato = partes.slice(1).join(sep).trim();
-  const match = CATEGORIAS_ITENS.find(c => c.toLowerCase() === tipoCandidato.toLowerCase());
-  return match ? { tipo: match, nome: nomeCandidato } : { tipo: "Outro", nome: s };
+  const match = CATEGORIAS_ITENS.find(c => c.toLowerCase() === partes[0].trim().toLowerCase());
+  return match ? { tipo: match, nome: partes.slice(1).join(sep).trim() } : { tipo: "Outro", nome: s };
 }
 
 function formatItemString(tipo, nome) {
   const t = String(tipo || "").trim();
   const n = String(nome || "").trim();
-  if (!t) return n;
-  return `${t} – ${n}`;
+  return !t ? n : `${t} – ${n}`;
 }
 
 function atualizarCamposItens() {
@@ -892,7 +798,7 @@ function render() {
           <div class="account-name">${esc(c.nome)}</div>
           <span class="badge ${c.ativa ? "" : "off"}">${c.ativa ? "🟢 ATIVA" : "⚫ DESATIVADA"}</span>
         </div>
-        <div class="small">${c.ativa ? `Saldo: ${formatVBucks(c.vbucks)} V-Bucks · Disponível` : "Desativada — ative para utilizar"}</div>
+        <div class="small">${c.ativa ? `Saldo: ${formatVBucks(c.vbucks)} V-Bucks` : "Desativada"}</div>
       </div>
       <div class="account-actions">
         <button type="button" class="btn-gray" onclick="abrirModalEditConta(${i})">✏️ Editar</button>
@@ -931,7 +837,6 @@ function render() {
   const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
 
   const hojeChave = obterDataHojeFormatada();
-  ultimaDataHojeConhecida = hojeChave;
   const diaParaFiltrar = diaFiltroSelecionado || hojeChave;
   const isModoHoje = diaParaFiltrar === hojeChave;
 
@@ -949,19 +854,18 @@ function render() {
 
   const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
   const mesAtualKey = `${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
-
   if (!mesFiltroSelecionado) mesFiltroSelecionado = mesAtualKey;
 
   const [selM, selA] = mesFiltroSelecionado.split("/").map(Number);
-  const mesTotalSkins = somaFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
+  const mesTotalVendas = somaFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
   const mesItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
 
-  const lucroSkinsMes = mesTotalSkins * MARGEM_LUCRO;
+  const lucroVendasMes = mesTotalVendas * MARGEM_LUCRO;
   const regApoiadorMes = (state.apoiadorRegistros || {})[mesFiltroSelecionado] || { brutoUsd: 0, liquidoBrl: 0 };
   const lucroApoiadorMes = Number(regApoiadorMes.liquidoBrl || 0);
-  const lucroTotalMesCombinado = lucroSkinsMes + lucroApoiadorMes;
+  const lucroTotalMesCombinado = lucroVendasMes + lucroApoiadorMes;
 
   const setAnos = new Set();
   setAnos.add(String(agoraData.getFullYear()));
@@ -970,23 +874,23 @@ function render() {
   if (!anoFiltroSelecionado) anoFiltroSelecionado = String(agoraData.getFullYear());
 
   const selAnoNum = Number(anoFiltroSelecionado);
-  const anoTotalSkins = somaFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
+  const anoTotalVendas = somaFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
   const anoItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
 
-  const lucroSkinsAno = anoTotalSkins * MARGEM_LUCRO;
+  const lucroVendasAno = anoTotalVendas * MARGEM_LUCRO;
   let lucroApoiadorAno = 0;
   Object.entries(state.apoiadorRegistros || {}).forEach(([k, reg]) => {
     if (k.endsWith(`/${selAnoNum}`)) lucroApoiadorAno += Number(reg.liquidoBrl || 0);
   });
-  const lucroTotalAnoCombinado = lucroSkinsAno + lucroApoiadorAno;
+  const lucroTotalAnoCombinado = lucroVendasAno + lucroApoiadorAno;
 
   let totalLiquidoApoiadorGlobal = 0;
   Object.values(state.apoiadorRegistros || {}).forEach(reg => { totalLiquidoApoiadorGlobal += Number(reg.liquidoBrl || 0); });
 
-  const lucroContinuoGeralSkins = totalHistorico * MARGEM_LUCRO;
-  const lucroLiquidoGlobalTotal = lucroContinuoGeralSkins + totalLiquidoApoiadorGlobal;
+  const lucroContinuoGeralVendas = totalHistorico * MARGEM_LUCRO;
+  const lucroLiquidoGlobalTotal = lucroContinuoGeralVendas + totalLiquidoApoiadorGlobal;
 
   const periodosEl = document.getElementById("historicoPeriodos");
   if (periodosEl) {
@@ -1016,36 +920,37 @@ function render() {
         <span>🗓️</span>
         <strong style="font-size:12px; color:var(--accent-light);">${nomeMesSelecionadoLabel} ▾</strong>
       </div>
-      <strong>${money(mesTotalSkins)}</strong>
+      <strong>${money(mesTotalVendas)}</strong>
       <small>${mesPedidos} pedidos (${mesItens} itens)</small>
-      <div style="font-size:11px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06); padding-top:4px;">
-        <span style="color:var(--muted);">Skins:</span> ${money(lucroSkinsMes)}<br>
-        <span style="color:var(--muted);">Apoiador:</span> ${money(lucroApoiadorMes)} <small style="color:var(--muted);">($${Number(regApoiadorMes.brutoUsd || 0).toFixed(2)})</small><br>
-        <strong style="color:var(--green);">Total Mês: ${money(lucroTotalMesCombinado)}</strong>
+      <small class="period-vbucks-text">🪙 ${formatVBucks(mesVbucks)} V-Bucks</small>
+      <div style="font-size:10px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06); padding-top:4px; line-height:1.3;">
+        <span style="color:var(--muted);">Vendas:</span> ${money(lucroVendasMes)}<br>
+        <span style="color:var(--muted);">Apoiador:</span> ${money(lucroApoiadorMes)}<br>
+        <strong style="color:var(--green);">Total: ${money(lucroTotalMesCombinado)}</strong>
       </div>
       ${mesPopoverAberto ? gerarHtmlMesPopover() : ""}
     </div>
 
-    <div class="period-card period-card-select">
+    <div class="period-card period-card-ano-container" style="position:relative; cursor:pointer;" onclick="toggleAnoPopover(event)">
       <div class="period-header-select">
         <span>📆</span>
-        <select class="period-select" onchange="mudarAnoFiltro(this.value)">
-          ${anosLista.map(a => `<option value="${a}" ${a === anoFiltroSelecionado ? "selected" : ""}>Ano ${a}</option>`).join("")}
-        </select>
+        <strong style="font-size:12px; color:var(--accent-light);">Ano ${anoFiltroSelecionado} ▾</strong>
       </div>
-      <strong>${money(anoTotalSkins)}</strong>
+      <strong>${money(anoTotalVendas)}</strong>
       <small>${anoPedidos} pedidos (${anoItens} itens)</small>
-      <div style="font-size:11px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06); padding-top:4px;">
-        <span style="color:var(--muted);">Skins:</span> ${money(lucroSkinsAno)}<br>
+      <small class="period-vbucks-text">🪙 ${formatVBucks(anoVbucks)} V-Bucks</small>
+      <div style="font-size:10px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06); padding-top:4px; line-height:1.3;">
+        <span style="color:var(--muted);">Vendas:</span> ${money(lucroVendasAno)}<br>
         <span style="color:var(--muted);">Apoiador:</span> ${money(lucroApoiadorAno)}<br>
-        <strong style="color:var(--green);">Total Ano: ${money(lucroTotalAnoCombinado)}</strong>
+        <strong style="color:var(--green);">Total: ${money(lucroTotalAnoCombinado)}</strong>
       </div>
+      ${anoPopoverAberto ? gerarHtmlAnoPopover(anosLista) : ""}
     </div>
 
     <div class="period-card profit-card">
       <span>📈 Lucro Global</span>
       <strong>${money(lucroLiquidoGlobalTotal)}</strong>
-      <small style="color:var(--green); font-weight:700;">Site: ${money(lucroContinuoGeralSkins)}</small>
+      <small style="color:var(--green); font-weight:700;">Vendas: ${money(lucroContinuoGeralVendas)}</small>
       <small style="color:var(--accent-light); font-weight:700;">Apoiador: ${money(totalLiquidoApoiadorGlobal)}</small>
     </div>
   `;
@@ -1087,7 +992,7 @@ function render() {
               <th>V-Bucks Utilizados</th>
               <th>Faturamento Total</th>
               <th>Custo Reposição</th>
-              <th>Lucro Líquido (Skins)</th>
+              <th>Lucro Líquido (Vendas)</th>
             </tr>
           </thead>
           <tbody>
@@ -1259,6 +1164,59 @@ function excluirHistoricoPorId(vendaId) {
     save();
     mostrarNotificacao("Venda movida para a lixeira.", "sucesso");
   });
+}
+
+function restaurarVenda(idx) {
+  const venda = (state.lixeiraVendas || [])[idx];
+  if (!venda) return;
+  state.lixeiraVendas.splice(idx, 1);
+  state.historicoVendas.push(venda);
+  save();
+  abrirModalLixeira();
+  mostrarNotificacao("Venda restaurada com sucesso!", "sucesso");
+}
+
+function excluirDefinitivoLixeira(idx) {
+  state.lixeiraVendas.splice(idx, 1);
+  save();
+  abrirModalLixeira();
+  mostrarNotificacao("Venda apagada permanentemente.", "info");
+}
+
+function esvaziarLixeira() {
+  state.lixeiraVendas = [];
+  save();
+  abrirModalLixeira();
+  mostrarNotificacao("Lixeira esvaziada.", "info");
+}
+
+function abrirModalLixeira() {
+  const modal = document.getElementById("trashModal");
+  const container = document.getElementById("trashListContainer");
+  const lixeira = state.lixeiraVendas || [];
+  if (!container) return;
+
+  if (lixeira.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--muted); font-size:13px;">A lixeira está vazia.</div>`;
+  } else {
+    container.innerHTML = lixeira.map((v, idx) => `
+      <div class="trash-item-card" style="display:flex; justify-content:space-between; align-items:center; background:var(--bg); border:1px solid var(--border); padding:10px; border-radius:8px; margin-bottom:8px;">
+        <div>
+          <strong>${esc(v.cliente)}</strong> (${money(v.valor)}) · ${esc(v.conta)}<br>
+          <small style="color:var(--muted);">${esc(v.data)} às ${esc(v.hora)}</small>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn-green" style="padding:4px 8px; font-size:11px;" onclick="restaurarVenda(${idx})">♻️ Restaurar</button>
+          <button type="button" class="btn-danger" style="padding:4px 8px; font-size:11px;" onclick="excluirDefinitivoLixeira(${idx})">✕</button>
+        </div>
+      </div>
+    `).join("");
+  }
+  if (modal) modal.style.display = "flex";
+}
+
+function fecharModalLixeira() {
+  document.getElementById("trashModal").style.display = "none";
 }
 
 function valorRapido(v) {
