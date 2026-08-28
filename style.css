@@ -1443,7 +1443,7 @@ footer {
   width: 280px;
 }
 
-/* LAYOUT CORRIGIDO DO MODAL DO APOIADOR (Mês em cima, Bruto e Líquido lado a lado embaixo) */
+/* LAYOUT DO MODAL DO APOIADOR (Mês em cima, Líquido na esquerda e Bruto na direita embaixo) */
 #apoiadorModal .modal-card-large {
   max-width: 520px;
   width: 90%;
@@ -1454,12 +1454,6 @@ footer {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin-bottom: 14px;
-}
-
-/* O seletor de Mês/Ano ocupa a linha inteira no topo */
-.apoiador-popover-container {
-  position: relative;
-  grid-column: 1 / -1;
 }
 
 @media (max-width: 600px) {
