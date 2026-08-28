@@ -1711,3 +1711,10 @@ document.getElementById("limparValorBtn").addEventListener("click", () => {
 });
 
 inicializar();
+
+// Loop para atualizar os timers a cada 1 segundo automaticamente
+setInterval(() => {
+  if (state) {
+    renderContasCards();
+  }
+}, 1000);
