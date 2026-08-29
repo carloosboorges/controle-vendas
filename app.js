@@ -71,6 +71,12 @@ let balancoAberto = false;
 function copiarTexto(texto, tipo = "Texto", event = null) {
   if (event) event.stopPropagation();
   if (!texto || texto === "—") return;
+  
+  // Limpar a seleção atual para evitar bugs de click no painel
+  if (window.getSelection) {
+    window.getSelection().removeAllRanges();
+  }
+
   navigator.clipboard.writeText(texto).then(() => {
     mostrarNotificacao(`📋 ${tipo} copiado: "${texto}"`, "sucesso");
   }).catch(() => {
@@ -80,6 +86,7 @@ function copiarTexto(texto, tipo = "Texto", event = null) {
 
 function extrairApenasNomeItem(itemStr) {
   if (!itemStr) return "";
+  if (typeof itemStr === 'object') return itemStr.nome || "";
   const { nome } = parseItemString(itemStr);
   return nome || itemStr;
 }
@@ -159,6 +166,15 @@ document.addEventListener("click", (e) => {
       dropNick.style.display = "none";
     }
 
+    // Fechar os dropdowns de presentes
+    for (let j = 0; j < 20; j++) {
+       const dropP = document.getElementById("nickPresenteSuggestions_" + j);
+       if (dropP && dropP.style.display === "block") {
+           dropP.style.display = "none";
+           fechouAlgo = true;
+       }
+    }
+
     if (fechouAlgo) {
       render();
     }
@@ -166,7 +182,7 @@ document.addEventListener("click", (e) => {
 });
 
 /* =======================================================
-   NOVA FUNÇÃO: SUGERIR CLIENTES E NICKS
+   SISTEMA INTELIGENTE: SUGERIR CLIENTES E NICKS
 ======================================================= */
 function buscarSugestoesCliente(texto) {
   const dropdown = document.getElementById("clienteSuggestions");
@@ -234,6 +250,40 @@ function buscarSugestoesNick(texto) {
   dropdown.style.display = "block";
 }
 
+function sugerirNickPresente(texto, index) {
+  const dropdown = document.getElementById(`nickPresenteSuggestions_${index}`);
+  if (!dropdown) return;
+  const termo = String(texto).toLowerCase().trim();
+  if (!termo) { dropdown.style.display = "none"; return; }
+
+  const nicksMap = {};
+  const histReverso = [...(state.historicoVendas || [])].reverse();
+  
+  histReverso.forEach(v => {
+     const nickC = String(v.nickCliente || "").trim();
+     if(nickC && !nicksMap[nickC]) nicksMap[nickC] = v.cliente || "";
+     
+     if (Array.isArray(v.itens)) {
+       v.itens.forEach(item => {
+         if (item && typeof item === 'object' && item.presente) {
+           const np = item.presente.trim();
+           if (!nicksMap[np]) nicksMap[np] = "Nick Anterior";
+         }
+       });
+     }
+  });
+
+  const sugestoes = Object.keys(nicksMap).filter(n => n.toLowerCase().includes(termo));
+  if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
+
+  dropdown.innerHTML = sugestoes.slice(0, 6).map(nick => `
+    <div class="autocomplete-item" onclick="selecionarSugestaoNickPresente('${esc(nick).replace(/'/g, "\\'")}', ${index})">
+      🎁 ${esc(nick)} <span class="autocomplete-nick">(${esc(nicksMap[nick])})</span>
+    </div>
+  `).join("");
+  dropdown.style.display = "block";
+}
+
 function selecionarSugestaoCliente(nome, nick) {
   document.getElementById("clienteInput").value = nome;
   document.getElementById("nickClienteInput").value = nick;
@@ -246,10 +296,15 @@ function selecionarSugestaoNick(nome, nick) {
   document.getElementById("nickSuggestions").style.display = "none";
 }
 
+function selecionarSugestaoNickPresente(nick, index) {
+  const input = document.getElementById(`itemPresenteInput_${index}`);
+  if (input) input.value = nick;
+  document.getElementById(`nickPresenteSuggestions_${index}`).style.display = "none";
+}
+
 function preencherNovaVenda(nome, nick) {
   document.getElementById("clienteInput").value = nome || "";
   document.getElementById("nickClienteInput").value = nick || "";
-  document.getElementById("nickPresenteInput").value = "";
   window.scrollTo({ top: 0, behavior: 'smooth' });
   mostrarNotificacao(`Formulário preenchido com ${nome}!`, "info");
 }
@@ -707,6 +762,26 @@ function renderizarHistoricoClientesCompleto() {
   }
 }
 
+// Funcao auxiliar para renderizar a listagem de itens perfeitamente nos modais/historico
+function renderizarListaItensHtml(itens) {
+  if (!Array.isArray(itens) || itens.length === 0) return "🎁 —";
+  return itens.map((itemObj, n) => {
+    let itemText = "", presenteText = "", copyText = "";
+    
+    if (typeof itemObj === "string") {
+       itemText = itemObj;
+       copyText = extrairApenasNomeItem(itemObj);
+    } else if (itemObj) {
+       itemText = formatItemString(itemObj.tipo, itemObj.nome);
+       copyText = itemObj.nome;
+       if (itemObj.presente) {
+         presenteText = ` <span style="color:var(--accent-light); font-size:12px; margin-left:6px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-block; margin-top: 4px;">➡️ 🎁 P/: <span class="copyable-text" onclick="copiarTexto('${esc(itemObj.presente)}', 'Nick Presente', event)" title="Clique para copiar">${esc(itemObj.presente)}</span></span>`;
+       }
+    }
+    return `<div style="margin-bottom: 6px;">🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" title="Clique para copiar">${esc(itemText)}</span>${presenteText}</div>`;
+  }).join("");
+}
+
 function abrirModalDetalhesCliente(nomeCliente) {
   const modal = document.getElementById("clienteDetalhesModal");
   const tituloEl = document.getElementById("detalhesClienteTitulo");
@@ -741,16 +816,16 @@ function abrirModalDetalhesCliente(nomeCliente) {
   } else {
     listaPedidosEl.innerHTML = vendasCliente.map((v, i) => {
       const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
-      const itensStr = Array.isArray(v.itens) && v.itens.length ? v.itens.join(", ") : (v.item || "—");
+      const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
       
-      const txtPresente = v.nickPresente ? `<span style="color:var(--accent-light); font-size:12px; margin-left:6px;">➡️ 🎁 Para: <b>${esc(v.nickPresente)}</b></span>` : "";
+      const txtPresenteGlobal = v.nickPresente ? `<span style="color:var(--accent-light); font-size:12px; margin-left:6px;">➡️ 🎁 Para: <b>${esc(v.nickPresente)}</b></span>` : "";
 
       return `
-        <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+        <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
           <div>
             <div style="font-size: 12px; font-weight: 700; color: var(--accent-light);">📦 Pedido #${vendasCliente.length - i} · Conta: ${esc(v.conta)}</div>
-            <div style="font-size: 13px; color: #fff; margin-top: 3px;">🎮 Nick: <b>${esc(v.nickCliente)}</b> ${txtPresente}</div>
-            <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">🎁 Itens: ${esc(itensStr)}</div>
+            <div style="font-size: 13px; color: #fff; margin-top: 3px;">🎮 Nick: <b>${esc(v.nickCliente)}</b> ${txtPresenteGlobal}</div>
+            <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">${itensHtmlStr}</div>
             <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
           </div>
           <div style="text-align: right; flex-shrink: 0;">
@@ -1185,11 +1260,14 @@ function atualizarCamposItens() {
   if (!container) return;
   const optionsHtml = CATEGORIAS_ITENS.map(c => `<option value="${c}">${c}</option>`).join("");
   container.innerHTML = Array.from({ length: qtd }, (_, i) => `
-    <div class="item-picker-box">
-      <label>Item ${qtd > 1 ? i + 1 : "Vendido"}</label>
-      <div class="item-picker-row">
-        <select class="item-type-select" id="itemTypeSelect_${i}">${optionsHtml}</select>
-        <input class="item-name-input" id="itemNameInput_${i}" type="text" maxlength="120" placeholder="Nome do item">
+    <div class="item-picker-box" style="margin-bottom: 8px; width: 100%;">
+      <div class="item-picker-row" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <select class="item-type-select" id="itemTypeSelect_${i}" style="flex: 1; min-width: 100px; padding: 10px;">${optionsHtml}</select>
+        <input class="item-name-input" id="itemNameInput_${i}" type="text" maxlength="120" placeholder="Item Vendido" style="flex: 2; min-width: 160px; padding: 10px;">
+        <div style="position: relative; flex: 1.5; min-width: 140px;">
+          <input class="item-name-input" id="itemPresenteInput_${i}" type="text" maxlength="80" placeholder="🎁 Nick Presente (Opcional)" style="width: 100%; padding: 10px;" oninput="sugerirNickPresente(this.value, ${i})" autocomplete="off">
+          <div id="nickPresenteSuggestions_${i}" class="autocomplete-dropdown"></div>
+        </div>
       </div>
     </div>
   `).join("");
@@ -1201,7 +1279,10 @@ function obterItensDaVenda() {
   for (let i = 0; i < qtd; i++) {
     const tipo = document.getElementById(`itemTypeSelect_${i}`)?.value || "Outro";
     const nome = document.getElementById(`itemNameInput_${i}`)?.value.trim() || "";
-    if (nome) lista.push(formatItemString(tipo, nome));
+    const presente = document.getElementById(`itemPresenteInput_${i}`)?.value.trim() || "";
+    if (nome) {
+      lista.push({ tipo, nome, presente });
+    }
   }
   return lista;
 }
@@ -1462,12 +1543,14 @@ function render() {
     let listaFiltrada = listaComIndices;
     if (historicoTermoBusca) {
       listaFiltrada = listaComIndices.filter(v => {
-        const itensStr = Array.isArray(v.itens) ? v.itens.join(" ").toLowerCase() : String(v.item || "").toLowerCase();
+        const itensArray = Array.isArray(v.itens) ? v.itens : [v.item || ""];
+        const itensStr = itensArray.map(i => typeof i === 'string' ? i : `${i.tipo} ${i.nome} ${i.presente}`).join(" ").toLowerCase();
         const obsStr = String(v.observacao || "").toLowerCase();
         return v.numeroPedido.toLowerCase().includes(historicoTermoBusca) ||
           String(v.cliente || "").toLowerCase().includes(historicoTermoBusca) ||
           String(v.nickCliente || "").toLowerCase().includes(historicoTermoBusca) ||
           String(v.conta || "").toLowerCase().includes(historicoTermoBusca) ||
+          String(v.nickPresente || "").toLowerCase().includes(historicoTermoBusca) ||
           itensStr.includes(historicoTermoBusca) ||
           obsStr.includes(historicoTermoBusca);
       });
@@ -1500,11 +1583,10 @@ function render() {
     } else {
       historicoContainer.innerHTML = itensPagina.map(v => {
         const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
-        const itensListHtml = Array.isArray(v.itens) && v.itens.length
-          ? v.itens.map((itemStr, n) => `${n === 0 ? "" : "<br>"}🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(extrairApenasNomeItem(itemStr))}', 'Item', event)" title="Clique para copiar">${esc(itemStr)}</span>`).join("")
-          : `🎁 <span class="copyable-text" onclick="copiarTexto('${esc(extrairApenasNomeItem(v.item))}', 'Item', event)" title="Clique para copiar">${esc(v.item)}</span>`;
+        const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
 
-        const txtPresente = v.nickPresente ? ` <span style="color:var(--accent-light); font-size:12px;">➡️ 🎁 Para: <span class="copyable-text" onclick="copiarTexto('${esc(v.nickPresente)}', 'Nick Presente', event)" title="Clique para copiar">${esc(v.nickPresente)}</span></span>` : "";
+        // Legacy global presente render
+        const txtPresenteGlobal = v.nickPresente ? ` <span style="color:var(--accent-light); font-size:12px;">➡️ 🎁 Global: <span class="copyable-text" onclick="copiarTexto('${esc(v.nickPresente)}', 'Nick Presente', event)" title="Clique para copiar">${esc(v.nickPresente)}</span></span>` : "";
 
         const observacaoHtml = v.observacao ? `
           <div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 4px 8px; border-radius: 6px; border-left: 3px solid var(--accent);">
@@ -1524,9 +1606,9 @@ function render() {
               </div>
               <div class="history-client">
                 🎮 <span class="copyable-text" onclick="copiarTexto('${esc(v.nickCliente)}', 'Nick', event)" title="Clique para copiar">${esc(v.nickCliente)}</span>
-                ${txtPresente}
+                ${txtPresenteGlobal}
               </div>
-              <div class="history-item">${itensListHtml}</div>
+              <div class="history-item" style="margin-top: 8px;">${itensHtmlStr}</div>
               <div class="history-date">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
               ${observacaoHtml}
             </div>
@@ -1615,7 +1697,6 @@ function adicionarVenda() {
   const valor = parseFloat(document.getElementById("valorInput").value);
   const cliente = document.getElementById("clienteInput").value.trim();
   const nickCliente = document.getElementById("nickClienteInput").value.trim();
-  const nickPresente = document.getElementById("nickPresenteInput").value.trim();
   const observacao = document.getElementById("observacaoInput")?.value.trim() || "";
   const quantidade = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
   const itens = obterItensDaVenda();
@@ -1638,7 +1719,7 @@ function adicionarVenda() {
 
   const novaVenda = {
     id: vendaId, conta, valor: Number(valor), vbucks: vbucksNecessarios, valorBaseMomento: baseAtual,
-    quantidade, cliente, nickCliente, nickPresente, observacao, item: itens[0] || "", itens,
+    quantidade, cliente, nickCliente, observacao, item: itens[0] || "", itens,
     data: d.toLocaleDateString("pt-BR"), hora: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), criadoEmMs: agora
   };
 
@@ -1651,7 +1732,6 @@ function adicionarVenda() {
   document.getElementById("valorInput").value = "";
   document.getElementById("clienteInput").value = "";
   document.getElementById("nickClienteInput").value = "";
-  document.getElementById("nickPresenteInput").value = "";
   document.getElementById("observacaoInput").value = "";
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens();
@@ -1678,7 +1758,6 @@ function abrirModalEdicaoPorId(vendaId) {
 
   document.getElementById("editClientInput").value = venda.cliente || "";
   document.getElementById("editNickInput").value = venda.nickCliente || "";
-  document.getElementById("editNickPresenteInput").value = venda.nickPresente || "";
   document.getElementById("editObservacaoInput").value = venda.observacao || "";
   document.getElementById("editDataInput").value = venda.data || "";
   document.getElementById("editHoraInput").value = venda.hora || "";
@@ -1689,18 +1768,24 @@ function abrirModalEdicaoPorId(vendaId) {
   const container = document.getElementById("editItensListContainer");
   const itens = Array.isArray(venda.itens) && venda.itens.length ? venda.itens : [venda.item || ""];
 
-  container.innerHTML = itens.map((itemStr, idx) => {
-    const { tipo, nome } = parseItemString(itemStr);
+  container.innerHTML = itens.map((itemObj, idx) => {
+    let tipo = "Outro", nome = "", presente = "";
+    if (typeof itemObj === "string") {
+      const parsed = parseItemString(itemObj);
+      tipo = parsed.tipo; nome = parsed.nome;
+    } else if (itemObj) {
+      tipo = itemObj.tipo || "Outro"; nome = itemObj.nome || ""; presente = itemObj.presente || "";
+    }
     const optionsHtml = CATEGORIAS_ITENS.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join("");
     return `
-      <div class="item-picker-box" style="margin-top: 0;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
           <label style="font-size:12px;">Item ${idx + 1}</label>
-          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="removerItemEdicao(${idx})">✕</button>` : ""}
         </div>
-        <div class="item-picker-row">
-          <select class="item-type-select edit-modal-item-type">${optionsHtml}</select>
-          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item">
+        <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
+          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 150px; padding: 10px;">
+          <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick (Opcional)" style="flex: 1.5; min-width: 120px; padding: 10px;">
         </div>
       </div>
     `;
@@ -1718,7 +1803,6 @@ function salvarEdicaoVenda() {
   const novaConta = document.getElementById("editContaSelect").value;
   const cliente = document.getElementById("editClientInput").value.trim();
   const nick = document.getElementById("editNickInput").value.trim();
-  const nickPresente = document.getElementById("editNickPresenteInput").value.trim();
   const observacao = document.getElementById("editObservacaoInput").value.trim();
   const novaData = document.getElementById("editDataInput").value.trim();
   const novaHora = document.getElementById("editHoraInput").value.trim();
@@ -1734,7 +1818,8 @@ function salvarEdicaoVenda() {
   itemBoxes.forEach(box => {
     const tipo = box.querySelector(".edit-modal-item-type").value;
     const nome = box.querySelector(".edit-modal-item-name").value.trim();
-    if (nome) novosItens.push(formatItemString(tipo, nome));
+    const presente = box.querySelector(".edit-modal-item-presente").value.trim();
+    if (nome) novosItens.push({ tipo, nome, presente });
   });
 
   const novoVbucks = Math.round((valor / (venda.valorBaseMomento || state.valorBase100 || 2.5)) * 100);
@@ -1751,7 +1836,8 @@ function salvarEdicaoVenda() {
   venda.conta = novaConta;
   venda.cliente = cliente;
   venda.nickCliente = nick;
-  venda.nickPresente = nickPresente;
+  // Remove global presente on edit, moves it into items
+  venda.nickPresente = ""; 
   venda.observacao = observacao;
   venda.data = novaData;
   venda.hora = novaHora || venda.hora || "—";
@@ -1767,7 +1853,7 @@ function salvarEdicaoVenda() {
     sessaoVenda.conta = novaConta;
     sessaoVenda.cliente = cliente;
     sessaoVenda.nickCliente = nick;
-    sessaoVenda.nickPresente = nickPresente;
+    sessaoVenda.nickPresente = "";
     sessaoVenda.observacao = observacao;
     sessaoVenda.data = novaData;
     sessaoVenda.hora = novaHora;

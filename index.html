@@ -221,7 +221,7 @@
             <input id="editClientInput" type="text" maxlength="80">
           </div>
           <div class="field">
-            <label>Nick do Cliente</label>
+            <label>Nick (Comprador)</label>
             <input id="editNickInput" type="text" maxlength="80">
           </div>
         </div>
@@ -245,17 +245,8 @@
           <input id="editValorInput" type="number" step="0.01" min="0.01" oninput="atualizarPreviewVBucksEdicao()">
         </div>
 
-        <!-- Linha Unificada: Itens na esquerda e Presente na direita (Igual formulário principal) -->
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; align-items: flex-start;">
-          <div id="editItensListContainer" class="itens-group-container" style="flex: 2.5; min-width: 280px; margin-top: 0;"></div>
-
-          <div class="item-picker-box" style="flex: 1; min-width: 200px;">
-            <label>Presente para (Nick) <span style="font-size:10px; color:var(--accent-light)">(Opcional)</span></label>
-            <div class="item-picker-row">
-              <input id="editNickPresenteInput" type="text" maxlength="80" placeholder="Opcional" style="width: 100%;">
-            </div>
-          </div>
-        </div>
+        <!-- Onde os itens da edição são injetados -->
+        <div id="editItensListContainer" style="display:flex; flex-direction:column; gap:8px; margin-top: 8px;"></div>
 
         <div class="field" style="margin-top: 10px;">
           <label>💬 Observação (opcional)</label>
@@ -372,21 +363,8 @@
       </div>
     </div>
 
-    <!-- Linha Unificada: Itens na esquerda e Presente na direita -->
-    <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; align-items: flex-start;">
-      
-      <!-- Esquerda: Seleção dos Itens -->
-      <div id="itensGroupContainer" class="itens-group-container" style="flex: 2.5; min-width: 320px; margin-top: 0;"></div>
-
-      <!-- Direita: Presente para -->
-      <div class="item-picker-box" style="flex: 1; min-width: 250px;">
-        <label>Presente para (Nick) <span style="font-size:10px; color:var(--accent-light)">(Opcional)</span></label>
-        <div class="item-picker-row">
-          <input id="nickPresenteInput" type="text" maxlength="80" placeholder="Ex.: AmigoFortnite" style="width: 100%;">
-        </div>
-      </div>
-
-    </div>
+    <!-- Área de Seleção dos Itens Vendidos (Tudo na mesma linha) -->
+    <div id="itensGroupContainer" style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;"></div>
 
     <!-- Observação por último, abaixo dos itens e do presente -->
     <div class="field" style="margin-top: 14px;">
