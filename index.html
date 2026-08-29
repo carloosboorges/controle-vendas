@@ -367,17 +367,25 @@
           <div id="nickSuggestions" class="autocomplete-dropdown"></div>
         </div>
       </div>
-
-      <div class="field">
-        <label>Presente para (Nick) <span style="font-size:10px; color:var(--accent-light)">(Opcional)</span></label>
-        <input id="nickPresenteInput" type="text" maxlength="80" placeholder="Ex.: AmigoFortnite">
-      </div>
     </div>
 
-    <!-- Área de Seleção dos Itens Vendidos -->
-    <div id="itensGroupContainer" class="itens-group-container" style="margin-top: 14px;"></div>
+    <!-- Linha Unificada: Itens na esquerda e Presente na direita -->
+    <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; align-items: flex-start;">
+      
+      <!-- Esquerda: Seleção dos Itens -->
+      <div id="itensGroupContainer" class="itens-group-container" style="flex: 2.5; min-width: 320px; margin-top: 0;"></div>
 
-    <!-- Observação por último, abaixo dos itens -->
+      <!-- Direita: Presente para -->
+      <div class="item-picker-box" style="flex: 1; min-width: 250px;">
+        <label>Presente para (Nick) <span style="font-size:10px; color:var(--accent-light)">(Opcional)</span></label>
+        <div class="item-picker-row">
+          <input id="nickPresenteInput" type="text" maxlength="80" placeholder="Ex.: AmigoFortnite" style="width: 100%;">
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Observação por último, abaixo dos itens e do presente -->
     <div class="field" style="margin-top: 14px;">
       <label>💬 Observação (opcional)</label>
       <input id="observacaoInput" type="text" maxlength="150" placeholder="Ex.: Pago via Pix">
