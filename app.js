@@ -131,24 +131,37 @@ function mudarAbaHistorico(aba) {
   }
 }
 
+/* CORREÇÃO DO CLIQUE: Só re-renderiza a tela se algum menu estivesse aberto */
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".period-card-calendar-container") && 
       !e.target.closest(".period-card-mes-container") && 
       !e.target.closest(".period-card-ano-container") &&
       !e.target.closest(".apoiador-popover-container") &&
       !e.target.closest(".autocomplete-wrapper")) {
-    calPopoverAberto = false;
-    mesPopoverAberto = false;
-    anoPopoverAberto = false;
-    apoiadorPopoverAberto = false;
+    
+    let fechouAlgo = false;
+
+    if (calPopoverAberto || mesPopoverAberto || anoPopoverAberto || apoiadorPopoverAberto) {
+      calPopoverAberto = false;
+      mesPopoverAberto = false;
+      anoPopoverAberto = false;
+      apoiadorPopoverAberto = false;
+      fechouAlgo = true;
+    }
     
     const dropCliente = document.getElementById("clienteSuggestions");
-    if (dropCliente) dropCliente.style.display = "none";
+    if (dropCliente && dropCliente.style.display === "block") {
+      dropCliente.style.display = "none";
+    }
     
     const dropNick = document.getElementById("nickSuggestions");
-    if (dropNick) dropNick.style.display = "none";
+    if (dropNick && dropNick.style.display === "block") {
+      dropNick.style.display = "none";
+    }
 
-    render();
+    if (fechouAlgo) {
+      render();
+    }
   }
 });
 
@@ -1665,11 +1678,11 @@ function abrirModalEdicaoPorId(vendaId) {
 
   document.getElementById("editClientInput").value = venda.cliente || "";
   document.getElementById("editNickInput").value = venda.nickCliente || "";
+  document.getElementById("editNickPresenteInput").value = venda.nickPresente || "";
+  document.getElementById("editObservacaoInput").value = venda.observacao || "";
   document.getElementById("editDataInput").value = venda.data || "";
   document.getElementById("editHoraInput").value = venda.hora || "";
   document.getElementById("editValorInput").value = Number(venda.valor || 0).toFixed(2);
-  document.getElementById("editNickPresenteInput").value = venda.nickPresente || "";
-  document.getElementById("editObservacaoInput").value = venda.observacao || "";
   
   atualizarPreviewVBucksEdicao();
 
