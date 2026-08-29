@@ -6,6 +6,7 @@ const CATEGORIAS_ITENS = [
   "Gesto",
   "Picareta",
   "Música",
+  "Pacote",
   "Pacotão",
   "Asa-delta",
   "Envelopamento",
