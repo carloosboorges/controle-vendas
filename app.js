@@ -771,7 +771,7 @@ function renderizarListaItensHtml(itens) {
        itemText = formatItemString(itemObj.tipo, itemObj.nome);
        copyText = itemObj.nome;
        if (itemObj.presente) {
-         presenteText = ` <span style="color:var(--accent-light); font-size:12px; margin-left:6px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-block; margin-top: 4px;">➡️ 🎁 P/: <span class="copyable-text" onclick="copiarTexto('${esc(itemObj.presente)}', 'Nick Presente', event)" title="Clique para copiar">${esc(itemObj.presente)}</span></span>`;
+         presenteText = ` <span style="color:var(--accent-light); font-size:12px; margin-left:6px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-block; margin-top: 4px;">➡️ 🎁 Para: <span class="copyable-text" onclick="copiarTexto('${esc(itemObj.presente)}', 'Nick Presente', event)" title="Clique para copiar">${esc(itemObj.presente)}</span></span>`;
        }
     }
     return `<div style="margin-bottom: 6px;">🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" title="Clique para copiar">${esc(itemText)}</span>${presenteText}</div>`;
