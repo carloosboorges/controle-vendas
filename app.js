@@ -1584,6 +1584,7 @@ function salvarEdicaoVenda() {
   if (i < 0) return;
   const venda = state.historicoVendas[i];
 
+  const novaConta = document.getElementById("editContaSelect").value;
   const cliente = document.getElementById("editClientInput").value.trim();
   const nick = document.getElementById("editNickInput").value.trim();
   const observacao = document.getElementById("editObservacaoInput").value.trim();
@@ -1591,26 +1592,70 @@ function salvarEdicaoVenda() {
   const novaHora = document.getElementById("editHoraInput").value.trim();
   const valor = parseFloat(document.getElementById("editValorInput").value);
 
-  if (!cliente || !nick || !novaData || !valor) {
+  if (!novaConta || !cliente || !nick || !novaData || !valor) {
     mostrarNotificacao("Preencha os campos obrigatórios.", "erro");
     return;
   }
 
+  // Pega os itens editados
+  const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
+  const novosItens = [];
+  itemBoxes.forEach(box => {
+    const tipo = box.querySelector(".edit-modal-item-type").value;
+    const nome = box.querySelector(".edit-modal-item-name").value.trim();
+    if (nome) novosItens.push(formatItemString(tipo, nome));
+  });
+
+  // Ajuste de Saldo de V-Bucks
+  const novoVbucks = Math.round((valor / (venda.valorBaseMomento || state.valorBase100 || 2.5)) * 100);
+  const vbucksAntigo = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, venda.valorBaseMomento);
+
+  if (venda.conta !== novaConta || venda.valor !== valor) {
+    const cAntiga = state.contas.find(c => c.nome === venda.conta);
+    if (cAntiga) cAntiga.vbucks += vbucksAntigo; // Devolve pra antiga
+    
+    const cNova = state.contas.find(c => c.nome === novaConta);
+    if (cNova) cNova.vbucks = Math.max(0, cNova.vbucks - novoVbucks); // Deduz da nova
+  }
+
+  // Atualiza Histórico
+  venda.conta = novaConta;
   venda.cliente = cliente;
   venda.nickCliente = nick;
   venda.observacao = observacao;
   venda.data = novaData;
   venda.hora = novaHora || venda.hora || "—";
   venda.valor = Number(valor);
+  venda.vbucks = novoVbucks;
+  if (novosItens.length > 0) {
+    venda.itens = novosItens;
+    venda.item = novosItens[0];
+  }
 
+  // Atualiza Sessão (se estiver lá)
   const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
   if (sessaoVenda) {
+    sessaoVenda.conta = novaConta;
     sessaoVenda.cliente = cliente;
     sessaoVenda.nickCliente = nick;
     sessaoVenda.observacao = observacao;
     sessaoVenda.data = novaData;
     sessaoVenda.hora = novaHora;
     sessaoVenda.valor = Number(valor);
+    sessaoVenda.vbucks = novoVbucks;
+    if (novosItens.length > 0) {
+      sessaoVenda.itens = novosItens;
+      sessaoVenda.item = novosItens[0];
+    }
+  }
+
+  // Move os Timers (Reservas)
+  if (state.reservas) {
+    state.reservas.forEach(r => {
+      if (r.vendaId === venda.id) {
+        r.conta = novaConta;
+      }
+    });
   }
 
   save();
@@ -1714,7 +1759,7 @@ inicializar();
 
 // Loop para atualizar os timers a cada 1 segundo automaticamente
 setInterval(() => {
-  if (state) {
+  if (state && contasAberto === false) { // Evita re-renderizar forte se outra coisa estiver aberta
     renderContasCards();
   }
 }, 1000);
