@@ -137,6 +137,7 @@ function mudarAbaHistorico(aba) {
   }
 }
 
+/* CORREÇÃO DO CLIQUE: Só re-renderiza a tela se algum menu estivesse aberto */
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".period-card-calendar-container") && 
       !e.target.closest(".period-card-mes-container") && 
@@ -759,6 +760,7 @@ function renderizarHistoricoClientesCompleto() {
   }
 }
 
+// Funcao auxiliar para renderizar a listagem de itens perfeitamente nos modais/historico
 function renderizarListaItensHtml(itens) {
   if (!Array.isArray(itens) || itens.length === 0) return "🎁 —";
   return itens.map((itemObj, n) => {
@@ -771,6 +773,7 @@ function renderizarListaItensHtml(itens) {
        itemText = formatItemString(itemObj.tipo, itemObj.nome);
        copyText = itemObj.nome;
        if (itemObj.presente) {
+         // Alterado de "P/:" para "Para:" conforme solicitado
          presenteText = ` <span style="color:var(--accent-light); font-size:12px; margin-left:6px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-block; margin-top: 4px;">➡️ 🎁 Para: <span class="copyable-text" onclick="copiarTexto('${esc(itemObj.presente)}', 'Nick Presente', event)" title="Clique para copiar">${esc(itemObj.presente)}</span></span>`;
        }
     }
@@ -1827,6 +1830,7 @@ function salvarEdicaoVenda() {
   venda.conta = novaConta;
   venda.cliente = cliente;
   venda.nickCliente = nick;
+  venda.nickPresente = ""; 
   venda.observacao = observacao;
   venda.data = novaData;
   venda.hora = novaHora || venda.hora || "—";
@@ -1842,6 +1846,7 @@ function salvarEdicaoVenda() {
     sessaoVenda.conta = novaConta;
     sessaoVenda.cliente = cliente;
     sessaoVenda.nickCliente = nick;
+    sessaoVenda.nickPresente = "";
     sessaoVenda.observacao = observacao;
     sessaoVenda.data = novaData;
     sessaoVenda.hora = novaHora;

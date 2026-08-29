@@ -270,8 +270,10 @@
       </div>
       <p style="font-size:12px; color:var(--muted); margin:10px 0 14px;">Vendas excluídas que podem ser restauradas ao histórico a qualquer momento:</p>
       <div id="trashListContainer" class="trash-list-container"></div>
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
-        <button type="button" class="btn-danger btn-compact" onclick="esvaziarLixeira()">🔥 Esvaziar Lixeira</button>
+      
+      <!-- Rodapé da Lixeira Ajustado -->
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-danger" onclick="esvaziarLixeira()">🔥 Esvaziar Lixeira</button>
         <button type="button" class="btn-gray" onclick="fecharModalLixeira()">Fechar</button>
       </div>
     </div>
