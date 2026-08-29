@@ -135,14 +135,75 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest(".period-card-calendar-container") && 
       !e.target.closest(".period-card-mes-container") && 
       !e.target.closest(".period-card-ano-container") &&
-      !e.target.closest(".apoiador-popover-container")) {
+      !e.target.closest(".apoiador-popover-container") &&
+      !e.target.closest(".autocomplete-wrapper")) {
     calPopoverAberto = false;
     mesPopoverAberto = false;
     anoPopoverAberto = false;
     apoiadorPopoverAberto = false;
+    
+    const drop = document.getElementById("clienteSuggestions");
+    if (drop) drop.style.display = "none";
+
     render();
   }
 });
+
+/* =======================================================
+   NOVA FUNÇÃO: SUGERIR CLIENTES / PREENCHER VENDAS
+======================================================= */
+function buscarSugestoesCliente(texto) {
+  const dropdown = document.getElementById("clienteSuggestions");
+  if (!dropdown) return;
+  const termo = String(texto).toLowerCase().trim();
+  if (!termo) {
+    dropdown.style.display = "none";
+    return;
+  }
+
+  // Puxar nomes unicos do historico (pegando o nick da compra mais recente dele)
+  const clientesMap = {};
+  const histReverso = [...(state.historicoVendas || [])].reverse();
+  histReverso.forEach(v => {
+     const nome = String(v.cliente || "").trim();
+     if(nome && !clientesMap[nome]) {
+         clientesMap[nome] = v.nickCliente || "";
+     }
+  });
+
+  const sugestoes = Object.keys(clientesMap).filter(n => n.toLowerCase().includes(termo));
+  
+  if (sugestoes.length === 0) {
+    dropdown.style.display = "none";
+    return;
+  }
+
+  dropdown.innerHTML = sugestoes.slice(0, 6).map(nome => `
+    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(nome).replace(/'/g, "\\'")}', '${esc(clientesMap[nome]).replace(/'/g, "\\'")}')">
+      👤 ${esc(nome)} <span class="autocomplete-nick">🎮 ${esc(clientesMap[nome])}</span>
+    </div>
+  `).join("");
+  dropdown.style.display = "block";
+}
+
+function selecionarSugestaoCliente(nome, nick) {
+  document.getElementById("clienteInput").value = nome;
+  document.getElementById("nickClienteInput").value = nick;
+  document.getElementById("clienteSuggestions").style.display = "none";
+  mostrarNotificacao(`Dados preenchidos! Se for presente, basta apagar o nick e digitar o novo.`, "info");
+}
+
+function preencherNovaVenda(nome, nick) {
+  document.getElementById("clienteInput").value = nome || "";
+  document.getElementById("nickClienteInput").value = nick || "";
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  mostrarNotificacao(`Formulário preenchido com ${nome}! Pode ajustar o nick se for presente.`, "info");
+}
+
+/* =======================================================
+   FIM FUNÇÕES SUGERIR CLIENTES
+======================================================= */
+
 
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
@@ -600,6 +661,7 @@ function abrirModalDetalhesCliente(nomeCliente) {
   const vbucksEl = document.getElementById("detalhesClienteTotalVbucks");
   const pedidosEl = document.getElementById("detalhesClienteTotalPedidos");
   const listaPedidosEl = document.getElementById("detalhesClienteListaPedidos");
+  const btnNovaVenda = document.getElementById("containerBtnNovaVendaCliente");
   if (!modal) return;
 
   const vendasCliente = (state.historicoVendas || []).filter(v => String(v.cliente || "").trim() === nomeCliente);
@@ -614,6 +676,12 @@ function abrirModalDetalhesCliente(nomeCliente) {
   if (gastoEl) gastoEl.textContent = money(totalG);
   if (vbucksEl) vbucksEl.textContent = `🪙 ${formatVBucks(totalVb)} VB`;
   if (pedidosEl) pedidosEl.textContent = vendasCliente.length;
+
+  const ultimoNick = vendasCliente.length ? vendasCliente[0].nickCliente : '';
+
+  if (btnNovaVenda) {
+    btnNovaVenda.innerHTML = `<button type="button" class="btn-green" style="font-size: 13px; padding: 4px 12px;" onclick="preencherNovaVenda('${esc(nomeCliente).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}); fecharModalDetalhesCliente();">🛒 Nova Venda</button>`;
+  }
 
   if (vendasCliente.length === 0) {
     listaPedidosEl.innerHTML = `<div style="text-align:center; padding:20px; color:var(--muted);">Nenhum pedido encontrado.</div>`;
@@ -1408,6 +1476,7 @@ function render() {
           <div class="history-details">
             <span>🪙 ${formatVBucks(vb)} V-Bucks</span>
             <div class="history-actions">
+              <button type="button" class="btn-green" style="padding:6px 12px;" onclick="preencherNovaVenda('${esc(v.cliente).replace(/'/g, "\\'")}', '${esc(v.nickCliente).replace(/'/g, "\\'")}')">♻️ Repetir</button>
               <button type="button" class="btn-gray" onclick="abrirModalEdicaoPorId('${esc(v.id)}')">✏️ Editar</button>
               <button type="button" class="btn-danger" onclick="excluirHistoricoPorId('${esc(v.id)}')">🗑️ Excluir</button>
             </div>
@@ -1597,7 +1666,6 @@ function salvarEdicaoVenda() {
     return;
   }
 
-  // Pega os itens editados
   const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
   const novosItens = [];
   itemBoxes.forEach(box => {
@@ -1606,19 +1674,17 @@ function salvarEdicaoVenda() {
     if (nome) novosItens.push(formatItemString(tipo, nome));
   });
 
-  // Ajuste de Saldo de V-Bucks
   const novoVbucks = Math.round((valor / (venda.valorBaseMomento || state.valorBase100 || 2.5)) * 100);
   const vbucksAntigo = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, venda.valorBaseMomento);
 
   if (venda.conta !== novaConta || venda.valor !== valor) {
     const cAntiga = state.contas.find(c => c.nome === venda.conta);
-    if (cAntiga) cAntiga.vbucks += vbucksAntigo; // Devolve pra antiga
+    if (cAntiga) cAntiga.vbucks += vbucksAntigo; 
     
     const cNova = state.contas.find(c => c.nome === novaConta);
-    if (cNova) cNova.vbucks = Math.max(0, cNova.vbucks - novoVbucks); // Deduz da nova
+    if (cNova) cNova.vbucks = Math.max(0, cNova.vbucks - novoVbucks); 
   }
 
-  // Atualiza Histórico
   venda.conta = novaConta;
   venda.cliente = cliente;
   venda.nickCliente = nick;
@@ -1632,7 +1698,6 @@ function salvarEdicaoVenda() {
     venda.item = novosItens[0];
   }
 
-  // Atualiza Sessão (se estiver lá)
   const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
   if (sessaoVenda) {
     sessaoVenda.conta = novaConta;
@@ -1649,7 +1714,6 @@ function salvarEdicaoVenda() {
     }
   }
 
-  // Move os Timers (Reservas)
   if (state.reservas) {
     state.reservas.forEach(r => {
       if (r.vendaId === venda.id) {
@@ -1757,9 +1821,8 @@ document.getElementById("limparValorBtn").addEventListener("click", () => {
 
 inicializar();
 
-// Loop para atualizar os timers a cada 1 segundo automaticamente
 setInterval(() => {
-  if (state && contasAberto === false) { // Evita re-renderizar forte se outra coisa estiver aberta
+  if (state && contasAberto === false) { 
     renderContasCards();
   }
 }, 1000);

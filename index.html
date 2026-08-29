@@ -63,7 +63,10 @@
     <div class="modal-card modal-card-large" style="max-width: 650px;">
       <div class="modal-head">
         <h3 id="detalhesClienteTitulo" style="margin:0; color:var(--accent-light);">👤 Detalhes do Cliente</h3>
-        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalDetalhesCliente()">✕</button>
+        <div style="display: flex; gap: 8px;">
+          <div id="containerBtnNovaVendaCliente"></div>
+          <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalDetalhesCliente()">✕</button>
+        </div>
       </div>
       
       <div style="margin: 15px 0; background: rgba(142,68,255,0.08); border: 1px solid rgba(168,85,247,0.25); border-radius: 12px; padding: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center;">
@@ -344,9 +347,12 @@
         <label>Quantidade de itens</label>
         <input id="quantidadeInput" type="number" min="1" step="1" value="1" oninput="atualizarCamposItens()">
       </div>
-      <div class="field">
+      <div class="field" style="position: relative;">
         <label>Nome do cliente</label>
-        <input id="clienteInput" type="text" maxlength="80" placeholder="Ex.: João123">
+        <div class="autocomplete-wrapper">
+          <input id="clienteInput" type="text" maxlength="80" placeholder="Ex.: João123" oninput="buscarSugestoesCliente(this.value)" autocomplete="off">
+          <div id="clienteSuggestions" class="autocomplete-dropdown"></div>
+        </div>
       </div>
       <div class="field">
         <label>Nick do cliente</label>
