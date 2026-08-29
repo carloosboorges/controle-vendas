@@ -72,7 +72,6 @@ function copiarTexto(texto, tipo = "Texto", event = null) {
   if (event) event.stopPropagation();
   if (!texto || texto === "—") return;
   
-  // Limpar a seleção atual para evitar bugs de click no painel
   if (window.getSelection) {
     window.getSelection().removeAllRanges();
   }
@@ -138,7 +137,6 @@ function mudarAbaHistorico(aba) {
   }
 }
 
-/* CORREÇÃO DO CLIQUE: Só re-renderiza a tela se algum menu estivesse aberto */
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".period-card-calendar-container") && 
       !e.target.closest(".period-card-mes-container") && 
@@ -166,7 +164,6 @@ document.addEventListener("click", (e) => {
       dropNick.style.display = "none";
     }
 
-    // Fechar os dropdowns de presentes
     for (let j = 0; j < 20; j++) {
        const dropP = document.getElementById("nickPresenteSuggestions_" + j);
        if (dropP && dropP.style.display === "block") {
@@ -306,7 +303,7 @@ function preencherNovaVenda(nome, nick) {
   document.getElementById("clienteInput").value = nome || "";
   document.getElementById("nickClienteInput").value = nick || "";
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  mostrarNotificacao(`Formulário preenchido com ${nome}!`, "info");
+  mostrarNotificacao(`Formulário preenchido com ${nome}! Pode ajustar o nick se for presente.`, "info");
 }
 
 /* =======================================================
@@ -762,7 +759,6 @@ function renderizarHistoricoClientesCompleto() {
   }
 }
 
-// Funcao auxiliar para renderizar a listagem de itens perfeitamente nos modais/historico
 function renderizarListaItensHtml(itens) {
   if (!Array.isArray(itens) || itens.length === 0) return "🎁 —";
   return itens.map((itemObj, n) => {
@@ -818,13 +814,11 @@ function abrirModalDetalhesCliente(nomeCliente) {
       const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
       const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
       
-      const txtPresenteGlobal = v.nickPresente ? `<span style="color:var(--accent-light); font-size:12px; margin-left:6px;">➡️ 🎁 Para: <b>${esc(v.nickPresente)}</b></span>` : "";
-
       return `
         <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
           <div>
             <div style="font-size: 12px; font-weight: 700; color: var(--accent-light);">📦 Pedido #${vendasCliente.length - i} · Conta: ${esc(v.conta)}</div>
-            <div style="font-size: 13px; color: #fff; margin-top: 3px;">🎮 Nick: <b>${esc(v.nickCliente)}</b> ${txtPresenteGlobal}</div>
+            <div style="font-size: 13px; color: #fff; margin-top: 3px;">🎮 Nick: <b>${esc(v.nickCliente)}</b></div>
             <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">${itensHtmlStr}</div>
             <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
           </div>
@@ -1585,9 +1579,6 @@ function render() {
         const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
         const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
 
-        // Legacy global presente render
-        const txtPresenteGlobal = v.nickPresente ? ` <span style="color:var(--accent-light); font-size:12px;">➡️ 🎁 Global: <span class="copyable-text" onclick="copiarTexto('${esc(v.nickPresente)}', 'Nick Presente', event)" title="Clique para copiar">${esc(v.nickPresente)}</span></span>` : "";
-
         const observacaoHtml = v.observacao ? `
           <div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 4px 8px; border-radius: 6px; border-left: 3px solid var(--accent);">
             💬 <b>Observação:</b> ${esc(v.observacao)}
@@ -1606,7 +1597,6 @@ function render() {
               </div>
               <div class="history-client">
                 🎮 <span class="copyable-text" onclick="copiarTexto('${esc(v.nickCliente)}', 'Nick', event)" title="Clique para copiar">${esc(v.nickCliente)}</span>
-                ${txtPresenteGlobal}
               </div>
               <div class="history-item" style="margin-top: 8px;">${itensHtmlStr}</div>
               <div class="history-date">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
@@ -1781,6 +1771,7 @@ function abrirModalEdicaoPorId(vendaId) {
       <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
           <label style="font-size:12px;">Item ${idx + 1}</label>
+          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="removerItemEdicao(${idx})">✕</button>` : ""}
         </div>
         <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
           <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
@@ -1836,8 +1827,6 @@ function salvarEdicaoVenda() {
   venda.conta = novaConta;
   venda.cliente = cliente;
   venda.nickCliente = nick;
-  // Remove global presente on edit, moves it into items
-  venda.nickPresente = ""; 
   venda.observacao = observacao;
   venda.data = novaData;
   venda.hora = novaHora || venda.hora || "—";
@@ -1853,7 +1842,6 @@ function salvarEdicaoVenda() {
     sessaoVenda.conta = novaConta;
     sessaoVenda.cliente = cliente;
     sessaoVenda.nickCliente = nick;
-    sessaoVenda.nickPresente = "";
     sessaoVenda.observacao = observacao;
     sessaoVenda.data = novaData;
     sessaoVenda.hora = novaHora;
@@ -1967,6 +1955,11 @@ async function novaLive() { state.vendas = []; await save(); mostrarNotificacao(
 
 document.getElementById("limparValorBtn").addEventListener("click", () => {
   document.getElementById("valorInput").value = "";
+  document.getElementById("clienteInput").value = "";
+  document.getElementById("nickClienteInput").value = "";
+  document.getElementById("observacaoInput").value = "";
+  document.getElementById("quantidadeInput").value = "1";
+  atualizarCamposItens(); 
   atualizarPreviewVBucks();
 });
 
