@@ -63,7 +63,7 @@
     <div class="modal-card modal-card-large" style="max-width: 650px;">
       <div class="modal-head">
         <h3 id="detalhesClienteTitulo" style="margin:0; color:var(--accent-light);">👤 Detalhes do Cliente</h3>
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 8px; align-items: center;">
           <div id="containerBtnNovaVendaCliente"></div>
           <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalDetalhesCliente()">✕</button>
         </div>
@@ -215,14 +215,18 @@
           <select id="editContaSelect"></select>
         </div>
         
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
           <div class="field">
             <label>Nome do Cliente</label>
             <input id="editClientInput" type="text" maxlength="80">
           </div>
           <div class="field">
-            <label>Nick do Cliente</label>
+            <label>Nick (Comprador)</label>
             <input id="editNickInput" type="text" maxlength="80">
+          </div>
+          <div class="field">
+            <label>Nick (Presente)</label>
+            <input id="editNickPresenteInput" type="text" maxlength="80" placeholder="Opcional">
           </div>
         </div>
 
@@ -347,6 +351,7 @@
         <label>Quantidade de itens</label>
         <input id="quantidadeInput" type="number" min="1" step="1" value="1" oninput="atualizarCamposItens()">
       </div>
+      
       <div class="field" style="position: relative;">
         <label>Nome do cliente</label>
         <div class="autocomplete-wrapper">
@@ -354,9 +359,18 @@
           <div id="clienteSuggestions" class="autocomplete-dropdown"></div>
         </div>
       </div>
-      <div class="field">
+      
+      <div class="field" style="position: relative;">
         <label>Nick do cliente</label>
-        <input id="nickClienteInput" type="text" maxlength="80" placeholder="Ex.: JoaoFortnite">
+        <div class="autocomplete-wrapper">
+          <input id="nickClienteInput" type="text" maxlength="80" placeholder="Ex.: JoaoFortnite" oninput="buscarSugestoesNick(this.value)" autocomplete="off">
+          <div id="nickSuggestions" class="autocomplete-dropdown"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Presente para (Nick) <span style="font-size:10px; color:var(--accent-light)">(Opcional)</span></label>
+        <input id="nickPresenteInput" type="text" maxlength="80" placeholder="Ex.: AmigoFortnite">
       </div>
     </div>
 
@@ -366,7 +380,7 @@
     <!-- Observação por último, abaixo dos itens -->
     <div class="field" style="margin-top: 14px;">
       <label>💬 Observação (opcional)</label>
-      <input id="observacaoInput" type="text" maxlength="150" placeholder="Ex.: Presente para a conta secundária de fulano">
+      <input id="observacaoInput" type="text" maxlength="150" placeholder="Ex.: Pago via Pix">
     </div>
 
     <!-- Botões de Ação -->

@@ -142,15 +142,18 @@ document.addEventListener("click", (e) => {
     anoPopoverAberto = false;
     apoiadorPopoverAberto = false;
     
-    const drop = document.getElementById("clienteSuggestions");
-    if (drop) drop.style.display = "none";
+    const dropCliente = document.getElementById("clienteSuggestions");
+    if (dropCliente) dropCliente.style.display = "none";
+    
+    const dropNick = document.getElementById("nickSuggestions");
+    if (dropNick) dropNick.style.display = "none";
 
     render();
   }
 });
 
 /* =======================================================
-   NOVA FUNÇÃO: SUGERIR CLIENTES / PREENCHER VENDAS
+   NOVA FUNÇÃO: SUGERIR CLIENTES E NICKS
 ======================================================= */
 function buscarSugestoesCliente(texto) {
   const dropdown = document.getElementById("clienteSuggestions");
@@ -161,7 +164,6 @@ function buscarSugestoesCliente(texto) {
     return;
   }
 
-  // Puxar nomes unicos do historico (pegando o nick da compra mais recente dele)
   const clientesMap = {};
   const histReverso = [...(state.historicoVendas || [])].reverse();
   histReverso.forEach(v => {
@@ -186,24 +188,62 @@ function buscarSugestoesCliente(texto) {
   dropdown.style.display = "block";
 }
 
+function buscarSugestoesNick(texto) {
+  const dropdown = document.getElementById("nickSuggestions");
+  if (!dropdown) return;
+  const termo = String(texto).toLowerCase().trim();
+  if (!termo) {
+    dropdown.style.display = "none";
+    return;
+  }
+
+  const nicksMap = {};
+  const histReverso = [...(state.historicoVendas || [])].reverse();
+  histReverso.forEach(v => {
+     const nick = String(v.nickCliente || "").trim();
+     if(nick && !nicksMap[nick]) {
+         nicksMap[nick] = v.cliente || "";
+     }
+  });
+
+  const sugestoes = Object.keys(nicksMap).filter(n => n.toLowerCase().includes(termo));
+  
+  if (sugestoes.length === 0) {
+    dropdown.style.display = "none";
+    return;
+  }
+
+  dropdown.innerHTML = sugestoes.slice(0, 6).map(nick => `
+    <div class="autocomplete-item" onclick="selecionarSugestaoNick('${esc(nicksMap[nick]).replace(/'/g, "\\'")}', '${esc(nick).replace(/'/g, "\\'")}')">
+      🎮 ${esc(nick)} <span class="autocomplete-nick">👤 ${esc(nicksMap[nick])}</span>
+    </div>
+  `).join("");
+  dropdown.style.display = "block";
+}
+
 function selecionarSugestaoCliente(nome, nick) {
   document.getElementById("clienteInput").value = nome;
   document.getElementById("nickClienteInput").value = nick;
   document.getElementById("clienteSuggestions").style.display = "none";
-  mostrarNotificacao(`Dados preenchidos! Se for presente, basta apagar o nick e digitar o novo.`, "info");
+}
+
+function selecionarSugestaoNick(nome, nick) {
+  document.getElementById("clienteInput").value = nome;
+  document.getElementById("nickClienteInput").value = nick;
+  document.getElementById("nickSuggestions").style.display = "none";
 }
 
 function preencherNovaVenda(nome, nick) {
   document.getElementById("clienteInput").value = nome || "";
   document.getElementById("nickClienteInput").value = nick || "";
+  document.getElementById("nickPresenteInput").value = "";
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  mostrarNotificacao(`Formulário preenchido com ${nome}! Pode ajustar o nick se for presente.`, "info");
+  mostrarNotificacao(`Formulário preenchido com ${nome}!`, "info");
 }
 
 /* =======================================================
    FIM FUNÇÕES SUGERIR CLIENTES
 ======================================================= */
-
 
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
@@ -680,7 +720,7 @@ function abrirModalDetalhesCliente(nomeCliente) {
   const ultimoNick = vendasCliente.length ? vendasCliente[0].nickCliente : '';
 
   if (btnNovaVenda) {
-    btnNovaVenda.innerHTML = `<button type="button" class="btn-green" style="font-size: 13px; padding: 4px 12px;" onclick="preencherNovaVenda('${esc(nomeCliente).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}); fecharModalDetalhesCliente();">🛒 Nova Venda</button>`;
+    btnNovaVenda.innerHTML = `<button type="button" class="btn-green" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content;" onclick="fecharModalDetalhesCliente(); preencherNovaVenda('${esc(nomeCliente).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>`;
   }
 
   if (vendasCliente.length === 0) {
@@ -689,11 +729,14 @@ function abrirModalDetalhesCliente(nomeCliente) {
     listaPedidosEl.innerHTML = vendasCliente.map((v, i) => {
       const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
       const itensStr = Array.isArray(v.itens) && v.itens.length ? v.itens.join(", ") : (v.item || "—");
+      
+      const txtPresente = v.nickPresente ? `<span style="color:var(--accent-light); font-size:12px; margin-left:6px;">➡️ 🎁 Para: <b>${esc(v.nickPresente)}</b></span>` : "";
+
       return `
         <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
           <div>
             <div style="font-size: 12px; font-weight: 700; color: var(--accent-light);">📦 Pedido #${vendasCliente.length - i} · Conta: ${esc(v.conta)}</div>
-            <div style="font-size: 13px; color: #fff; margin-top: 3px;">🎮 Nick: <b>${esc(v.nickCliente)}</b></div>
+            <div style="font-size: 13px; color: #fff; margin-top: 3px;">🎮 Nick: <b>${esc(v.nickCliente)}</b> ${txtPresente}</div>
             <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">🎁 Itens: ${esc(itensStr)}</div>
             <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
           </div>
@@ -1448,6 +1491,8 @@ function render() {
           ? v.itens.map((itemStr, n) => `${n === 0 ? "" : "<br>"}🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(extrairApenasNomeItem(itemStr))}', 'Item', event)" title="Clique para copiar">${esc(itemStr)}</span>`).join("")
           : `🎁 <span class="copyable-text" onclick="copiarTexto('${esc(extrairApenasNomeItem(v.item))}', 'Item', event)" title="Clique para copiar">${esc(v.item)}</span>`;
 
+        const txtPresente = v.nickPresente ? ` <span style="color:var(--accent-light); font-size:12px;">➡️ 🎁 Para: <span class="copyable-text" onclick="copiarTexto('${esc(v.nickPresente)}', 'Nick Presente', event)" title="Clique para copiar">${esc(v.nickPresente)}</span></span>` : "";
+
         const observacaoHtml = v.observacao ? `
           <div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 4px 8px; border-radius: 6px; border-left: 3px solid var(--accent);">
             💬 <b>Observação:</b> ${esc(v.observacao)}
@@ -1466,6 +1511,7 @@ function render() {
               </div>
               <div class="history-client">
                 🎮 <span class="copyable-text" onclick="copiarTexto('${esc(v.nickCliente)}', 'Nick', event)" title="Clique para copiar">${esc(v.nickCliente)}</span>
+                ${txtPresente}
               </div>
               <div class="history-item">${itensListHtml}</div>
               <div class="history-date">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
@@ -1556,6 +1602,7 @@ function adicionarVenda() {
   const valor = parseFloat(document.getElementById("valorInput").value);
   const cliente = document.getElementById("clienteInput").value.trim();
   const nickCliente = document.getElementById("nickClienteInput").value.trim();
+  const nickPresente = document.getElementById("nickPresenteInput").value.trim();
   const observacao = document.getElementById("observacaoInput")?.value.trim() || "";
   const quantidade = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
   const itens = obterItensDaVenda();
@@ -1563,7 +1610,7 @@ function adicionarVenda() {
 
   if (!conta) { mostrarNotificacao("Ative pelo menos uma conta.", "erro"); return; }
   if (!valor || valor <= 0) { mostrarNotificacao("Digite um valor válido.", "erro"); return; }
-  if (!cliente || !nickCliente) { mostrarNotificacao("Preencha cliente e nick.", "erro"); return; }
+  if (!cliente || !nickCliente) { mostrarNotificacao("Preencha cliente e nick do comprador.", "erro"); return; }
 
   const usadas = usadasDaConta(conta);
   if (usadas + quantidade > 5) { mostrarNotificacao(`Limite excedido na conta ${conta}.`, "erro"); return; }
@@ -1578,7 +1625,7 @@ function adicionarVenda() {
 
   const novaVenda = {
     id: vendaId, conta, valor: Number(valor), vbucks: vbucksNecessarios, valorBaseMomento: baseAtual,
-    quantidade, cliente, nickCliente, observacao, item: itens[0] || "", itens,
+    quantidade, cliente, nickCliente, nickPresente, observacao, item: itens[0] || "", itens,
     data: d.toLocaleDateString("pt-BR"), hora: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), criadoEmMs: agora
   };
 
@@ -1591,6 +1638,7 @@ function adicionarVenda() {
   document.getElementById("valorInput").value = "";
   document.getElementById("clienteInput").value = "";
   document.getElementById("nickClienteInput").value = "";
+  document.getElementById("nickPresenteInput").value = "";
   document.getElementById("observacaoInput").value = "";
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens();
@@ -1617,6 +1665,7 @@ function abrirModalEdicaoPorId(vendaId) {
 
   document.getElementById("editClientInput").value = venda.cliente || "";
   document.getElementById("editNickInput").value = venda.nickCliente || "";
+  document.getElementById("editNickPresenteInput").value = venda.nickPresente || "";
   document.getElementById("editObservacaoInput").value = venda.observacao || "";
   document.getElementById("editDataInput").value = venda.data || "";
   document.getElementById("editHoraInput").value = venda.hora || "";
@@ -1656,6 +1705,7 @@ function salvarEdicaoVenda() {
   const novaConta = document.getElementById("editContaSelect").value;
   const cliente = document.getElementById("editClientInput").value.trim();
   const nick = document.getElementById("editNickInput").value.trim();
+  const nickPresente = document.getElementById("editNickPresenteInput").value.trim();
   const observacao = document.getElementById("editObservacaoInput").value.trim();
   const novaData = document.getElementById("editDataInput").value.trim();
   const novaHora = document.getElementById("editHoraInput").value.trim();
@@ -1688,6 +1738,7 @@ function salvarEdicaoVenda() {
   venda.conta = novaConta;
   venda.cliente = cliente;
   venda.nickCliente = nick;
+  venda.nickPresente = nickPresente;
   venda.observacao = observacao;
   venda.data = novaData;
   venda.hora = novaHora || venda.hora || "—";
@@ -1703,6 +1754,7 @@ function salvarEdicaoVenda() {
     sessaoVenda.conta = novaConta;
     sessaoVenda.cliente = cliente;
     sessaoVenda.nickCliente = nick;
+    sessaoVenda.nickPresente = nickPresente;
     sessaoVenda.observacao = observacao;
     sessaoVenda.data = novaData;
     sessaoVenda.hora = novaHora;
