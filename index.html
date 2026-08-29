@@ -215,18 +215,14 @@
           <select id="editContaSelect"></select>
         </div>
         
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
           <div class="field">
             <label>Nome do Cliente</label>
             <input id="editClientInput" type="text" maxlength="80">
           </div>
           <div class="field">
-            <label>Nick (Comprador)</label>
+            <label>Nick do Cliente</label>
             <input id="editNickInput" type="text" maxlength="80">
-          </div>
-          <div class="field">
-            <label>Nick (Presente)</label>
-            <input id="editNickPresenteInput" type="text" maxlength="80" placeholder="Opcional">
           </div>
         </div>
 
@@ -249,9 +245,16 @@
           <input id="editValorInput" type="number" step="0.01" min="0.01" oninput="atualizarPreviewVBucksEdicao()">
         </div>
 
-        <div>
-          <label style="font-size:13px; color:var(--muted); font-weight:600; margin-bottom:6px; display:block;">Itens do Pedido</label>
-          <div id="editItensListContainer" style="display:flex; flex-direction:column; gap:8px;"></div>
+        <!-- Linha Unificada: Itens na esquerda e Presente na direita (Igual formulário principal) -->
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; align-items: flex-start;">
+          <div id="editItensListContainer" class="itens-group-container" style="flex: 2.5; min-width: 280px; margin-top: 0;"></div>
+
+          <div class="item-picker-box" style="flex: 1; min-width: 200px;">
+            <label>Presente para (Nick) <span style="font-size:10px; color:var(--accent-light)">(Opcional)</span></label>
+            <div class="item-picker-row">
+              <input id="editNickPresenteInput" type="text" maxlength="80" placeholder="Opcional" style="width: 100%;">
+            </div>
+          </div>
         </div>
 
         <div class="field" style="margin-top: 10px;">

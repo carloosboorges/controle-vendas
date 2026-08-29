@@ -1665,11 +1665,11 @@ function abrirModalEdicaoPorId(vendaId) {
 
   document.getElementById("editClientInput").value = venda.cliente || "";
   document.getElementById("editNickInput").value = venda.nickCliente || "";
-  document.getElementById("editNickPresenteInput").value = venda.nickPresente || "";
-  document.getElementById("editObservacaoInput").value = venda.observacao || "";
   document.getElementById("editDataInput").value = venda.data || "";
   document.getElementById("editHoraInput").value = venda.hora || "";
   document.getElementById("editValorInput").value = Number(venda.valor || 0).toFixed(2);
+  document.getElementById("editNickPresenteInput").value = venda.nickPresente || "";
+  document.getElementById("editObservacaoInput").value = venda.observacao || "";
   
   atualizarPreviewVBucksEdicao();
 
@@ -1680,7 +1680,7 @@ function abrirModalEdicaoPorId(vendaId) {
     const { tipo, nome } = parseItemString(itemStr);
     const optionsHtml = CATEGORIAS_ITENS.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join("");
     return `
-      <div class="item-picker-box">
+      <div class="item-picker-box" style="margin-top: 0;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <label style="font-size:12px;">Item ${idx + 1}</label>
           ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="removerItemEdicao(${idx})">✕</button>` : ""}
