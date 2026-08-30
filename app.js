@@ -77,7 +77,13 @@ function copiarTexto(texto, tipo = "Texto", event = null) {
   }
 
   navigator.clipboard.writeText(texto).then(() => {
-    mostrarNotificacao(`📋 ${tipo} copiado: "${texto}"`, "sucesso");
+    if (tipo === 'E-mail') {
+      mostrarNotificacao("📋 E-mail copiado!", "sucesso");
+    } else if (tipo === 'Senha') {
+      mostrarNotificacao("📋 Senha copiada!", "sucesso");
+    } else {
+      mostrarNotificacao(`📋 ${tipo} copiado: "${texto}"`, "sucesso");
+    }
   }).catch(() => {
     mostrarNotificacao("Não foi possível copiar.", "erro");
   });
@@ -1303,21 +1309,7 @@ function render() {
 
   renderContasCards(tSessao);
 
-  document.getElementById("contas").innerHTML = (state.contas || []).map((c, i) => {
-    const hasCreds = c.email || c.senha;
-    const credsId = `creds-${i}`;
-    
-    // Botão de revelar credenciais que fica visível se a conta tiver email/senha cadastrado
-    const btnToggle = hasCreds ? `<button type="button" style="background: transparent; border: 1px solid var(--border); color: var(--accent-light); font-size: 11px; padding: 4px 8px; border-radius: 6px; margin-top: 6px; cursor: pointer;" onclick="const el = document.getElementById('${credsId}'); el.style.display = el.style.display === 'none' ? 'flex' : 'none'; this.textContent = el.style.display === 'none' ? '🔒 Ver Credenciais ▾' : '🔓 Ocultar Credenciais ▴';">🔒 Ver Credenciais ▾</button>` : '';
-
-    // Botões de copiar propriamente ditos
-    const btnEmail = c.email ? `<button type="button" class="btn-gray" style="padding: 4px 8px; font-size: 11px;" onclick="copiarTexto('${esc(c.email)}', 'E-mail da Conta', event)">📧 Copiar E-mail</button>` : '';
-    const btnSenha = c.senha ? `<button type="button" class="btn-gray" style="padding: 4px 8px; font-size: 11px;" onclick="copiarTexto('${esc(c.senha)}', 'Senha da Conta', event)">🔑 Copiar Senha</button>` : '';
-    
-    // Painel invisível que aparece ao clicar no toggle
-    const painelCreds = hasCreds ? `<div id="${credsId}" style="display:none; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); flex-wrap: wrap;">${btnEmail}${btnSenha}</div>` : '';
-
-    return `
+  document.getElementById("contas").innerHTML = (state.contas || []).map((c, i) => `
     <div class="account-row">
       <div class="account-info">
         <div class="account-header-line">
@@ -1325,16 +1317,13 @@ function render() {
           <span class="badge ${c.ativa ? "" : "off"}">${c.ativa ? "🟢 ATIVA" : "⚫ DESATIVADA"}</span>
         </div>
         <div class="small">${c.ativa ? `Saldo: ${formatVBucks(c.vbucks)} V-Bucks` : "Desativada"}</div>
-        ${btnToggle}
-        ${painelCreds}
       </div>
       <div class="account-actions">
         <button type="button" class="btn-gray" onclick="abrirModalEditConta(${i})">✏️ Editar</button>
         <button type="button" class="${c.ativa ? "btn-gray" : "btn-green"}" onclick="toggleConta(${i})">${c.ativa ? "Desativar" : "Ativar"}</button>
         <button type="button" class="btn-danger" onclick="removerConta(${i})">🗑️ Remover</button>
       </div>
-    </div>`;
-  }).join("");
+    </div>`).join("");
 
   const totalHistorico = (state.historicoVendas || []).reduce((s, v) => s + Number(v.valor || 0), 0);
   const totalPedidosHistorico = (state.historicoVendas || []).length;
@@ -1681,6 +1670,10 @@ function renderContasCards(t) {
       </div>
     `);
 
+    const btnEmail = c.email ? `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 8px;" onclick="copiarTexto('${esc(c.email)}', 'E-mail', event)">📧 Copiar E-mail</button>` : '';
+    const btnSenha = c.senha ? `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 8px;" onclick="copiarTexto('${esc(c.senha)}', 'Senha', event)">🔑 Copiar Senha</button>` : '';
+    const painelCreds = (c.email || c.senha) ? `<div style="display:flex; gap: 8px; margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">${btnEmail}${btnSenha}</div>` : '';
+
     return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
       <div class="account-card-head">
         <div class="name">${esc(c.nome)}</div>
@@ -1691,6 +1684,7 @@ function renderContasCards(t) {
       <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta sessão</div>
       <div class="sales-count">📦 ${quantidade}/5 usadas · ${disponiveis} ${disponiveis === 1 ? "disponível" : "disponíveis"}</div>
       <div class="timer">${tempos.length ? tempos.join("") : `🟢 5 vagas disponíveis`}</div>
+      ${painelCreds}
     </div>`;
   }).join("");
 }
