@@ -760,7 +760,6 @@ function renderizarHistoricoClientesCompleto() {
   }
 }
 
-// Funcao auxiliar para renderizar a listagem de itens perfeitamente nos modais/historico
 function renderizarListaItensHtml(itens) {
   if (!Array.isArray(itens) || itens.length === 0) return "🎁 —";
   return itens.map((itemObj, n) => {
@@ -1958,7 +1957,8 @@ function removerTimersConta(i) {
 }
 async function novaLive() { state.vendas = []; await save(); mostrarNotificacao("Nova sessão iniciada!", "sucesso"); }
 
-document.getElementById("limparValorBtn").addEventListener("click", () => {
+// Botão 1: Limpar Tudo
+document.getElementById("limparTudoBtn").addEventListener("click", () => {
   document.getElementById("valorInput").value = "";
   document.getElementById("clienteInput").value = "";
   document.getElementById("nickClienteInput").value = "";
@@ -1966,6 +1966,13 @@ document.getElementById("limparValorBtn").addEventListener("click", () => {
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens(); 
   atualizarPreviewVBucks();
+});
+
+// Botão 2: Limpar Só o Valor
+document.getElementById("limparSoValorBtn").addEventListener("click", () => {
+  document.getElementById("valorInput").value = "";
+  atualizarPreviewVBucks();
+  document.getElementById("valorInput").focus();
 });
 
 inicializar();
