@@ -800,7 +800,7 @@ function abrirModalDetalhesCliente(nomeCliente) {
     totalVb += v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
   });
 
-  if (tituloEl) tituloEl.textContent = `👤 Histórico de: ${nomeCliente}`;
+  if (tituloEl) tituloEl.innerHTML = `<span style="font-size: 11px; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 2px;">👤 Histórico do Cliente</span><span style="font-size: 18px; color: #fff;">${esc(nomeCliente)}</span>`;
   if (gastoEl) gastoEl.textContent = money(totalG);
   if (vbucksEl) vbucksEl.textContent = `🪙 ${formatVBucks(totalVb)} VB`;
   if (pedidosEl) pedidosEl.textContent = vendasCliente.length;
