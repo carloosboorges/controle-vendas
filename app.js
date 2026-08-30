@@ -137,7 +137,6 @@ function mudarAbaHistorico(aba) {
   }
 }
 
-/* CORREÇÃO DO CLIQUE: Só re-renderiza a tela se algum menu estivesse aberto */
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".period-card-calendar-container") && 
       !e.target.closest(".period-card-mes-container") && 
@@ -179,9 +178,6 @@ document.addEventListener("click", (e) => {
   }
 });
 
-/* =======================================================
-   SISTEMA INTELIGENTE: SUGERIR CLIENTES E NICKS
-======================================================= */
 function buscarSugestoesCliente(texto) {
   const dropdown = document.getElementById("clienteSuggestions");
   if (!dropdown) return;
@@ -306,10 +302,6 @@ function preencherNovaVenda(nome, nick) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   mostrarNotificacao(`Formulário preenchido com ${nome}! Pode ajustar o nick se for presente.`, "info");
 }
-
-/* =======================================================
-   FIM FUNÇÕES SUGERIR CLIENTES
-======================================================= */
 
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
@@ -772,7 +764,6 @@ function renderizarListaItensHtml(itens) {
        itemText = formatItemString(itemObj.tipo, itemObj.nome);
        copyText = itemObj.nome;
        if (itemObj.presente) {
-         // Alterado de "P/:" para "Para:" conforme solicitado
          presenteText = ` <span style="color:var(--accent-light); font-size:12px; margin-left:6px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-block; margin-top: 4px;">➡️ 🎁 Para: <span class="copyable-text" onclick="copiarTexto('${esc(itemObj.presente)}', 'Nick Presente', event)" title="Clique para copiar">${esc(itemObj.presente)}</span></span>`;
        }
     }
@@ -803,23 +794,24 @@ function abrirModalDetalhesCliente(nomeCliente) {
   if (vbucksEl) vbucksEl.textContent = `🪙 ${formatVBucks(totalVb)} VB`;
   if (pedidosEl) pedidosEl.textContent = vendasCliente.length;
 
-  const ultimoNick = vendasCliente.length ? vendasCliente[0].nickCliente : '';
+  const vendasReversas = [...vendasCliente].reverse();
+  const ultimoNick = vendasReversas.length ? vendasReversas[0].nickCliente : '';
 
   if (btnNovaVenda) {
     btnNovaVenda.innerHTML = `<button type="button" class="btn-green" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content;" onclick="fecharModalDetalhesCliente(); preencherNovaVenda('${esc(nomeCliente).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>`;
   }
 
-  if (vendasCliente.length === 0) {
+  if (vendasReversas.length === 0) {
     listaPedidosEl.innerHTML = `<div style="text-align:center; padding:20px; color:var(--muted);">Nenhum pedido encontrado.</div>`;
   } else {
-    listaPedidosEl.innerHTML = vendasCliente.map((v, i) => {
+    listaPedidosEl.innerHTML = vendasReversas.map((v, i) => {
       const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
       const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
       
       return `
         <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
           <div>
-            <div style="font-size: 12px; font-weight: 700; color: var(--accent-light);">📦 Pedido #${vendasCliente.length - i} · Conta: ${esc(v.conta)}</div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--accent-light);">📦 Pedido #${vendasReversas.length - i} · Conta: ${esc(v.conta)}</div>
             <div style="font-size: 13px; color: #fff; margin-top: 3px;">🎮 Nick: <b>${esc(v.nickCliente)}</b></div>
             <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">${itensHtmlStr}</div>
             <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
@@ -1956,6 +1948,63 @@ function removerTimersConta(i) {
   if (c) { state.reservas = state.reservas.filter(r => r.conta !== c.nome); save(); }
 }
 async function novaLive() { state.vendas = []; await save(); mostrarNotificacao("Nova sessão iniciada!", "sucesso"); }
+
+function abrirModalDetalhesCliente(nomeCliente) {
+  const modal = document.getElementById("clienteDetalhesModal");
+  const tituloEl = document.getElementById("detalhesClienteTitulo");
+  const gastoEl = document.getElementById("detalhesClienteTotalGasto");
+  const vbucksEl = document.getElementById("detalhesClienteTotalVbucks");
+  const pedidosEl = document.getElementById("detalhesClienteTotalPedidos");
+  const listaPedidosEl = document.getElementById("detalhesClienteListaPedidos");
+  const btnNovaVenda = document.getElementById("containerBtnNovaVendaCliente");
+  if (!modal) return;
+
+  const vendasCliente = (state.historicoVendas || []).filter(v => String(v.cliente || "").trim() === nomeCliente);
+
+  let totalG = 0, totalVb = 0;
+  vendasCliente.forEach(v => {
+    totalG += Number(v.valor || 0);
+    totalVb += v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+  });
+
+  if (tituloEl) tituloEl.innerHTML = `<span style="font-size: 11px; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 2px;">👤 Histórico de Cliente</span><span style="font-size: 18px; color: #fff;">${esc(nomeCliente)}</span>`;
+  if (gastoEl) gastoEl.textContent = money(totalG);
+  if (vbucksEl) vbucksEl.textContent = `🪙 ${formatVBucks(totalVb)} VB`;
+  if (pedidosEl) pedidosEl.textContent = vendasCliente.length;
+
+  const vendasReversas = [...vendasCliente].reverse();
+  const ultimoNick = vendasReversas.length ? vendasReversas[0].nickCliente : '';
+
+  if (btnNovaVenda) {
+    btnNovaVenda.innerHTML = `<button type="button" class="btn-green" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content;" onclick="fecharModalDetalhesCliente(); preencherNovaVenda('${esc(nomeCliente).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>`;
+  }
+
+  if (vendasReversas.length === 0) {
+    listaPedidosEl.innerHTML = `<div style="text-align:center; padding:20px; color:var(--muted);">Nenhum pedido encontrado.</div>`;
+  } else {
+    listaPedidosEl.innerHTML = vendasReversas.map((v, i) => {
+      const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+      const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
+
+      return `
+        <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+          <div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--accent-light);">📦 Pedido #${vendasReversas.length - i} · Conta: ${esc(v.conta)}</div>
+            <div style="font-size: 13px; color: #fff; margin-top: 3px;">🎮 Nick: <b>${esc(v.nickCliente)}</b></div>
+            <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">${itensHtmlStr}</div>
+            <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
+          </div>
+          <div style="text-align: right; flex-shrink: 0;">
+            <div style="font-size: 16px; font-weight: 900; color: var(--green);">${money(v.valor)}</div>
+            <div style="font-size: 11px; color: var(--accent-light); font-weight: 700; margin-top: 2px;">🪙 ${formatVBucks(vb)} VB</div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  modal.style.display = "flex";
+}
 
 // Botão 1: Limpar Tudo
 document.getElementById("limparTudoBtn").addEventListener("click", () => {
