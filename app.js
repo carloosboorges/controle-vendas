@@ -945,6 +945,8 @@ function salvarValorBaseModal() {
 function abrirModalAddConta() {
   document.getElementById("novaContaNomeInput").value = "";
   document.getElementById("novaContaVbucksInput").value = "0";
+  document.getElementById("novaContaEmailInput").value = "";
+  document.getElementById("novaContaSenhaInput").value = "";
   document.getElementById("addContaModal").style.display = "flex";
 }
 function fecharModalAddConta() { document.getElementById("addContaModal").style.display = "none"; }
@@ -952,8 +954,11 @@ function fecharModalAddConta() { document.getElementById("addContaModal").style.
 function salvarNovaContaModal() {
   const nome = document.getElementById("novaContaNomeInput")?.value.trim();
   const vbucks = parseInt(String(document.getElementById("novaContaVbucksInput")?.value || "0").replace(/\D/g, ""), 10) || 0;
+  const email = document.getElementById("novaContaEmailInput")?.value.trim() || "";
+  const senha = document.getElementById("novaContaSenhaInput")?.value.trim() || "";
+
   if (!nome) { mostrarNotificacao("Digite o nome da conta.", "erro"); return; }
-  state.contas.push({ nome, ativa: false, vbucks: Number(vbucks) || 0 });
+  state.contas.push({ nome, ativa: false, vbucks: Number(vbucks) || 0, email, senha });
   save();
   fecharModalAddConta();
   mostrarNotificacao(`Conta ${nome} adicionada!`, "sucesso");
@@ -966,6 +971,8 @@ function abrirModalEditConta(i) {
   document.getElementById("editContaNomeInput").value = conta.nome;
   document.getElementById("editContaVbucksInput").value = Number(conta.vbucks) || 0;
   document.getElementById("editContaSomarVbucksInput").value = "";
+  document.getElementById("editContaEmailInput").value = conta.email || "";
+  document.getElementById("editContaSenhaInput").value = conta.senha || "";
   document.getElementById("editContaModal").style.display = "flex";
 }
 function fecharModalEditConta() { document.getElementById("editContaModal").style.display = "none"; }
@@ -994,9 +1001,14 @@ function salvarEdicaoContaModal() {
   if (!conta) return;
   const novoNome = document.getElementById("editContaNomeInput").value.trim();
   const novoVbucks = parseInt(String(document.getElementById("editContaVbucksInput").value || "0").replace(/\D/g, ""), 10);
+  const novoEmail = document.getElementById("editContaEmailInput").value.trim();
+  const novaSenha = document.getElementById("editContaSenhaInput").value.trim();
+
   if (!novoNome) return;
   conta.nome = novoNome;
   conta.vbucks = Number(novoVbucks) || 0;
+  conta.email = novoEmail;
+  conta.senha = novaSenha;
   save();
   fecharModalEditConta();
   mostrarNotificacao("Conta atualizada!", "sucesso");
@@ -1291,7 +1303,21 @@ function render() {
 
   renderContasCards(tSessao);
 
-  document.getElementById("contas").innerHTML = (state.contas || []).map((c, i) => `
+  document.getElementById("contas").innerHTML = (state.contas || []).map((c, i) => {
+    const hasCreds = c.email || c.senha;
+    const credsId = `creds-${i}`;
+    
+    // Botão de revelar credenciais que fica visível se a conta tiver email/senha cadastrado
+    const btnToggle = hasCreds ? `<button type="button" style="background: transparent; border: 1px solid var(--border); color: var(--accent-light); font-size: 11px; padding: 4px 8px; border-radius: 6px; margin-top: 6px; cursor: pointer;" onclick="const el = document.getElementById('${credsId}'); el.style.display = el.style.display === 'none' ? 'flex' : 'none'; this.textContent = el.style.display === 'none' ? '🔒 Ver Credenciais ▾' : '🔓 Ocultar Credenciais ▴';">🔒 Ver Credenciais ▾</button>` : '';
+
+    // Botões de copiar propriamente ditos
+    const btnEmail = c.email ? `<button type="button" class="btn-gray" style="padding: 4px 8px; font-size: 11px;" onclick="copiarTexto('${esc(c.email)}', 'E-mail da Conta', event)">📧 Copiar E-mail</button>` : '';
+    const btnSenha = c.senha ? `<button type="button" class="btn-gray" style="padding: 4px 8px; font-size: 11px;" onclick="copiarTexto('${esc(c.senha)}', 'Senha da Conta', event)">🔑 Copiar Senha</button>` : '';
+    
+    // Painel invisível que aparece ao clicar no toggle
+    const painelCreds = hasCreds ? `<div id="${credsId}" style="display:none; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.1); flex-wrap: wrap;">${btnEmail}${btnSenha}</div>` : '';
+
+    return `
     <div class="account-row">
       <div class="account-info">
         <div class="account-header-line">
@@ -1299,13 +1325,16 @@ function render() {
           <span class="badge ${c.ativa ? "" : "off"}">${c.ativa ? "🟢 ATIVA" : "⚫ DESATIVADA"}</span>
         </div>
         <div class="small">${c.ativa ? `Saldo: ${formatVBucks(c.vbucks)} V-Bucks` : "Desativada"}</div>
+        ${btnToggle}
+        ${painelCreds}
       </div>
       <div class="account-actions">
         <button type="button" class="btn-gray" onclick="abrirModalEditConta(${i})">✏️ Editar</button>
         <button type="button" class="${c.ativa ? "btn-gray" : "btn-green"}" onclick="toggleConta(${i})">${c.ativa ? "Desativar" : "Ativar"}</button>
         <button type="button" class="btn-danger" onclick="removerConta(${i})">🗑️ Remover</button>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 
   const totalHistorico = (state.historicoVendas || []).reduce((s, v) => s + Number(v.valor || 0), 0);
   const totalPedidosHistorico = (state.historicoVendas || []).length;

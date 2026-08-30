@@ -158,6 +158,14 @@
         <label>Saldo Inicial de V-Bucks (opcional)</label>
         <input id="novaContaVbucksInput" type="text" placeholder="Ex.: 8100 ou 8.100" value="0">
       </div>
+      <div class="field" style="margin-top:10px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
+        <label>E-mail de Login (opcional)</label>
+        <input id="novaContaEmailInput" type="email" placeholder="email@epic.com">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>Senha da Epic (opcional)</label>
+        <input id="novaContaSenhaInput" type="text" placeholder="Sua senha">
+      </div>
       <div style="display:flex; gap:10px; margin-top:16px;">
         <button type="button" class="btn-green" style="flex:1;" onclick="salvarNovaContaModal()">➕ Adicionar Conta</button>
         <button type="button" class="btn-gray" onclick="fecharModalAddConta()">Cancelar</button>
@@ -181,8 +189,16 @@
         <label>Saldo Atual de V-Bucks</label>
         <input id="editContaVbucksInput" type="text" placeholder="Ex.: 8100 ou 8.100">
       </div>
+      <div class="field" style="margin-top:10px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
+        <label>E-mail de Login (opcional)</label>
+        <input id="editContaEmailInput" type="email" placeholder="email@epic.com">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>Senha da Epic (opcional)</label>
+        <input id="editContaSenhaInput" type="text" placeholder="Sua senha">
+      </div>
 
-      <div class="field" style="margin-top:12px;">
+      <div class="field" style="margin-top:12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
         <label style="color:var(--green); font-weight:700;">➕ Somar V-Bucks ao Saldo</label>
         <div style="display:flex; gap:8px;">
           <input id="editContaSomarVbucksInput" type="number" step="50" placeholder="Ex.: 800, 2400 ou 12500">
