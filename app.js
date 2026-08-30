@@ -828,6 +828,11 @@ function abrirModalDetalhesCliente(nomeCliente) {
   modal.style.display = "flex";
 }
 
+function fecharModalDetalhesCliente() {
+  const modal = document.getElementById("clienteDetalhesModal");
+  if (modal) modal.style.display = "none";
+}
+
 function toggleBalancoFinanceiro() {
   balancoAberto = !balancoAberto;
   const content = document.getElementById("financialBalanceContent");
@@ -1933,6 +1938,7 @@ function removerTimersConta(i) {
   const c = state.contas[i];
   if (c) { state.reservas = state.reservas.filter(r => r.conta !== c.nome); save(); }
 }
+
 async function novaLive() { state.vendas = []; await save(); mostrarNotificacao("Nova sessão iniciada!", "sucesso"); }
 
 function abrirModalDetalhesCliente(nomeCliente) {
@@ -1992,6 +1998,11 @@ function abrirModalDetalhesCliente(nomeCliente) {
   modal.style.display = "flex";
 }
 
+function fecharModalDetalhesCliente() {
+  const modal = document.getElementById("clienteDetalhesModal");
+  if (modal) modal.style.display = "none";
+}
+
 // Botão 1: Limpar Tudo
 document.getElementById("limparTudoBtn").addEventListener("click", () => {
   document.getElementById("valorInput").value = "";
@@ -2010,9 +2021,7 @@ document.getElementById("limparSoValorBtn").addEventListener("click", () => {
   document.getElementById("valorInput").focus();
 });
 
-// ============================================
 // MOSTRAR / OCULTAR SENHA
-// ============================================
 function toggleMostrarSenha() {
   const passInput = document.getElementById("authPassword");
   const toggleBtn = document.getElementById("togglePasswordBtn");
