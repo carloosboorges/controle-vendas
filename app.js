@@ -138,7 +138,6 @@ function mudarAbaHistorico(aba) {
   }
 }
 
-/* CORREÇÃO DO CLIQUE: Só re-renderiza a tela se algum menu estivesse aberto */
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".period-card-calendar-container") && 
       !e.target.closest(".period-card-mes-container") && 
@@ -180,9 +179,6 @@ document.addEventListener("click", (e) => {
   }
 });
 
-/* =======================================================
-   SISTEMA INTELIGENTE: SUGERIR CLIENTES E NICKS
-======================================================= */
 function buscarSugestoesCliente(texto) {
   const dropdown = document.getElementById("clienteSuggestions");
   if (!dropdown) return;
@@ -307,10 +303,6 @@ function preencherNovaVenda(nome, nick) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   mostrarNotificacao(`Formulário preenchido com ${nome}! Pode ajustar o nick se for presente.`, "info");
 }
-
-/* =======================================================
-   FIM FUNÇÕES SUGERIR CLIENTES
-======================================================= */
 
 function toggleCalendarioPopover(e) {
   if (e) e.stopPropagation();
@@ -1332,7 +1324,6 @@ function adicionarVenda() {
     state.reservas.push({ id: `timer-${Date.now()}-${n}`, conta, vendaId, expiresAt: agora + 86400000 });
   }
 
-  // Limpa apenas o valor e os itens ao adicionar, mantendo o cliente e nick prontos para o proximo item
   document.getElementById("valorInput").value = "";
   document.getElementById("observacaoInput").value = "";
   document.getElementById("quantidadeInput").value = "1";
