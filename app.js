@@ -1123,23 +1123,25 @@ async function inicializar() {
 
   mudarAbaHistorico('vendas');
 
-  if (!currentUser) {
-    if (footer) footer.textContent = "👀 Modo Visitante (Faça login como Admin)";
-    state = JSON.parse(JSON.stringify(DADOS_DEMO));
-    sanitizarDados();
-    render();
-    return;
-  }
-
   try {
     if (footer) footer.textContent = "☁️ Carregando dados da nuvem...";
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.1&select=*`, {
-      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
-    });
+    const headers = {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${authToken || SUPABASE_KEY}`,
+      "Content-Type": "application/json"
+    };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.1&select=*`, { headers });
     const rows = await res.json();
-    state = (Array.isArray(rows) && rows.length > 0 && rows[0].data) ? rows[0].data : JSON.parse(JSON.stringify(DADOS_DEMO));
+    
+    if (res.ok && Array.isArray(rows) && rows.length > 0 && rows[0].data) {
+      state = rows[0].data;
+      if (footer) footer.textContent = currentUser ? `🟢 Conectado à Nuvem (Admin: ${currentUser.email})` : `🟢 Conectado à Nuvem (Modo Leitura)`;
+    } else {
+      state = JSON.parse(JSON.stringify(DADOS_DEMO));
+      await save();
+      if (footer) footer.textContent = `🟢 Conectado à Nuvem (Novo registro criado)`;
+    }
     sanitizarDados();
-    if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
     render();
   } catch (err) {
     if (footer) footer.textContent = "⚠️ Erro ao sincronizar dados com o banco";
@@ -1166,14 +1168,15 @@ async function save() {
 
   try {
     if (footer) footer.textContent = "☁️ Salvando na nuvem...";
+    const headers = {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${authToken || SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      "Prefer": "resolution=merge-duplicates"
+    };
     await fetch(`${SUPABASE_URL}/rest/v1/app_state`, {
       method: "POST",
-      headers: {
-        "apikey": SUPABASE_KEY,
-        "Authorization": `Bearer ${SUPABASE_KEY}`,
-        "Content-Type": "application/json",
-        "Prefer": "resolution=merge-duplicates"
-      },
+      headers,
       body: JSON.stringify({ id: 1, data: state, updated_at: new Date().toISOString() })
     });
     if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
