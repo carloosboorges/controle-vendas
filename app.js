@@ -782,7 +782,7 @@ function abrirModalDetalhesCliente(nomeCliente) {
   if (!modal) return;
 
   const vendasCliente = (state.historicoVendas || []).filter(v => String(v.cliente || "").trim() === nomeCliente);
-  
+
   let totalG = 0, totalVb = 0;
   vendasCliente.forEach(v => {
     totalG += Number(v.valor || 0);
@@ -807,7 +807,7 @@ function abrirModalDetalhesCliente(nomeCliente) {
     listaPedidosEl.innerHTML = vendasReversas.map((v, i) => {
       const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
       const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
-      
+
       return `
         <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
           <div>
@@ -826,20 +826,6 @@ function abrirModalDetalhesCliente(nomeCliente) {
   }
 
   modal.style.display = "flex";
-}
-
-function fecharModalDetalhesCliente() {
-  const modal = document.getElementById("clienteDetalhesModal");
-  if (modal) modal.style.display = "none";
-}
-
-function removerRegistroApoiadorCompleto(k) {
-  if (state.apoiadorRegistros && state.apoiadorRegistros[k]) {
-    delete state.apoiadorRegistros[k];
-    save();
-    renderizarHistoricoApoiadorCompleto();
-    mostrarNotificacao(`Registro de ${k} removido.`, "info");
-  }
 }
 
 function toggleBalancoFinanceiro() {
@@ -2023,6 +2009,22 @@ document.getElementById("limparSoValorBtn").addEventListener("click", () => {
   atualizarPreviewVBucks();
   document.getElementById("valorInput").focus();
 });
+
+// ============================================
+// MOSTRAR / OCULTAR SENHA
+// ============================================
+function toggleMostrarSenha() {
+  const passInput = document.getElementById("authPassword");
+  const toggleBtn = document.getElementById("togglePasswordBtn");
+  
+  if (passInput.type === "password") {
+    passInput.type = "text";
+    toggleBtn.textContent = "🙈"; // Olhinho fechado
+  } else {
+    passInput.type = "password";
+    toggleBtn.textContent = "👁️"; // Olhinho aberto
+  }
+}
 
 inicializar();
 

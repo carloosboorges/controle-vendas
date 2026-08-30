@@ -40,7 +40,10 @@
         </div>
         <div class="field" style="margin-top:10px;">
           <label>Senha</label>
-          <input id="authPassword" type="password" placeholder="Sua senha">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input id="authPassword" type="password" placeholder="Sua senha" style="padding-right: 35px;">
+            <span id="togglePasswordBtn" onclick="toggleMostrarSenha()" style="position: absolute; right: 12px; cursor: pointer; font-size: 16px; user-select: none;" title="Mostrar/Ocultar Senha">👁️</span>
+          </div>
         </div>
         <div style="display:flex; align-items:center; gap:8px; margin-top:12px;">
           <input type="checkbox" id="lembrarCredenciais" style="width:16px; height:16px; cursor:pointer;">
