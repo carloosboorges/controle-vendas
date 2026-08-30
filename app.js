@@ -6,6 +6,7 @@ const CATEGORIAS_ITENS = [
   "Gesto",
   "Picareta",
   "Música",
+  "Pacote",
   "Pacotão",
   "Asa-delta",
   "Envelopamento",
@@ -760,7 +761,6 @@ function renderizarHistoricoClientesCompleto() {
   }
 }
 
-// Funcao auxiliar para renderizar a listagem de itens perfeitamente nos modais/historico
 function renderizarListaItensHtml(itens) {
   if (!Array.isArray(itens) || itens.length === 0) return "🎁 —";
   return itens.map((itemObj, n) => {
@@ -773,7 +773,6 @@ function renderizarListaItensHtml(itens) {
        itemText = formatItemString(itemObj.tipo, itemObj.nome);
        copyText = itemObj.nome;
        if (itemObj.presente) {
-         // Alterado de "P/:" para "Para:" conforme solicitado
          presenteText = ` <span style="color:var(--accent-light); font-size:12px; margin-left:6px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-block; margin-top: 4px;">➡️ 🎁 Para: <span class="copyable-text" onclick="copiarTexto('${esc(itemObj.presente)}', 'Nick Presente', event)" title="Clique para copiar">${esc(itemObj.presente)}</span></span>`;
        }
     }
@@ -799,7 +798,7 @@ function abrirModalDetalhesCliente(nomeCliente) {
     totalVb += v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
   });
 
-  if (tituloEl) tituloEl.textContent = `👤 Histórico de: ${nomeCliente}`;
+  if (tituloEl) tituloEl.innerHTML = `<span style="font-size: 11px; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 2px;">👤 Histórico do Cliente</span><span style="font-size: 18px; color: #fff;">${esc(nomeCliente)}</span>`;
   if (gastoEl) gastoEl.textContent = money(totalG);
   if (vbucksEl) vbucksEl.textContent = `🪙 ${formatVBucks(totalVb)} VB`;
   if (pedidosEl) pedidosEl.textContent = vendasCliente.length;
@@ -1284,404 +1283,16 @@ function obterItensDaVenda() {
   return lista;
 }
 
-function render() {
-  if (!state) return;
-  const baseEl = document.getElementById("valorBaseDisplay");
-  if (baseEl) baseEl.textContent = money(state.valorBase100 || 2.5);
-
-  limparReservasExpiradas();
-  const tSessao = totais();
-  const totalSessao = (state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0);
-  document.getElementById("totalGeral").textContent = money(totalSessao);
-  
-  const qtdPedidosSessao = (state.vendas || []).length;
-  const qtdItensSessao = (state.vendas || []).reduce((a, v) => a + (Number(v.quantidade) || 1), 0);
-  document.getElementById("qtdVendas").textContent = `${qtdPedidosSessao} (${qtdItensSessao} itens)`;
-
-  let top = "—", tv = 0;
-  Object.entries(tSessao).forEach(([n, v]) => { if (v > tv) { top = n; tv = v; } });
-  document.getElementById("topConta").textContent = tv ? `${top} — ${money(tv)}` : "—";
-
-  const sel = document.getElementById("contaSelect");
-  const old = sel.value;
-  sel.innerHTML = (state.contas || []).filter(c => c.ativa).map(c => `<option value="${esc(c.nome)}">${esc(c.nome)}</option>`).join("");
-  if ([...sel.options].some(o => o.value === old)) sel.value = old;
-
-  renderContasCards(tSessao);
-
-  document.getElementById("contas").innerHTML = (state.contas || []).map((c, i) => `
-    <div class="account-row">
-      <div class="account-info">
-        <div class="account-header-line">
-          <div class="account-name">${esc(c.nome)}</div>
-          <span class="badge ${c.ativa ? "" : "off"}">${c.ativa ? "🟢 ATIVA" : "⚫ DESATIVADA"}</span>
-        </div>
-        <div class="small">${c.ativa ? `Saldo: ${formatVBucks(c.vbucks)} V-Bucks` : "Desativada"}</div>
-      </div>
-      <div class="account-actions">
-        <button type="button" class="btn-gray" onclick="abrirModalEditConta(${i})">✏️ Editar</button>
-        <button type="button" class="${c.ativa ? "btn-gray" : "btn-green"}" onclick="toggleConta(${i})">${c.ativa ? "Desativar" : "Ativar"}</button>
-        <button type="button" class="btn-danger" onclick="removerConta(${i})">🗑️ Remover</button>
-      </div>
-    </div>`).join("");
-
-  const totalHistorico = (state.historicoVendas || []).reduce((s, v) => s + Number(v.valor || 0), 0);
-  const totalPedidosHistorico = (state.historicoVendas || []).length;
-  const totalItensHistorico = (state.historicoVendas || []).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
-
-  document.getElementById("historicoQtdTotal").textContent = `${totalPedidosHistorico} pedidos · ${totalItensHistorico} itens enviados`;
-  document.getElementById("historicoTotal").textContent = `Total do histórico: ${money(totalHistorico)}`;
-  document.getElementById("lixeiraBtn").textContent = `🗑️ Lixeira (${(state.lixeiraVendas || []).length})`;
-
-  const historico = state.historicoVendas || [];
-  const agoraData = new Date();
-  const chaveData = v => {
-    const partes = String(v.data || "").split("/");
-    if (partes.length !== 3) return null;
-    const d = new Date(Number(partes[2]), Number(partes[1]) - 1, Number(partes[0]));
-    return Number.isNaN(d.getTime()) ? null : d;
-  };
-  const inicioSemana = d => {
-    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const dia = x.getDay();
-    const dif = dia === 0 ? -6 : 1 - dia;
-    x.setDate(x.getDate() + dif);
-    return x;
-  };
-
-  const somaFiltro = fn => historico.filter(fn).reduce((s, v) => s + Number(v.valor || 0), 0);
-  const somaVbucksFiltro = fn => historico.filter(fn).reduce((s, v) => s + (v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento)), 0);
-  const qtdPedidosFiltro = fn => historico.filter(fn).length;
-  const qtdItensFiltro = fn => historico.filter(fn).reduce((s, v) => s + (Number(v.quantidade) || 1), 0);
-
-  const hojeChave = obterDataHojeFormatada();
-  const diaParaFiltrar = diaFiltroSelecionado || hojeChave;
-  const isModoHoje = diaParaFiltrar === hojeChave;
-
-  const diaTotal = somaFiltro(v => v.data === diaParaFiltrar);
-  const diaVbucks = somaVbucksFiltro(v => v.data === diaParaFiltrar);
-  const diaPedidos = qtdPedidosFiltro(v => v.data === diaParaFiltrar);
-  const diaItens = qtdItensFiltro(v => v.data === diaParaFiltrar);
-
-  const semInicio = inicioSemana(agoraData);
-  const semFim = new Date(semInicio); semFim.setDate(semFim.getDate() + 7);
-  const semanaTotal = somaFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
-  const semanaVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
-  const semanaPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
-  const semanaItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d >= semInicio && d < semFim; });
-
-  const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-  const mesAtualKey = `${String(agoraData.getMonth() + 1).padStart(2, "0")}/${agoraData.getFullYear()}`;
-  if (!mesFiltroSelecionado) mesFiltroSelecionado = mesAtualKey;
-
-  const [selM, selA] = mesFiltroSelecionado.split("/").map(Number);
-  const mesTotalVendas = somaFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
-  const mesVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
-  const mesPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
-  const mesItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getMonth() === (selM - 1) && d.getFullYear() === selA; });
-
-  const lucroVendasMes = mesTotalVendas * MARGEM_LUCRO;
-  const regApoiadorMes = (state.apoiadorRegistros || {})[mesFiltroSelecionado] || { brutoUsd: 0, liquidoBrl: 0 };
-  const lucroApoiadorMes = Number(regApoiadorMes.liquidoBrl || 0);
-  const lucroTotalMesCombinado = lucroVendasMes + lucroApoiadorMes;
-
-  const setAnos = new Set();
-  setAnos.add(String(agoraData.getFullYear()));
-  historico.forEach(v => { const d = chaveData(v); if (d) setAnos.add(String(d.getFullYear())); });
-  const anosLista = Array.from(setAnos).sort((a, b) => Number(b) - Number(a));
-  if (!anoFiltroSelecionado) anoFiltroSelecionado = String(agoraData.getFullYear());
-
-  const selAnoNum = Number(anoFiltroSelecionado);
-  const anoTotalVendas = somaFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
-  const anoVbucks = somaVbucksFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
-  const anoPedidos = qtdPedidosFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
-  const anoItens = qtdItensFiltro(v => { const d = chaveData(v); return d && d.getFullYear() === selAnoNum; });
-
-  const lucroVendasAno = anoTotalVendas * MARGEM_LUCRO;
-  let lucroApoiadorAno = 0;
-  Object.entries(state.apoiadorRegistros || {}).forEach(([k, reg]) => {
-    if (k.endsWith(`/${selAnoNum}`)) lucroApoiadorAno += Number(reg.liquidoBrl || 0);
-  });
-  const lucroTotalAnoCombinado = lucroVendasAno + lucroApoiadorAno;
-
-  let totalLiquidoApoiadorGlobal = 0;
-  Object.values(state.apoiadorRegistros || {}).forEach(reg => { totalLiquidoApoiadorGlobal += Number(reg.liquidoBrl || 0); });
-
-  const lucroContinuoGeralVendas = totalHistorico * MARGEM_LUCRO;
-  const lucroLiquidoGlobalTotal = lucroContinuoGeralVendas + totalLiquidoApoiadorGlobal;
-
-  const periodosEl = document.getElementById("historicoPeriodos");
-  if (periodosEl) {
-    const nomeMesSelecionadoLabel = `${nomesMes[selM - 1]} ${selA}`;
-
-    periodosEl.innerHTML = `
-    <div class="period-card period-card-calendar-container" style="position:relative; cursor:pointer;" onclick="toggleCalendarioPopover(event)">
-      <div class="period-header-select">
-        <span>📅</span>
-        <strong style="font-size:12px; color:var(--accent-light);">${isModoHoje ? `Hoje (${diaParaFiltrar.slice(0, 5)})` : diaParaFiltrar} ▾</strong>
-      </div>
-      <strong>${money(diaTotal)}</strong>
-      <small>${diaPedidos} pedidos (${diaItens} itens)</small>
-      <small class="period-vbucks-text">🪙 ${formatVBucks(diaVbucks)} V-Bucks</small>
-      ${calPopoverAberto ? gerarHtmlCalendarioPopover() : ""}
-    </div>
-
-    <div class="period-card">
-      <span>📅 Esta semana</span>
-      <strong>${money(semanaTotal)}</strong>
-      <small>${semanaPedidos} pedidos (${semanaItens} itens)</small>
-      <small class="period-vbucks-text">🪙 ${formatVBucks(semanaVbucks)} V-Bucks</small>
-    </div>
-
-    <div class="period-card period-card-mes-container" style="position:relative; cursor:pointer;" onclick="toggleMesPopover(event)">
-      <div class="period-header-select">
-        <span>🗓️</span>
-        <strong style="font-size:12px; color:var(--accent-light);">${nomeMesSelecionadoLabel} ▾</strong>
-      </div>
-      <strong>${money(mesTotalVendas)}</strong>
-      <small>${mesPedidos} pedidos (${mesItens} itens)</small>
-      <small class="period-vbucks-text">🪙 ${formatVBucks(mesVbucks)} V-Bucks</small>
-      <div style="font-size:10px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06); padding-top:4px; line-height:1.3;">
-        <span style="color:var(--muted);">Vendas:</span> ${money(lucroVendasMes)}<br>
-        <span style="color:var(--muted);">Apoiador:</span> ${money(lucroApoiadorMes)}<br>
-        <strong style="color:var(--green);">Total: ${money(lucroTotalMesCombinado)}</strong>
-      </div>
-      ${mesPopoverAberto ? gerarHtmlMesPopover() : ""}
-    </div>
-
-    <div class="period-card period-card-ano-container" style="position:relative; cursor:pointer;" onclick="toggleAnoPopover(event)">
-      <div class="period-header-select">
-        <span>📆</span>
-        <strong style="font-size:12px; color:var(--accent-light);">Ano ${anoFiltroSelecionado} ▾</strong>
-      </div>
-      <strong>${money(anoTotalVendas)}</strong>
-      <small>${anoPedidos} pedidos (${anoItens} itens)</small>
-      <small class="period-vbucks-text">🪙 ${formatVBucks(anoVbucks)} V-Bucks</small>
-      <div style="font-size:10px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06); padding-top:4px; line-height:1.3;">
-        <span style="color:var(--muted);">Vendas:</span> ${money(lucroVendasAno)}<br>
-        <span style="color:var(--muted);">Apoiador:</span> ${money(lucroApoiadorAno)}<br>
-        <strong style="color:var(--green);">Total: ${money(lucroTotalAnoCombinado)}</strong>
-      </div>
-      ${anoPopoverAberto ? gerarHtmlAnoPopover() : ""}
-    </div>
-
-    <div class="period-card profit-card">
-      <span>📈 Lucro Global</span>
-      <strong>${money(lucroLiquidoGlobalTotal)}</strong>
-      <small style="color:var(--green); font-weight:700;">Vendas: ${money(lucroContinuoGeralVendas)}</small>
-      <small style="color:var(--accent-light); font-weight:700;">Apoiador: ${money(totalLiquidoApoiadorGlobal)}</small>
-    </div>
-  `;
-  }
-
-  const financialContent = document.getElementById("financialBalanceContent");
-  if (financialContent) {
-    const dadosContas = totaisHistoricoPorConta();
-    const faturamentoHistorico = dadosContas.faturamento;
-    const vbucksHistorico = dadosContas.vbucks;
-    const contasAtivas = (state.contas || []).filter(c => c.ativa);
-
-    let somaFatGeral = 0, somaVbucksGeral = 0, somaCustoGeral = 0, somaLucroGeral = 0;
-
-    const linhasHtml = contasAtivas.map(c => {
-      const fat = faturamentoHistorico[c.nome] || 0;
-      const vbUsados = vbucksHistorico[c.nome] || 0;
-      const custo = fat * MARGEM_CUSTO;
-      const lucro = fat * MARGEM_LUCRO;
-      somaFatGeral += fat; somaVbucksGeral += vbUsados; somaCustoGeral += custo; somaLucroGeral += lucro;
-
-      return `
-        <tr>
-          <td><b>${esc(c.nome)}</b></td>
-          <td style="color:var(--green); font-weight:700;">🪙 ${formatVBucks(vbUsados)} VB</td>
-          <td style="color:#fff;">${money(fat)}</td>
-          <td style="color:var(--muted);">${money(custo)}</td>
-          <td style="color:var(--green); font-weight:800;">${money(lucro)}</td>
-        </tr>
-      `;
-    }).join("");
-
-    financialContent.innerHTML = `
-      <div style="overflow-x:auto;">
-        <table class="financial-table">
-          <thead>
-            <tr>
-              <th>Conta</th>
-              <th>V-Bucks Utilizados</th>
-              <th>Faturamento Total</th>
-              <th>Custo Reposição</th>
-              <th>Lucro Líquido (Vendas)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${linhasHtml.length ? linhasHtml : `<tr><td colspan="5" style="text-align:center; color:var(--muted); padding:15px;">Nenhuma conta ativa.</td></tr>`}
-          </tbody>
-          ${linhasHtml.length ? `
-          <tfoot>
-            <tr style="border-top: 2px solid var(--accent); background: rgba(142, 68, 255, 0.12);">
-              <td style="font-weight:900; color:var(--accent-light);">TOTAL GERAL</td>
-              <td style="font-weight:900; color:var(--green);">🪙 ${formatVBucks(somaVbucksGeral)} VB</td>
-              <td style="font-weight:900; color:#fff;">${money(somaFatGeral)}</td>
-              <td style="font-weight:900; color:var(--muted);">${money(somaCustoGeral)}</td>
-              <td style="font-weight:900; color:var(--green);">${money(somaLucroGeral)}</td>
-            </tr>
-          </tfoot>` : ""}
-        </table>
-      </div>
-    `;
-  }
-
-  const historicoContainer = document.getElementById("historico");
-  if (historicoContainer) {
-    const listaComIndices = historico.map((v, originalIdx) => ({
-      ...v, originalIdx, numeroPedido: `#${String(originalIdx + 1).padStart(2, "0")}`
-    })).reverse();
-
-    let listaFiltrada = listaComIndices;
-    if (historicoTermoBusca) {
-      listaFiltrada = listaComIndices.filter(v => {
-        const itensArray = Array.isArray(v.itens) ? v.itens : [v.item || ""];
-        const itensStr = itensArray.map(i => typeof i === 'string' ? i : `${i.tipo} ${i.nome} ${i.presente}`).join(" ").toLowerCase();
-        const obsStr = String(v.observacao || "").toLowerCase();
-        return v.numeroPedido.toLowerCase().includes(historicoTermoBusca) ||
-          String(v.cliente || "").toLowerCase().includes(historicoTermoBusca) ||
-          String(v.nickCliente || "").toLowerCase().includes(historicoTermoBusca) ||
-          String(v.conta || "").toLowerCase().includes(historicoTermoBusca) ||
-          String(v.nickPresente || "").toLowerCase().includes(historicoTermoBusca) ||
-          itensStr.includes(historicoTermoBusca) ||
-          obsStr.includes(historicoTermoBusca);
-      });
-    }
-
-    const totalItensFiltrados = listaFiltrada.length;
-    const totalPaginas = Math.ceil(totalItensFiltrados / ITENS_POR_PAGINA) || 1;
-    if (historicoPaginaAtual > totalPaginas) historicoPaginaAtual = totalPaginas;
-    if (historicoPaginaAtual < 1) historicoPaginaAtual = 1;
-
-    const itensPagina = listaFiltrada.slice((historicoPaginaAtual - 1) * ITENS_POR_PAGINA, historicoPaginaAtual * ITENS_POR_PAGINA);
-
-    const searchSummaryContainer = document.getElementById("searchSummaryContainer");
-    if (searchSummaryContainer) {
-      if (historicoTermoBusca) {
-        searchSummaryContainer.style.display = "block";
-        searchSummaryContainer.innerHTML = `
-          <div class="search-summary-box" style="justify-content: center; text-align: center;">
-            <div>🔍 <b>Busca:</b> "${esc(historicoTermoBusca)}" · <b>${totalItensFiltrados}</b> ${totalItensFiltrados === 1 ? 'pedido encontrado' : 'pedidos encontrados'}</div>
-          </div>
-        `;
-      } else {
-        searchSummaryContainer.style.display = "none";
-        searchSummaryContainer.innerHTML = "";
-      }
-    }
-
-    if (itensPagina.length === 0) {
-      historicoContainer.innerHTML = `<div class="empty">Nenhuma venda encontrada.</div>`;
-    } else {
-      historicoContainer.innerHTML = itensPagina.map(v => {
-        const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
-        const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
-
-        const observacaoHtml = v.observacao ? `
-          <div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 4px 8px; border-radius: 6px; border-left: 3px solid var(--accent);">
-            💬 <b>Observação:</b> ${esc(v.observacao)}
-          </div>
-        ` : "";
-
-        return `<div class="history-card">
-          <div class="history-main">
-            <div class="history-number">${v.numeroPedido}</div>
-            <div class="history-info">
-              <div class="history-account">
-                <span class="copyable-text" onclick="copiarTexto('${esc(v.conta)}', 'Conta', event)" title="Clique para copiar">${esc(v.conta)}</span>
-              </div>
-              <div class="history-client">
-                👤 <span class="copyable-text" onclick="copiarTexto('${esc(v.cliente)}', 'Cliente', event)" title="Clique para copiar">${esc(v.cliente)}</span>
-              </div>
-              <div class="history-client">
-                🎮 <span class="copyable-text" onclick="copiarTexto('${esc(v.nickCliente)}', 'Nick', event)" title="Clique para copiar">${esc(v.nickCliente)}</span>
-              </div>
-              <div class="history-item" style="margin-top: 8px;">${itensHtmlStr}</div>
-              <div class="history-date">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
-              ${observacaoHtml}
-            </div>
-            <div class="history-value">${money(v.valor)}</div>
-          </div>
-          <div class="history-details">
-            <span>🪙 ${formatVBucks(vb)} V-Bucks</span>
-            <div class="history-actions">
-              <button type="button" class="btn-green" style="padding:6px 12px;" onclick="preencherNovaVenda('${esc(v.cliente).replace(/'/g, "\\'")}', '${esc(v.nickCliente).replace(/'/g, "\\'")}')">♻️ Repetir</button>
-              <button type="button" class="btn-gray" onclick="abrirModalEdicaoPorId('${esc(v.id)}')">✏️ Editar</button>
-              <button type="button" class="btn-danger" onclick="excluirHistoricoPorId('${esc(v.id)}')">🗑️ Excluir</button>
-            </div>
-          </div>
-        </div>`;
-      }).join("");
-    }
-
-    const paginacaoContainer = document.getElementById("historyPagination");
-    if (paginacaoContainer) {
-      if (totalItensFiltrados === 0) {
-        paginacaoContainer.innerHTML = "";
-      } else {
-        let botoesPaginasHtml = "";
-        for (let p = 1; p <= totalPaginas; p++) {
-          if (p === 1 || p === totalPaginas || (p >= historicoPaginaAtual - 1 && p <= historicoPaginaAtual + 1)) {
-            botoesPaginasHtml += `<button type="button" class="pagination-btn ${p === historicoPaginaAtual ? "active" : ""}" onclick="mudarPaginaHistorico(${p})">${p}</button>`;
-          } else if (p === historicoPaginaAtual - 2 || p === historicoPaginaAtual + 2) {
-            botoesPaginasHtml += `<span style="color:var(--muted); font-size:12px; padding:0 2px;">...</span>`;
-          }
-        }
-        paginacaoContainer.innerHTML = `
-          <div class="pagination-controls-row">
-            <button type="button" class="pagination-btn" ${historicoPaginaAtual === 1 ? "disabled" : ""} onclick="mudarPaginaHistorico(${historicoPaginaAtual - 1})">‹ Anterior</button>
-            ${botoesPaginasHtml}
-            <button type="button" class="pagination-btn" ${historicoPaginaAtual === totalPaginas ? "disabled" : ""} onclick="mudarPaginaHistorico(${historicoPaginaAtual + 1})">Próxima ›</button>
-          </div>
-          <div class="pagination-info-text">
-            Página ${historicoPaginaAtual} de ${totalPaginas} · Exibindo ${itensPagina.length} de ${totalItensFiltrados} vendas
-          </div>
-        `;
-      }
-    }
-  }
-
-  if (abaHistoricoAtiva === 'apoiador') {
-    renderizarHistoricoApoiadorCompleto();
-  } else if (abaHistoricoAtiva === 'clientes') {
-    renderizarHistoricoClientesCompleto();
-  }
-}
-
-function renderContasCards(t) {
-  if (!t) t = totais();
-  const container = document.getElementById("totaisPorConta");
-  if (!container || !state) return;
-
-  container.innerHTML = (state.contas || []).filter(c => c.ativa).map(c => {
-    const quantidade = usadasDaConta(c.nome);
-    const disponiveis = Math.max(0, 5 - quantidade);
-    const reservasAtivas = (state.reservas || []).filter(r => r.conta === c.nome && r.expiresAt > Date.now());
-    
-    const tempos = reservasAtivas.map((r, n) => `
-      <div class="timer-line">
-        <span>Venda ${n + 1}: ${tempoRestante(r.expiresAt - Date.now())}</span>
-        <button type="button" class="btn-danger timer-remove-btn" onclick="removerTimerEspecifico(${state.reservas.indexOf(r)})">✕</button>
-      </div>
-    `);
-
-    return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
-      <div class="account-card-head">
-        <div class="name">${esc(c.nome)}</div>
-        <button type="button" class="btn-danger reset-timer-btn" onclick="removerTimersConta(${state.contas.indexOf(c)})">🗑️ Resetar</button>
-      </div>
-      <div class="amount">${money(t[c.nome] || 0)}</div>
-      <div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
-      <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta sessão</div>
-      <div class="sales-count">📦 ${quantidade}/5 usadas · ${disponiveis} ${disponiveis === 1 ? "disponível" : "disponíveis"}</div>
-      <div class="timer">${tempos.length ? tempos.join("") : `🟢 5 vagas disponíveis`}</div>
-    </div>`;
-  }).join("");
+// NOVA FUNÇÃO: Limpa todos os dados para começar cliente novo
+function limparFormularioCompleto() {
+  document.getElementById("valorInput").value = "";
+  document.getElementById("clienteInput").value = "";
+  document.getElementById("nickClienteInput").value = "";
+  document.getElementById("observacaoInput").value = "";
+  document.getElementById("quantidadeInput").value = "1";
+  atualizarCamposItens();
+  atualizarPreviewVBucks();
+  mostrarNotificacao("Formulário limpo com sucesso!", "info");
 }
 
 function adicionarVenda() {
@@ -1722,9 +1333,8 @@ function adicionarVenda() {
     state.reservas.push({ id: `timer-${Date.now()}-${n}`, conta, vendaId, expiresAt: agora + 86400000 });
   }
 
+  // ATUALIZAÇÃO: Limpa apenas o valor, itens e observação, mantendo cliente e nick na tela
   document.getElementById("valorInput").value = "";
-  document.getElementById("clienteInput").value = "";
-  document.getElementById("nickClienteInput").value = "";
   document.getElementById("observacaoInput").value = "";
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens();
@@ -1958,14 +1568,14 @@ function removerTimersConta(i) {
 }
 async function novaLive() { state.vendas = []; await save(); mostrarNotificacao("Nova sessão iniciada!", "sucesso"); }
 
+// ATUALIZAÇÃO DO BOTÃO "LIMPAR VALOR" (Limpa só o preço, mantendo os nicks)
 document.getElementById("limparValorBtn").addEventListener("click", () => {
   document.getElementById("valorInput").value = "";
-  document.getElementById("clienteInput").value = "";
-  document.getElementById("nickClienteInput").value = "";
   document.getElementById("observacaoInput").value = "";
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens(); 
   atualizarPreviewVBucks();
+  mostrarNotificacao("Valor e itens limpos!", "info");
 });
 
 inicializar();

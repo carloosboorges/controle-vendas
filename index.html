@@ -374,10 +374,11 @@
       <input id="observacaoInput" type="text" maxlength="150" placeholder="Ex.: Cliente pediu para enviar só amanhã">
     </div>
 
-    <!-- Botões de Ação -->
+    <!-- Botões de Ação (Com Limpar Valor e Limpar Tudo) -->
     <div class="form-actions-row" style="margin-top: 16px; display: flex; gap: 10px;">
       <button type="button" class="btn-primary" style="flex: 1;" onclick="adicionarVenda()">➕ Adicionar venda</button>
-      <button type="button" class="btn-gray" id="limparValorBtn">🧹 Limpar</button>
+      <button type="button" class="btn-gray" id="limparValorBtn" title="Limpa apenas valor, quantidade e itens">🧹 Limpar Valor</button>
+      <button type="button" class="btn-gray" id="limparTudoBtn" title="Limpa todos os campos do formulário" style="background: rgba(217,4,41,0.2); border-color: rgba(217,4,41,0.4);" onclick="limparFormularioCompleto()">🗑️ Limpar Tudo</button>
     </div>
 
     <!-- Valores Rápidos -->
