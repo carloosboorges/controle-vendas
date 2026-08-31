@@ -90,24 +90,34 @@ function copiarTexto(texto, tipo = "Texto", event = null) {
 }
 
 function mascaraTelefone(e) {
-  let v = e.target.value.replace(/\D/g, ""); 
-  
-  if (!v) {
-    e.target.value = "";
-    return;
+  let input = e.target;
+  let numeros = input.value.replace(/\D/g, ""); // Remove tudo que não for número
+
+  if (!numeros) { 
+    input.value = ""; 
+    return; 
   }
-  
-  if (v.length <= 13) {
-    let formatted = "+" + v.substring(0, 2); 
-    if (v.length > 2) formatted += " (" + v.substring(2, 4); 
-    if (v.length > 4) formatted += ") " + v.substring(4, 9); 
-    if (v.length > 9) formatted += "-" + v.substring(9, 13); 
-    e.target.value = formatted;
-  } else {
-    let formatted = "+" + v.substring(0, 2);
-    if (v.length > 2) formatted += " " + v.substring(2, 5);
-    if (v.length > 5) formatted += " " + v.substring(5);
-    e.target.value = formatted;
+
+  // TRUQUE MÁGICO: Se digitar 11 números e o terceiro for '9' (Padrão celular BR)
+  // e esquecer o 55, o sistema coloca automaticamente
+  if (numeros.length === 11 && numeros[2] === '9' && !numeros.startsWith("55")) {
+    numeros = "55" + numeros;
+  }
+
+  // Se for Brasil (começa com 55) aplica a máscara completa
+  if (numeros.startsWith("55")) {
+    numeros = numeros.substring(0, 13); // Limita ao tamanho máximo do BR
+    let formatted = "+" + numeros.substring(0, 2);
+    if (numeros.length > 2) formatted += " (" + numeros.substring(2, 4);
+    if (numeros.length > 4) formatted += ") " + numeros.substring(4, 9);
+    if (numeros.length > 9) formatted += "-" + numeros.substring(9, 13);
+    input.value = formatted;
+  } 
+  // Se for gringo (Portugal 351, EUA 1, etc...)
+  else {
+    // Para números internacionais, o mais seguro é manter o "+" 
+    // e os números juntos (padrão global do WhatsApp) para não quebrar
+    input.value = "+" + numeros;
   }
 }
 
