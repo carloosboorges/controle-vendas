@@ -249,7 +249,7 @@
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
           <div class="field">
             <label>WhatsApp</label>
-            <input id="editWhatsappInput" type="text" maxlength="25">
+            <input id="editWhatsappInput" type="text" maxlength="25" oninput="mascaraTelefone(event)">
           </div>
           <div class="field">
             <label>TikTok</label>
@@ -362,6 +362,7 @@
   <section class="panel panel-form">
     <h2>➕ Registrar Venda</h2>
     
+    <!-- PRIMEIRA LINHA: Conta, Valor, Qtd, TikTok, WhatsApp -->
     <div class="toolbar">
       <div class="field">
         <label>Conta utilizada</label>
@@ -379,7 +380,19 @@
         <input id="quantidadeInput" type="number" min="1" step="1" value="1" oninput="atualizarCamposItens()">
       </div>
       
-      <!-- Campos do Cliente, Nick, Whatsapp e Tiktok -->
+      <div class="field">
+        <label>TikTok</label>
+        <input id="tiktokInput" type="text" maxlength="40" placeholder="Ex.: @seu_tiktok">
+      </div>
+
+      <div class="field">
+        <label>WhatsApp</label>
+        <input id="whatsappInput" type="text" maxlength="25" placeholder="Ex.: 5527999999999" oninput="mascaraTelefone(event)">
+      </div>
+    </div>
+
+    <!-- SEGUNDA LINHA: Nome e Nick do Cliente -->
+    <div class="toolbar" style="margin-top: 14px;">
       <div class="field" style="position: relative;">
         <label>Nome do cliente</label>
         <div class="autocomplete-wrapper">
@@ -395,19 +408,9 @@
           <div id="nickSuggestions" class="autocomplete-dropdown"></div>
         </div>
       </div>
-      
-      <div class="field">
-        <label>WhatsApp</label>
-        <input id="whatsappInput" type="text" maxlength="25" placeholder="Ex.: 11 99999-9999">
-      </div>
-      
-      <div class="field">
-        <label>TikTok</label>
-        <input id="tiktokInput" type="text" maxlength="40" placeholder="Ex.: @seu_tiktok">
-      </div>
     </div>
 
-    <!-- Área de Seleção dos Itens Vendidos (Tudo na mesma linha) -->
+    <!-- TERCEIRA LINHA: Área de Seleção dos Itens Vendidos -->
     <div id="itensGroupContainer" style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;"></div>
 
     <!-- Observação por último, abaixo dos itens e do presente -->

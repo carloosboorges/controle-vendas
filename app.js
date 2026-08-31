@@ -89,6 +89,28 @@ function copiarTexto(texto, tipo = "Texto", event = null) {
   });
 }
 
+function mascaraTelefone(e) {
+  let v = e.target.value.replace(/\D/g, ""); 
+  
+  if (!v) {
+    e.target.value = "";
+    return;
+  }
+  
+  if (v.length <= 13) {
+    let formatted = "+" + v.substring(0, 2); 
+    if (v.length > 2) formatted += " (" + v.substring(2, 4); 
+    if (v.length > 4) formatted += ") " + v.substring(4, 9); 
+    if (v.length > 9) formatted += "-" + v.substring(9, 13); 
+    e.target.value = formatted;
+  } else {
+    let formatted = "+" + v.substring(0, 2);
+    if (v.length > 2) formatted += " " + v.substring(2, 5);
+    if (v.length > 5) formatted += " " + v.substring(5);
+    e.target.value = formatted;
+  }
+}
+
 function extrairApenasNomeItem(itemStr) {
   if (!itemStr) return "";
   if (typeof itemStr === 'object') return itemStr.nome || "";
@@ -2033,7 +2055,6 @@ function fecharModalDetalhesCliente() {
   if (modal) modal.style.display = "none";
 }
 
-// Botão 1: Limpar Tudo
 document.getElementById("limparTudoBtn").addEventListener("click", () => {
   document.getElementById("valorInput").value = "";
   document.getElementById("clienteInput").value = "";
@@ -2046,14 +2067,12 @@ document.getElementById("limparTudoBtn").addEventListener("click", () => {
   atualizarPreviewVBucks();
 });
 
-// Botão 2: Limpar Só o Valor
 document.getElementById("limparSoValorBtn").addEventListener("click", () => {
   document.getElementById("valorInput").value = "";
   atualizarPreviewVBucks();
   document.getElementById("valorInput").focus();
 });
 
-// MOSTRAR / OCULTAR SENHA
 function toggleMostrarSenha() {
   const passInput = document.getElementById("authPassword");
   const toggleBtn = document.getElementById("togglePasswordBtn");
