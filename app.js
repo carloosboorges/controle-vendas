@@ -223,7 +223,7 @@ function buscarSugestoesCliente(texto) {
   histReverso.forEach(v => {
      const nome = String(v.cliente || "").trim();
      if(nome && !clientesMap[nome]) {
-         clientesMap[nome] = { nick: v.nickCliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
+         clientesMap[nome] = { whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
      } else if (nome && clientesMap[nome]) {
          if (!clientesMap[nome].whatsapp && v.whatsapp) clientesMap[nome].whatsapp = v.whatsapp;
          if (!clientesMap[nome].tiktok && v.tiktok) clientesMap[nome].tiktok = v.tiktok;
@@ -240,8 +240,8 @@ function buscarSugestoesCliente(texto) {
   dropdown.innerHTML = sugestoes.slice(0, 6).map(nome => {
     const dados = clientesMap[nome];
     return `
-    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(nome).replace(/'/g, "\\'")}', '${esc(dados.nick).replace(/'/g, "\\'")}', '${esc(dados.whatsapp).replace(/'/g, "\\'")}', '${esc(dados.tiktok).replace(/'/g, "\\'")}')">
-      👤 ${esc(nome)} <span class="autocomplete-nick">🎮 ${esc(dados.nick)}</span>
+    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(nome).replace(/'/g, "\\'")}', '${esc(dados.whatsapp).replace(/'/g, "\\'")}', '${esc(dados.tiktok).replace(/'/g, "\\'")}')">
+      👤 ${esc(nome)}
     </div>
   `}).join("");
   dropdown.style.display = "block";
@@ -314,9 +314,9 @@ function sugerirNickPresente(texto, index) {
   dropdown.style.display = "block";
 }
 
-function selecionarSugestaoCliente(nome, nick, whatsapp, tiktok) {
+function selecionarSugestaoCliente(nome, whatsapp, tiktok) {
   document.getElementById("clienteInput").value = nome;
-  document.getElementById("nickClienteInput").value = nick;
+  
   if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = whatsapp || "";
   if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = tiktok || "";
   document.getElementById("clienteSuggestions").style.display = "none";
@@ -336,7 +336,7 @@ function selecionarSugestaoNickPresente(nick, index) {
 
 function preencherNovaVenda(nome, nick) {
   document.getElementById("clienteInput").value = nome || "";
-  document.getElementById("nickClienteInput").value = nick || "";
+  document.getElementById("nickClienteInput").value = nick || ""; 
   
   let wpp = "", tk = "";
   const histReverso = [...(state.historicoVendas || [])].reverse();
@@ -350,7 +350,7 @@ function preencherNovaVenda(nome, nick) {
   if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = tk;
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  mostrarNotificacao(`Formulário preenchido com ${nome}! Pode ajustar se precisar.`, "info");
+  mostrarNotificacao(`Formulário preenchido com ${nome}! Ajuste o Nick se for outra conta.`, "info");
 }
 
 function sincronizarDadosCliente(nomeCliente, whatsapp, tiktok) {
@@ -1588,10 +1588,8 @@ function render() {
         const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
         const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
 
-        // Ícone ajustado do TikTok
         const infosContato = [];
         
-        // Retornei o tamanho para 14px e tirei as margens, o flexbox vai cuidar do alinhamento:
         const iconeTikTok = `<svg style="width:14px;height:14px;fill:currentColor;" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z"/></svg>`;
 
         if (v.whatsapp) infosContato.push(`<div style="display:flex; align-items:center; gap:4px;">📱 <span class="copyable-text" onclick="copiarTexto('${esc(v.whatsapp)}', 'WhatsApp', event)" title="Copiar WhatsApp">${esc(v.whatsapp)}</span></div>`);
@@ -2014,12 +2012,33 @@ function abrirModalDetalhesCliente(nomeCliente) {
   const vendasCliente = (state.historicoVendas || []).filter(v => String(v.cliente || "").trim() === nomeCliente);
 
   let totalG = 0, totalVb = 0;
+  let wpp = "", tk = ""; 
+
   vendasCliente.forEach(v => {
     totalG += Number(v.valor || 0);
     totalVb += v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+    if (!wpp && v.whatsapp) wpp = v.whatsapp;
+    if (!tk && v.tiktok) tk = v.tiktok;
   });
 
-  if (tituloEl) tituloEl.innerHTML = `<span style="font-size: 11px; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 2px;">👤 Histórico de Cliente</span><span style="font-size: 18px; color: #fff;">${esc(nomeCliente)}</span>`;
+  const infosContato = [];
+  const iconeTikTok = `<svg style="width:14px;height:14px;fill:currentColor;" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z"/></svg>`;
+
+  if (wpp) infosContato.push(`<div style="display:flex; align-items:center; gap:4px;">📱 <span class="copyable-text" onclick="copiarTexto('${esc(wpp)}', 'WhatsApp', event)" title="Copiar WhatsApp" style="font-size:13px; font-weight:600; color:#eee;">${esc(wpp)}</span></div>`);
+  if (tk) infosContato.push(`<div style="display:flex; align-items:center; gap:4px;">${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(tk)}', 'TikTok', event)" title="Copiar TikTok" style="font-size:13px; font-weight:600; color:#eee;">${esc(tk)}</span></div>`);
+  
+  const contatoHtml = infosContato.length > 0 
+    ? `<div style="margin-top: 6px; display:flex; align-items:center; gap: 12px;">${infosContato.join("")}</div>` 
+    : "";
+
+  if (tituloEl) {
+    tituloEl.innerHTML = `
+      <span style="font-size: 11px; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 2px;">👤 Histórico de Cliente</span>
+      <span style="font-size: 18px; color: #fff;">${esc(nomeCliente)}</span>
+      ${contatoHtml}
+    `;
+  }
+
   if (gastoEl) gastoEl.textContent = money(totalG);
   if (vbucksEl) vbucksEl.textContent = `🪙 ${formatVBucks(totalVb)} VB`;
   if (pedidosEl) pedidosEl.textContent = vendasCliente.length;
