@@ -2032,7 +2032,7 @@ function abrirModalDetalhesCliente(nomeCliente) {
   if (tituloEl) {
     tituloEl.innerHTML = `
       <span style="font-size: 11px; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 2px;">👤 Histórico de Cliente</span>
-      <span style="font-size: 18px; color: #fff;">${esc(nomeCliente)}</span>
+      <span style="font-size: 18px; color: #fff; display: block; line-height: 1.3;">${esc(nomeCliente)}</span>
       ${contatoHtml}
     `;
   }
@@ -2046,7 +2046,7 @@ function abrirModalDetalhesCliente(nomeCliente) {
 
   if (btnNovaVenda) {
     btnNovaVenda.innerHTML = `
-      <button type="button" class="btn-gray" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content; margin-right: 6px;" onclick="abrirModalEdicaoCliente('${esc(nomeCliente).replace(/'/g, "\\'")}')">✏️ Editar Perfil</button>
+      <button type="button" class="btn-gray" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content;" onclick="abrirModalEdicaoCliente('${esc(nomeCliente).replace(/'/g, "\\'")}')">✏️ Editar Perfil</button>
       <button type="button" class="btn-green" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content;" onclick="fecharModalDetalhesCliente(); preencherNovaVenda('${esc(nomeCliente).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>
     `;
   }
