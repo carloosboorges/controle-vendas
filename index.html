@@ -96,6 +96,36 @@
     </div>
   </div>
 
+  <!-- Modal de Edição de Perfil do Cliente -->
+  <div id="editClienteModal" class="modal-overlay" style="display:none; z-index: 1050;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 style="margin:0; color:var(--accent-light);">✏️ Editar Perfil do Cliente</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEdicaoCliente()">✕</button>
+      </div>
+      <input type="hidden" id="editClienteNomeOriginal">
+      <p style="font-size:12px; color:var(--muted); margin:10px 0 14px;">Altere o nome ou os contatos gerais. Isso atualizará <b>todas</b> as compras antigas dessa pessoa.</p>
+      
+      <div class="field" style="margin-top:14px;">
+        <label>Nome Completo do Cliente</label>
+        <input id="editClienteNomeInput" type="text" maxlength="80">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>WhatsApp</label>
+        <input id="editClienteWhatsappInput" type="text" maxlength="25" oninput="mascaraTelefone(event)">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>TikTok</label>
+        <input id="editClienteTiktokInput" type="text" maxlength="40">
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-green" style="flex:1;" onclick="salvarEdicaoCliente()">💾 Salvar Alterações</button>
+        <button type="button" class="btn-gray" onclick="fecharModalEdicaoCliente()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal de Gerenciamento do Código Apoiador -->
   <div id="apoiadorModal" class="modal-overlay" style="display:none;">
     <div class="modal-card modal-card-large" style="overflow: visible;">

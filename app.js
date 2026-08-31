@@ -316,7 +316,6 @@ function sugerirNickPresente(texto, index) {
 
 function selecionarSugestaoCliente(nome, whatsapp, tiktok) {
   document.getElementById("clienteInput").value = nome;
-  
   if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = whatsapp || "";
   if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = tiktok || "";
   document.getElementById("clienteSuggestions").style.display = "none";
@@ -1589,7 +1588,6 @@ function render() {
         const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
 
         const infosContato = [];
-        
         const iconeTikTok = `<svg style="width:14px;height:14px;fill:currentColor;" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z"/></svg>`;
 
         if (v.whatsapp) infosContato.push(`<div style="display:flex; align-items:center; gap:4px;">📱 <span class="copyable-text" onclick="copiarTexto('${esc(v.whatsapp)}', 'WhatsApp', event)" title="Copiar WhatsApp">${esc(v.whatsapp)}</span></div>`);
@@ -2047,7 +2045,10 @@ function abrirModalDetalhesCliente(nomeCliente) {
   const ultimoNick = vendasReversas.length ? vendasReversas[0].nickCliente : '';
 
   if (btnNovaVenda) {
-    btnNovaVenda.innerHTML = `<button type="button" class="btn-green" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content;" onclick="fecharModalDetalhesCliente(); preencherNovaVenda('${esc(nomeCliente).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>`;
+    btnNovaVenda.innerHTML = `
+      <button type="button" class="btn-gray" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content; margin-right: 6px;" onclick="abrirModalEdicaoCliente('${esc(nomeCliente).replace(/'/g, "\\'")}')">✏️ Editar Perfil</button>
+      <button type="button" class="btn-green" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content;" onclick="fecharModalDetalhesCliente(); preencherNovaVenda('${esc(nomeCliente).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>
+    `;
   }
 
   if (vendasReversas.length === 0) {
@@ -2080,6 +2081,62 @@ function abrirModalDetalhesCliente(nomeCliente) {
 function fecharModalDetalhesCliente() {
   const modal = document.getElementById("clienteDetalhesModal");
   if (modal) modal.style.display = "none";
+}
+
+function abrirModalEdicaoCliente(nomeOriginal) {
+  const historico = state.historicoVendas || [];
+  const vendasCliente = historico.filter(v => String(v.cliente || "").trim() === nomeOriginal);
+  if (vendasCliente.length === 0) return;
+
+  let wpp = "", tk = "";
+  vendasCliente.forEach(v => {
+    if (!wpp && v.whatsapp) wpp = v.whatsapp;
+    if (!tk && v.tiktok) tk = v.tiktok;
+  });
+
+  document.getElementById("editClienteNomeOriginal").value = nomeOriginal;
+  document.getElementById("editClienteNomeInput").value = nomeOriginal;
+  if (document.getElementById("editClienteWhatsappInput")) document.getElementById("editClienteWhatsappInput").value = wpp;
+  if (document.getElementById("editClienteTiktokInput")) document.getElementById("editClienteTiktokInput").value = tk;
+
+  document.getElementById("editClienteModal").style.display = "flex";
+}
+
+function fecharModalEdicaoCliente() {
+  document.getElementById("editClienteModal").style.display = "none";
+}
+
+function salvarEdicaoCliente() {
+  const nomeOriginal = document.getElementById("editClienteNomeOriginal").value;
+  const novoNome = document.getElementById("editClienteNomeInput").value.trim();
+  const novoWpp = document.getElementById("editClienteWhatsappInput").value.trim();
+  const novoTk = document.getElementById("editClienteTiktokInput").value.trim();
+
+  if (!novoNome) {
+    mostrarNotificacao("O nome do cliente não pode ficar vazio.", "erro");
+    return;
+  }
+
+  const atualizarLista = (lista) => {
+    if (!Array.isArray(lista)) return;
+    lista.forEach(v => {
+      if (String(v.cliente || "").trim() === nomeOriginal) {
+        v.cliente = novoNome;
+        v.whatsapp = novoWpp;
+        v.tiktok = novoTk;
+      }
+    });
+  };
+
+  atualizarLista(state.historicoVendas);
+  atualizarLista(state.vendas);
+  atualizarLista(state.lixeiraVendas);
+
+  save();
+  fecharModalEdicaoCliente();
+  mostrarNotificacao("Perfil do cliente atualizado em todas as compras!", "sucesso");
+  
+  abrirModalDetalhesCliente(novoNome); 
 }
 
 document.getElementById("limparTudoBtn").addEventListener("click", () => {
