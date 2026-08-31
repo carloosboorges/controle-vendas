@@ -29,7 +29,8 @@ const DADOS_DEMO = {
   valorBase100: 2.5,
   historicoVendas: [],
   lixeiraVendas: [],
-  apoiadorRegistros: {}
+  apoiadorRegistros: {},
+  clientesInfo: {}
 };
 
 let currentUser = null;
@@ -223,7 +224,7 @@ function buscarSugestoesCliente(texto) {
   histReverso.forEach(v => {
      const nome = String(v.cliente || "").trim();
      if(nome && !clientesMap[nome]) {
-         clientesMap[nome] = { nick: v.nickCliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
+         clientesMap[nome] = { whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
      } else if (nome && clientesMap[nome]) {
          if (!clientesMap[nome].whatsapp && v.whatsapp) clientesMap[nome].whatsapp = v.whatsapp;
          if (!clientesMap[nome].tiktok && v.tiktok) clientesMap[nome].tiktok = v.tiktok;
@@ -240,8 +241,8 @@ function buscarSugestoesCliente(texto) {
   dropdown.innerHTML = sugestoes.slice(0, 6).map(nome => {
     const dados = clientesMap[nome];
     return `
-    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(nome).replace(/'/g, "\\'")}', '${esc(dados.nick).replace(/'/g, "\\'")}', '${esc(dados.whatsapp).replace(/'/g, "\\'")}', '${esc(dados.tiktok).replace(/'/g, "\\'")}')">
-      👤 ${esc(nome)} <span class="autocomplete-nick">🎮 ${esc(dados.nick)}</span>
+    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(nome).replace(/'/g, "\\'")}', '${esc(dados.whatsapp).replace(/'/g, "\\'")}', '${esc(dados.tiktok).replace(/'/g, "\\'")}')">
+      👤 ${esc(nome)}
     </div>
   `}).join("");
   dropdown.style.display = "block";
@@ -314,9 +315,15 @@ function sugerirNickPresente(texto, index) {
   dropdown.style.display = "block";
 }
 
-function selecionarSugestaoCliente(nome, nick, whatsapp, tiktok) {
+function selecionarSugestaoCliente(nome, whatsapp, tiktok) {
   document.getElementById("clienteInput").value = nome;
-  document.getElementById("nickClienteInput").value = nick;
+  
+  const histReverso = [...(state.historicoVendas || [])].reverse();
+  const ultimaVenda = histReverso.find(v => String(v.cliente || "").trim() === nome);
+  if (ultimaVenda && ultimaVenda.nickCliente) {
+      document.getElementById("nickClienteInput").value = ultimaVenda.nickCliente;
+  }
+
   if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = whatsapp || "";
   if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = tiktok || "";
   document.getElementById("clienteSuggestions").style.display = "none";
@@ -785,14 +792,17 @@ function renderizarHistoricoClientesCompleto() {
           </tr>
         </thead>
         <tbody>
-          ${clientesPagina.map(c => `
+          ${clientesPagina.map(c => {
+            const hasObs = state.clientesInfo && state.clientesInfo[c.nome] && state.clientesInfo[c.nome].observacao;
+            const obsIcon = hasObs ? ' <span style="font-size:12px;" title="Possui observação">📌</span>' : '';
+            return `
             <tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesCliente('${esc(c.nome).replace(/'/g, "\\'")}')" title="Clique para ver detalhes">
-              <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">👤 ${esc(c.nome)} 🔍</td>
+              <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">👤 ${esc(c.nome)}${obsIcon} 🔍</td>
               <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--muted);">${c.totalPedidos} ${c.totalPedidos === 1 ? 'pedido' : 'pedidos'}</td>
               <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">🪙 ${formatVBucks(c.totalVbucks)} VB</td>
               <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:900;">${money(c.totalGasto)}</td>
             </tr>
-          `).join("")}
+          `}).join("")}
         </tbody>
       </table>
     </div>
@@ -1169,6 +1179,7 @@ function sanitizarDados() {
   if (!Array.isArray(state.historicoVendas)) state.historicoVendas = [];
   if (!Array.isArray(state.lixeiraVendas)) state.lixeiraVendas = [];
   if (!state.apoiadorRegistros) state.apoiadorRegistros = {};
+  if (!state.clientesInfo) state.clientesInfo = {};
 }
 
 async function save() {
@@ -2027,7 +2038,15 @@ function abrirModalDetalhesCliente(nomeCliente) {
   if (tk) infosContato.push(`<div style="display:flex; align-items:center; gap:4px; white-space: nowrap;">${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(tk)}', 'TikTok', event)" title="Copiar TikTok" style="font-size:13px; font-weight:600; color:#eee; white-space: nowrap;">${esc(tk)}</span></div>`);
   
   const contatoHtml = infosContato.length > 0 
-    ? `<div style="margin-top: 6px; display:flex; align-items:center; gap: 12px; flex-wrap: wrap;">${infosContato.join("")}</div>` 
+    ? `<div style="margin-top: 6px; display:flex; align-items:center; gap: 12px; flex-wrap: nowrap;">${infosContato.join("")}</div>` 
+    : "";
+
+  const info = (state.clientesInfo || {})[nomeCliente] || {};
+  const obsCliente = info.observacao || "";
+  const obsHtml = obsCliente 
+    ? `<div style="margin-top: 10px; font-size: 13px; color: var(--accent-light); background: rgba(142,68,255,0.1); padding: 10px 14px; border-radius: 8px; border-left: 3px solid var(--accent); line-height: 1.4;">
+         📌 <b>Nota sobre o cliente:</b> ${esc(obsCliente)}
+       </div>`
     : "";
 
   if (tituloEl) {
@@ -2035,6 +2054,7 @@ function abrirModalDetalhesCliente(nomeCliente) {
       <span style="font-size: 11px; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 2px;">👤 Histórico de Cliente</span>
       <span style="font-size: 18px; color: #fff; display: block; line-height: 1.3;">${esc(nomeCliente)}</span>
       ${contatoHtml}
+      ${obsHtml}
     `;
   }
 
@@ -2095,10 +2115,14 @@ function abrirModalEdicaoCliente(nomeOriginal) {
     if (!tk && v.tiktok) tk = v.tiktok;
   });
 
+  const info = (state.clientesInfo || {})[nomeOriginal] || {};
+  const obsCliente = info.observacao || "";
+
   document.getElementById("editClienteNomeOriginal").value = nomeOriginal;
   document.getElementById("editClienteNomeInput").value = nomeOriginal;
   if (document.getElementById("editClienteWhatsappInput")) document.getElementById("editClienteWhatsappInput").value = wpp;
   if (document.getElementById("editClienteTiktokInput")) document.getElementById("editClienteTiktokInput").value = tk;
+  if (document.getElementById("editClienteObservacaoInput")) document.getElementById("editClienteObservacaoInput").value = obsCliente;
 
   document.getElementById("editClienteModal").style.display = "flex";
 }
@@ -2112,10 +2136,22 @@ function salvarEdicaoCliente() {
   const novoNome = document.getElementById("editClienteNomeInput").value.trim();
   const novoWpp = document.getElementById("editClienteWhatsappInput").value.trim();
   const novoTk = document.getElementById("editClienteTiktokInput").value.trim();
+  const novaObs = document.getElementById("editClienteObservacaoInput")?.value.trim() || "";
 
   if (!novoNome) {
     mostrarNotificacao("O nome do cliente não pode ficar vazio.", "erro");
     return;
+  }
+
+  if (!state.clientesInfo) state.clientesInfo = {};
+  
+  if (nomeOriginal !== novoNome) {
+    const oldInfo = state.clientesInfo[nomeOriginal] || {};
+    state.clientesInfo[novoNome] = { ...oldInfo, observacao: novaObs };
+    delete state.clientesInfo[nomeOriginal];
+  } else {
+    if (!state.clientesInfo[novoNome]) state.clientesInfo[novoNome] = {};
+    state.clientesInfo[novoNome].observacao = novaObs;
   }
 
   const atualizarLista = (lista) => {
