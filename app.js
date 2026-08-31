@@ -1590,11 +1590,11 @@ function render() {
         const infosContato = [];
         const iconeTikTok = `<svg style="width:14px;height:14px;fill:currentColor;" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z"/></svg>`;
 
-        if (v.whatsapp) infosContato.push(`<div style="display:flex; align-items:center; gap:4px;">📱 <span class="copyable-text" onclick="copiarTexto('${esc(v.whatsapp)}', 'WhatsApp', event)" title="Copiar WhatsApp">${esc(v.whatsapp)}</span></div>`);
-        if (v.tiktok) infosContato.push(`<div style="display:flex; align-items:center; gap:4px;">${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(v.tiktok)}', 'TikTok', event)" title="Copiar TikTok">${esc(v.tiktok)}</span></div>`);
+        if (v.whatsapp) infosContato.push(`<div style="display:flex; align-items:center; gap:4px; white-space: nowrap;">📱 <span class="copyable-text" onclick="copiarTexto('${esc(v.whatsapp)}', 'WhatsApp', event)" title="Copiar WhatsApp" style="font-size:13px; font-weight:600; color:#eee; white-space: nowrap;">${esc(v.whatsapp)}</span></div>`);
+        if (v.tiktok) infosContato.push(`<div style="display:flex; align-items:center; gap:4px; white-space: nowrap;">${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(v.tiktok)}', 'TikTok', event)" title="Copiar TikTok" style="font-size:13px; font-weight:600; color:#eee; white-space: nowrap;">${esc(v.tiktok)}</span></div>`);
         
         const contatoHtml = infosContato.length > 0 
-          ? `<div class="history-client" style="margin-top: 4px; display:flex; align-items:center; gap: 12px;">${infosContato.join("")}</div>` 
+          ? `<div class="history-client" style="margin-top: 4px; display:flex; align-items:center; gap: 12px; flex-wrap: wrap;">${infosContato.join("")}</div>` 
           : "";
 
         const observacaoHtml = v.observacao ? `
@@ -2022,11 +2022,11 @@ function abrirModalDetalhesCliente(nomeCliente) {
   const infosContato = [];
   const iconeTikTok = `<svg style="width:14px;height:14px;fill:currentColor;" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z"/></svg>`;
 
-  if (wpp) infosContato.push(`<div style="display:flex; align-items:center; gap:4px;">📱 <span class="copyable-text" onclick="copiarTexto('${esc(wpp)}', 'WhatsApp', event)" title="Copiar WhatsApp" style="font-size:13px; font-weight:600; color:#eee;">${esc(wpp)}</span></div>`);
-  if (tk) infosContato.push(`<div style="display:flex; align-items:center; gap:4px;">${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(tk)}', 'TikTok', event)" title="Copiar TikTok" style="font-size:13px; font-weight:600; color:#eee;">${esc(tk)}</span></div>`);
+  if (wpp) infosContato.push(`<div style="display:flex; align-items:center; gap:4px; white-space: nowrap;">📱 <span class="copyable-text" onclick="copiarTexto('${esc(wpp)}', 'WhatsApp', event)" title="Copiar WhatsApp" style="font-size:13px; font-weight:600; color:#eee; white-space: nowrap;">${esc(wpp)}</span></div>`);
+  if (tk) infosContato.push(`<div style="display:flex; align-items:center; gap:4px; white-space: nowrap;">${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(tk)}', 'TikTok', event)" title="Copiar TikTok" style="font-size:13px; font-weight:600; color:#eee; white-space: nowrap;">${esc(tk)}</span></div>`);
   
   const contatoHtml = infosContato.length > 0 
-    ? `<div style="margin-top: 6px; display:flex; align-items:center; gap: 12px;">${infosContato.join("")}</div>` 
+    ? `<div style="margin-top: 6px; display:flex; align-items:center; gap: 12px; flex-wrap: wrap;">${infosContato.join("")}</div>` 
     : "";
 
   if (tituloEl) {
@@ -2046,7 +2046,7 @@ function abrirModalDetalhesCliente(nomeCliente) {
 
   if (btnNovaVenda) {
     btnNovaVenda.innerHTML = `
-      <button type="button" class="btn-gray" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content;" onclick="abrirModalEdicaoCliente('${esc(nomeCliente).replace(/'/g, "\\'")}')">✏️ Editar Perfil</button>
+      <button type="button" class="btn-gray" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content; margin-right: 6px;" onclick="abrirModalEdicaoCliente('${esc(nomeCliente).replace(/'/g, "\\'")}')">✏️ Editar Perfil</button>
       <button type="button" class="btn-green" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content;" onclick="fecharModalDetalhesCliente(); preencherNovaVenda('${esc(nomeCliente).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>
     `;
   }
