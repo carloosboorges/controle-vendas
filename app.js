@@ -198,7 +198,10 @@ function buscarSugestoesCliente(texto) {
   histReverso.forEach(v => {
      const nome = String(v.cliente || "").trim();
      if(nome && !clientesMap[nome]) {
-         clientesMap[nome] = v.nickCliente || "";
+         clientesMap[nome] = { nick: v.nickCliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
+     } else if (nome && clientesMap[nome]) {
+         if (!clientesMap[nome].whatsapp && v.whatsapp) clientesMap[nome].whatsapp = v.whatsapp;
+         if (!clientesMap[nome].tiktok && v.tiktok) clientesMap[nome].tiktok = v.tiktok;
      }
   });
 
@@ -209,11 +212,13 @@ function buscarSugestoesCliente(texto) {
     return;
   }
 
-  dropdown.innerHTML = sugestoes.slice(0, 6).map(nome => `
-    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(nome).replace(/'/g, "\\'")}', '${esc(clientesMap[nome]).replace(/'/g, "\\'")}')">
-      👤 ${esc(nome)} <span class="autocomplete-nick">🎮 ${esc(clientesMap[nome])}</span>
+  dropdown.innerHTML = sugestoes.slice(0, 6).map(nome => {
+    const dados = clientesMap[nome];
+    return `
+    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(nome).replace(/'/g, "\\'")}', '${esc(dados.nick).replace(/'/g, "\\'")}', '${esc(dados.whatsapp).replace(/'/g, "\\'")}', '${esc(dados.tiktok).replace(/'/g, "\\'")}')">
+      👤 ${esc(nome)} <span class="autocomplete-nick">🎮 ${esc(dados.nick)}</span>
     </div>
-  `).join("");
+  `}).join("");
   dropdown.style.display = "block";
 }
 
@@ -284,9 +289,11 @@ function sugerirNickPresente(texto, index) {
   dropdown.style.display = "block";
 }
 
-function selecionarSugestaoCliente(nome, nick) {
+function selecionarSugestaoCliente(nome, nick, whatsapp, tiktok) {
   document.getElementById("clienteInput").value = nome;
   document.getElementById("nickClienteInput").value = nick;
+  if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = whatsapp || "";
+  if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = tiktok || "";
   document.getElementById("clienteSuggestions").style.display = "none";
 }
 
@@ -305,8 +312,42 @@ function selecionarSugestaoNickPresente(nick, index) {
 function preencherNovaVenda(nome, nick) {
   document.getElementById("clienteInput").value = nome || "";
   document.getElementById("nickClienteInput").value = nick || "";
+  
+  let wpp = "", tk = "";
+  const histReverso = [...(state.historicoVendas || [])].reverse();
+  const ultimaVenda = histReverso.find(v => String(v.cliente || "").trim() === nome);
+  if (ultimaVenda) {
+      wpp = ultimaVenda.whatsapp || "";
+      tk = ultimaVenda.tiktok || "";
+  }
+  
+  if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = wpp;
+  if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = tk;
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  mostrarNotificacao(`Formulário preenchido com ${nome}! Pode ajustar o nick se for presente.`, "info");
+  mostrarNotificacao(`Formulário preenchido com ${nome}! Pode ajustar se precisar.`, "info");
+}
+
+function sincronizarDadosCliente(nomeCliente, whatsapp, tiktok) {
+  if (!nomeCliente) return;
+  const wpp = String(whatsapp || "").trim();
+  const tk = String(tiktok || "").trim();
+  
+  if (!wpp && !tk) return; 
+
+  const atualizarLista = (lista) => {
+    if (!Array.isArray(lista)) return;
+    lista.forEach(v => {
+      if (String(v.cliente || "").trim() === nomeCliente) {
+        if (wpp) v.whatsapp = wpp;
+        if (tk) v.tiktok = tk;
+      }
+    });
+  };
+
+  atualizarLista(state.historicoVendas);
+  atualizarLista(state.vendas);
+  atualizarLista(state.lixeiraVendas);
 }
 
 function toggleCalendarioPopover(e) {
@@ -775,68 +816,6 @@ function renderizarListaItensHtml(itens) {
     }
     return `<div style="margin-bottom: 6px;">🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" title="Clique para copiar">${esc(itemText)}</span>${presenteText}</div>`;
   }).join("");
-}
-
-function abrirModalDetalhesCliente(nomeCliente) {
-  const modal = document.getElementById("clienteDetalhesModal");
-  const tituloEl = document.getElementById("detalhesClienteTitulo");
-  const gastoEl = document.getElementById("detalhesClienteTotalGasto");
-  const vbucksEl = document.getElementById("detalhesClienteTotalVbucks");
-  const pedidosEl = document.getElementById("detalhesClienteTotalPedidos");
-  const listaPedidosEl = document.getElementById("detalhesClienteListaPedidos");
-  const btnNovaVenda = document.getElementById("containerBtnNovaVendaCliente");
-  if (!modal) return;
-
-  const vendasCliente = (state.historicoVendas || []).filter(v => String(v.cliente || "").trim() === nomeCliente);
-
-  let totalG = 0, totalVb = 0;
-  vendasCliente.forEach(v => {
-    totalG += Number(v.valor || 0);
-    totalVb += v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
-  });
-
-  if (tituloEl) tituloEl.innerHTML = `<span style="font-size: 11px; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 2px;">👤 Histórico de Cliente</span><span style="font-size: 18px; color: #fff;">${esc(nomeCliente)}</span>`;
-  if (gastoEl) gastoEl.textContent = money(totalG);
-  if (vbucksEl) vbucksEl.textContent = `🪙 ${formatVBucks(totalVb)} VB`;
-  if (pedidosEl) pedidosEl.textContent = vendasCliente.length;
-
-  const vendasReversas = [...vendasCliente].reverse();
-  const ultimoNick = vendasReversas.length ? vendasReversas[0].nickCliente : '';
-
-  if (btnNovaVenda) {
-    btnNovaVenda.innerHTML = `<button type="button" class="btn-green" style="font-size: 12px; padding: 6px 14px; white-space: nowrap; height: fit-content;" onclick="fecharModalDetalhesCliente(); preencherNovaVenda('${esc(nomeCliente).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>`;
-  }
-
-  if (vendasReversas.length === 0) {
-    listaPedidosEl.innerHTML = `<div style="text-align:center; padding:20px; color:var(--muted);">Nenhum pedido encontrado.</div>`;
-  } else {
-    listaPedidosEl.innerHTML = vendasReversas.map((v, i) => {
-      const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
-      const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
-
-      return `
-        <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
-          <div>
-            <div style="font-size: 12px; font-weight: 700; color: var(--accent-light);">📦 Pedido #${vendasReversas.length - i} · Conta: ${esc(v.conta)}</div>
-            <div style="font-size: 13px; color: #fff; margin-top: 3px;">🎮 Nick: <b>${esc(v.nickCliente)}</b></div>
-            <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">${itensHtmlStr}</div>
-            <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
-          </div>
-          <div style="text-align: right; flex-shrink: 0;">
-            <div style="font-size: 16px; font-weight: 900; color: var(--green);">${money(v.valor)}</div>
-            <div style="font-size: 11px; color: var(--accent-light); font-weight: 700; margin-top: 2px;">🪙 ${formatVBucks(vb)} VB</div>
-          </div>
-        </div>
-      `;
-    }).join("");
-  }
-
-  modal.style.display = "flex";
-}
-
-function fecharModalDetalhesCliente() {
-  const modal = document.getElementById("clienteDetalhesModal");
-  if (modal) modal.style.display = "none";
 }
 
 function toggleBalancoFinanceiro() {
@@ -1548,6 +1527,8 @@ function render() {
           String(v.nickCliente || "").toLowerCase().includes(historicoTermoBusca) ||
           String(v.conta || "").toLowerCase().includes(historicoTermoBusca) ||
           String(v.nickPresente || "").toLowerCase().includes(historicoTermoBusca) ||
+          String(v.whatsapp || "").toLowerCase().includes(historicoTermoBusca) ||
+          String(v.tiktok || "").toLowerCase().includes(historicoTermoBusca) ||
           itensStr.includes(historicoTermoBusca) ||
           obsStr.includes(historicoTermoBusca);
       });
@@ -1582,6 +1563,14 @@ function render() {
         const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
         const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
 
+        const infosContato = [];
+        if (v.whatsapp) infosContato.push(`📱 <span class="copyable-text" onclick="copiarTexto('${esc(v.whatsapp)}', 'WhatsApp', event)" title="Copiar WhatsApp">${esc(v.whatsapp)}</span>`);
+        if (v.tiktok) infosContato.push(`🎵 <span class="copyable-text" onclick="copiarTexto('${esc(v.tiktok)}', 'TikTok', event)" title="Copiar TikTok">${esc(v.tiktok)}</span>`);
+        
+        const contatoHtml = infosContato.length > 0 
+          ? `<div class="history-client" style="margin-top: 4px; display:flex; gap: 10px;">${infosContato.join("")}</div>` 
+          : "";
+
         const observacaoHtml = v.observacao ? `
           <div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 4px 8px; border-radius: 6px; border-left: 3px solid var(--accent);">
             💬 <b>Observação:</b> ${esc(v.observacao)}
@@ -1601,6 +1590,7 @@ function render() {
               <div class="history-client">
                 🎮 <span class="copyable-text" onclick="copiarTexto('${esc(v.nickCliente)}', 'Nick', event)" title="Clique para copiar">${esc(v.nickCliente)}</span>
               </div>
+              ${contatoHtml}
               <div class="history-item" style="margin-top: 8px;">${itensHtmlStr}</div>
               <div class="history-date">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
               ${observacaoHtml}
@@ -1695,6 +1685,8 @@ function adicionarVenda() {
   const valor = parseFloat(document.getElementById("valorInput").value);
   const cliente = document.getElementById("clienteInput").value.trim();
   const nickCliente = document.getElementById("nickClienteInput").value.trim();
+  const whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
+  const tiktok = document.getElementById("tiktokInput")?.value.trim() || "";
   const observacao = document.getElementById("observacaoInput")?.value.trim() || "";
   const quantidade = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
   const itens = obterItensDaVenda();
@@ -1718,6 +1710,7 @@ function adicionarVenda() {
   const novaVenda = {
     id: vendaId, conta, valor: Number(valor), vbucks: vbucksNecessarios, valorBaseMomento: baseAtual,
     quantidade, cliente, nickCliente, observacao, item: itens[0] || "", itens,
+    whatsapp, tiktok,
     data: d.toLocaleDateString("pt-BR"), hora: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), criadoEmMs: agora
   };
 
@@ -1727,9 +1720,13 @@ function adicionarVenda() {
     state.reservas.push({ id: `timer-${Date.now()}-${n}`, conta, vendaId, expiresAt: agora + 86400000 });
   }
 
+  sincronizarDadosCliente(cliente, whatsapp, tiktok);
+
   document.getElementById("valorInput").value = "";
   document.getElementById("clienteInput").value = "";
   document.getElementById("nickClienteInput").value = "";
+  if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = "";
+  if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = "";
   document.getElementById("observacaoInput").value = "";
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens();
@@ -1756,6 +1753,8 @@ function abrirModalEdicaoPorId(vendaId) {
 
   document.getElementById("editClientInput").value = venda.cliente || "";
   document.getElementById("editNickInput").value = venda.nickCliente || "";
+  if (document.getElementById("editWhatsappInput")) document.getElementById("editWhatsappInput").value = venda.whatsapp || "";
+  if (document.getElementById("editTiktokInput")) document.getElementById("editTiktokInput").value = venda.tiktok || "";
   document.getElementById("editObservacaoInput").value = venda.observacao || "";
   document.getElementById("editDataInput").value = venda.data || "";
   document.getElementById("editHoraInput").value = venda.hora || "";
@@ -1802,6 +1801,8 @@ function salvarEdicaoVenda() {
   const novaConta = document.getElementById("editContaSelect").value;
   const cliente = document.getElementById("editClientInput").value.trim();
   const nick = document.getElementById("editNickInput").value.trim();
+  const whatsapp = document.getElementById("editWhatsappInput")?.value.trim() || "";
+  const tiktok = document.getElementById("editTiktokInput")?.value.trim() || "";
   const observacao = document.getElementById("editObservacaoInput").value.trim();
   const novaData = document.getElementById("editDataInput").value.trim();
   const novaHora = document.getElementById("editHoraInput").value.trim();
@@ -1835,6 +1836,8 @@ function salvarEdicaoVenda() {
   venda.conta = novaConta;
   venda.cliente = cliente;
   venda.nickCliente = nick;
+  venda.whatsapp = whatsapp;
+  venda.tiktok = tiktok;
   venda.nickPresente = ""; 
   venda.observacao = observacao;
   venda.data = novaData;
@@ -1851,6 +1854,8 @@ function salvarEdicaoVenda() {
     sessaoVenda.conta = novaConta;
     sessaoVenda.cliente = cliente;
     sessaoVenda.nickCliente = nick;
+    sessaoVenda.whatsapp = whatsapp;
+    sessaoVenda.tiktok = tiktok;
     sessaoVenda.nickPresente = "";
     sessaoVenda.observacao = observacao;
     sessaoVenda.data = novaData;
@@ -1870,6 +1875,8 @@ function salvarEdicaoVenda() {
       }
     });
   }
+
+  sincronizarDadosCliente(cliente, whatsapp, tiktok);
 
   save();
   fecharModalEdicao();
@@ -2031,6 +2038,8 @@ document.getElementById("limparTudoBtn").addEventListener("click", () => {
   document.getElementById("valorInput").value = "";
   document.getElementById("clienteInput").value = "";
   document.getElementById("nickClienteInput").value = "";
+  if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = "";
+  if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = "";
   document.getElementById("observacaoInput").value = "";
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens(); 
@@ -2051,10 +2060,10 @@ function toggleMostrarSenha() {
   
   if (passInput.type === "password") {
     passInput.type = "text";
-    toggleBtn.textContent = "🙈"; // Olhinho fechado
+    toggleBtn.textContent = "🙈"; 
   } else {
     passInput.type = "password";
-    toggleBtn.textContent = "👁️"; // Olhinho aberto
+    toggleBtn.textContent = "👁️"; 
   }
 }
 

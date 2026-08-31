@@ -244,6 +244,18 @@
             <input id="editNickInput" type="text" maxlength="80">
           </div>
         </div>
+        
+        <!-- Grid do WhatsApp e TikTok para Edição -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+          <div class="field">
+            <label>WhatsApp</label>
+            <input id="editWhatsappInput" type="text" maxlength="25">
+          </div>
+          <div class="field">
+            <label>TikTok</label>
+            <input id="editTiktokInput" type="text" maxlength="40">
+          </div>
+        </div>
 
         <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:10px;">
           <div class="field">
@@ -367,6 +379,7 @@
         <input id="quantidadeInput" type="number" min="1" step="1" value="1" oninput="atualizarCamposItens()">
       </div>
       
+      <!-- Campos do Cliente, Nick, Whatsapp e Tiktok -->
       <div class="field" style="position: relative;">
         <label>Nome do cliente</label>
         <div class="autocomplete-wrapper">
@@ -381,6 +394,16 @@
           <input id="nickClienteInput" type="text" maxlength="80" placeholder="Ex.: JoaoFortnite" oninput="buscarSugestoesNick(this.value)" autocomplete="off">
           <div id="nickSuggestions" class="autocomplete-dropdown"></div>
         </div>
+      </div>
+      
+      <div class="field">
+        <label>WhatsApp</label>
+        <input id="whatsappInput" type="text" maxlength="25" placeholder="Ex.: 11 99999-9999">
+      </div>
+      
+      <div class="field">
+        <label>TikTok</label>
+        <input id="tiktokInput" type="text" maxlength="40" placeholder="Ex.: @seu_tiktok">
       </div>
     </div>
 
@@ -489,7 +512,7 @@
           <input 
             id="historySearchInput" 
             type="text" 
-            placeholder="Buscar por ID (#46), Nick, Cliente, Item, Conta, V-Bucks (1500) ou Data..."
+            placeholder="Buscar por ID (#46), Nick, Cliente, TikTok, Item, Conta..."
             oninput="filtrarHistoricoInput(this.value)"
           >
           <button type="button" class="btn-clear-search" id="clearSearchBtn" style="display:none;" onclick="limparBuscaHistorico()">✕</button>
