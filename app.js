@@ -1588,16 +1588,17 @@ function render() {
         const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
         const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
 
+        // Ícone ajustado do TikTok
         const infosContato = [];
         
-        // Ícone ajustado do TikTok
-        const iconeTikTok = `<svg style="width:14px;height:14px;vertical-align:text-bottom;margin-bottom:1px;fill:currentColor;" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z"/></svg>`;
+        // Retornei o tamanho para 14px e tirei as margens, o flexbox vai cuidar do alinhamento:
+        const iconeTikTok = `<svg style="width:14px;height:14px;fill:currentColor;" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z"/></svg>`;
 
-        if (v.whatsapp) infosContato.push(`📱 <span class="copyable-text" onclick="copiarTexto('${esc(v.whatsapp)}', 'WhatsApp', event)" title="Copiar WhatsApp">${esc(v.whatsapp)}</span>`);
-        if (v.tiktok) infosContato.push(`${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(v.tiktok)}', 'TikTok', event)" title="Copiar TikTok">${esc(v.tiktok)}</span>`);
+        if (v.whatsapp) infosContato.push(`<div style="display:flex; align-items:center; gap:4px;">📱 <span class="copyable-text" onclick="copiarTexto('${esc(v.whatsapp)}', 'WhatsApp', event)" title="Copiar WhatsApp">${esc(v.whatsapp)}</span></div>`);
+        if (v.tiktok) infosContato.push(`<div style="display:flex; align-items:center; gap:4px;">${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(v.tiktok)}', 'TikTok', event)" title="Copiar TikTok">${esc(v.tiktok)}</span></div>`);
         
         const contatoHtml = infosContato.length > 0 
-          ? `<div class="history-client" style="margin-top: 4px; display:flex; gap: 10px;">${infosContato.join("")}</div>` 
+          ? `<div class="history-client" style="margin-top: 4px; display:flex; align-items:center; gap: 12px;">${infosContato.join("")}</div>` 
           : "";
 
         const observacaoHtml = v.observacao ? `
