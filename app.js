@@ -1594,7 +1594,7 @@ function render() {
         if (v.tiktok) infosContato.push(`<div style="display:flex; align-items:center; gap:4px; white-space: nowrap;">${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(v.tiktok)}', 'TikTok', event)" title="Copiar TikTok" style="font-size:13px; font-weight:600; color:#eee; white-space: nowrap;">${esc(v.tiktok)}</span></div>`);
         
         const contatoHtml = infosContato.length > 0 
-          ? `<div class="history-client" style="margin-top: 4px; display:flex; align-items:center; gap: 12px; flex-wrap: wrap;">${infosContato.join("")}</div>` 
+          ? `<div class="history-client" style="margin-top: 4px; display:flex; align-items:center; gap: 12px; flex-wrap: nowrap;">${infosContato.join("")}</div>` 
           : "";
 
         const observacaoHtml = v.observacao ? `
@@ -2026,7 +2026,7 @@ function abrirModalDetalhesCliente(nomeCliente) {
   if (tk) infosContato.push(`<div style="display:flex; align-items:center; gap:4px; white-space: nowrap;">${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(tk)}', 'TikTok', event)" title="Copiar TikTok" style="font-size:13px; font-weight:600; color:#eee; white-space: nowrap;">${esc(tk)}</span></div>`);
   
   const contatoHtml = infosContato.length > 0 
-    ? `<div style="margin-top: 6px; display:flex; align-items:center; gap: 12px; flex-wrap: wrap;">${infosContato.join("")}</div>` 
+    ? `<div style="margin-top: 6px; display:flex; align-items:center; gap: 12px; flex-wrap: nowrap;">${infosContato.join("")}</div>` 
     : "";
 
   if (tituloEl) {
