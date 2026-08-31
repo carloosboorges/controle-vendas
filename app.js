@@ -91,32 +91,25 @@ function copiarTexto(texto, tipo = "Texto", event = null) {
 
 function mascaraTelefone(e) {
   let input = e.target;
-  let numeros = input.value.replace(/\D/g, ""); // Remove tudo que não for número
+  let numeros = input.value.replace(/\D/g, ""); 
 
   if (!numeros) { 
     input.value = ""; 
     return; 
   }
 
-  // TRUQUE MÁGICO: Se digitar 11 números e o terceiro for '9' (Padrão celular BR)
-  // e esquecer o 55, o sistema coloca automaticamente
   if (numeros.length === 11 && numeros[2] === '9' && !numeros.startsWith("55")) {
     numeros = "55" + numeros;
   }
 
-  // Se for Brasil (começa com 55) aplica a máscara completa
   if (numeros.startsWith("55")) {
-    numeros = numeros.substring(0, 13); // Limita ao tamanho máximo do BR
+    numeros = numeros.substring(0, 13); 
     let formatted = "+" + numeros.substring(0, 2);
     if (numeros.length > 2) formatted += " (" + numeros.substring(2, 4);
     if (numeros.length > 4) formatted += ") " + numeros.substring(4, 9);
     if (numeros.length > 9) formatted += "-" + numeros.substring(9, 13);
     input.value = formatted;
-  } 
-  // Se for gringo (Portugal 351, EUA 1, etc...)
-  else {
-    // Para números internacionais, o mais seguro é manter o "+" 
-    // e os números juntos (padrão global do WhatsApp) para não quebrar
+  } else {
     input.value = "+" + numeros;
   }
 }
@@ -843,10 +836,10 @@ function renderizarListaItensHtml(itens) {
        itemText = formatItemString(itemObj.tipo, itemObj.nome);
        copyText = itemObj.nome;
        if (itemObj.presente) {
-         presenteText = ` <span style="color:var(--accent-light); font-size:12px; margin-left:6px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-block; margin-top: 4px;">➡️ 🎁 Para: <span class="copyable-text" onclick="copiarTexto('${esc(itemObj.presente)}', 'Nick Presente', event)" title="Clique para copiar">${esc(itemObj.presente)}</span></span>`;
+         presenteText = ` <span style="color:var(--accent-light); font-size:12px; margin-left:6px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-block; margin-top: 4px;">➡️ 🎁 Para: <span class="copyable-text" onclick="copiarTexto('${esc(itemObj.presente)}', 'Nick Presente', event)" title="Copiar nick do cliente">${esc(itemObj.presente)}</span></span>`;
        }
     }
-    return `<div style="margin-bottom: 6px;">🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" title="Clique para copiar">${esc(itemText)}</span>${presenteText}</div>`;
+    return `<div style="margin-bottom: 6px;">🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" title="Copiar item do cliente">${esc(itemText)}</span>${presenteText}</div>`;
   }).join("");
 }
 
@@ -1596,7 +1589,9 @@ function render() {
         const itensHtmlStr = renderizarListaItensHtml(v.itens || [v.item]);
 
         const infosContato = [];
-        const iconeTikTok = `<svg style="width:13px;height:13px;vertical-align:middle;margin-top:-2px;" viewBox="0 0 448 512" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z"/></svg>`;
+        
+        // Ícone ajustado do TikTok
+        const iconeTikTok = `<svg style="width:14px;height:14px;vertical-align:text-bottom;margin-bottom:1px;fill:currentColor;" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z"/></svg>`;
 
         if (v.whatsapp) infosContato.push(`📱 <span class="copyable-text" onclick="copiarTexto('${esc(v.whatsapp)}', 'WhatsApp', event)" title="Copiar WhatsApp">${esc(v.whatsapp)}</span>`);
         if (v.tiktok) infosContato.push(`${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(v.tiktok)}', 'TikTok', event)" title="Copiar TikTok">${esc(v.tiktok)}</span>`);
@@ -1619,10 +1614,10 @@ function render() {
                 <span class="copyable-text" onclick="copiarTexto('${esc(v.conta)}', 'Conta', event)" title="Clique para copiar">${esc(v.conta)}</span>
               </div>
               <div class="history-client">
-                👤 <span class="copyable-text" onclick="copiarTexto('${esc(v.cliente)}', 'Cliente', event)" title="Clique para copiar">${esc(v.cliente)}</span>
+                👤 <span class="copyable-text" onclick="copiarTexto('${esc(v.cliente)}', 'Cliente', event)" title="Copiar nome do cliente">${esc(v.cliente)}</span>
               </div>
               <div class="history-client">
-                🎮 <span class="copyable-text" onclick="copiarTexto('${esc(v.nickCliente)}', 'Nick', event)" title="Clique para copiar">${esc(v.nickCliente)}</span>
+                🎮 <span class="copyable-text" onclick="copiarTexto('${esc(v.nickCliente)}', 'Nick', event)" title="Copiar nick do cliente">${esc(v.nickCliente)}</span>
               </div>
               ${contatoHtml}
               <div class="history-item" style="margin-top: 8px;">${itensHtmlStr}</div>
