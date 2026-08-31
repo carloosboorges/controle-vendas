@@ -223,7 +223,7 @@ function buscarSugestoesCliente(texto) {
   histReverso.forEach(v => {
      const nome = String(v.cliente || "").trim();
      if(nome && !clientesMap[nome]) {
-         clientesMap[nome] = { whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
+         clientesMap[nome] = { nick: v.nickCliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
      } else if (nome && clientesMap[nome]) {
          if (!clientesMap[nome].whatsapp && v.whatsapp) clientesMap[nome].whatsapp = v.whatsapp;
          if (!clientesMap[nome].tiktok && v.tiktok) clientesMap[nome].tiktok = v.tiktok;
@@ -240,8 +240,8 @@ function buscarSugestoesCliente(texto) {
   dropdown.innerHTML = sugestoes.slice(0, 6).map(nome => {
     const dados = clientesMap[nome];
     return `
-    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(nome).replace(/'/g, "\\'")}', '${esc(dados.whatsapp).replace(/'/g, "\\'")}', '${esc(dados.tiktok).replace(/'/g, "\\'")}')">
-      👤 ${esc(nome)}
+    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(nome).replace(/'/g, "\\'")}', '${esc(dados.nick).replace(/'/g, "\\'")}', '${esc(dados.whatsapp).replace(/'/g, "\\'")}', '${esc(dados.tiktok).replace(/'/g, "\\'")}')">
+      👤 ${esc(nome)} <span class="autocomplete-nick">🎮 ${esc(dados.nick)}</span>
     </div>
   `}).join("");
   dropdown.style.display = "block";
@@ -314,8 +314,9 @@ function sugerirNickPresente(texto, index) {
   dropdown.style.display = "block";
 }
 
-function selecionarSugestaoCliente(nome, whatsapp, tiktok) {
+function selecionarSugestaoCliente(nome, nick, whatsapp, tiktok) {
   document.getElementById("clienteInput").value = nome;
+  document.getElementById("nickClienteInput").value = nick;
   if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = whatsapp || "";
   if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = tiktok || "";
   document.getElementById("clienteSuggestions").style.display = "none";
@@ -2026,7 +2027,7 @@ function abrirModalDetalhesCliente(nomeCliente) {
   if (tk) infosContato.push(`<div style="display:flex; align-items:center; gap:4px; white-space: nowrap;">${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(tk)}', 'TikTok', event)" title="Copiar TikTok" style="font-size:13px; font-weight:600; color:#eee; white-space: nowrap;">${esc(tk)}</span></div>`);
   
   const contatoHtml = infosContato.length > 0 
-    ? `<div style="margin-top: 6px; display:flex; align-items:center; gap: 12px; flex-wrap: nowrap;">${infosContato.join("")}</div>` 
+    ? `<div style="margin-top: 6px; display:flex; align-items:center; gap: 12px; flex-wrap: wrap;">${infosContato.join("")}</div>` 
     : "";
 
   if (tituloEl) {
