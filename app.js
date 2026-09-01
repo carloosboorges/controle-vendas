@@ -210,6 +210,16 @@ document.addEventListener("click", (e) => {
   }
 });
 
+// FUNÇÕES DA NOVA CAIXINHA DE ALERTA DE CLIENTE
+function lerObservacaoCliente(nome) {
+   const info = (state.clientesInfo || {})[String(nome).trim()] || {};
+   if (info.observacao) {
+      document.getElementById('leituraObsNome').textContent = "👤 Cliente: " + nome;
+      document.getElementById('leituraObsTexto').textContent = info.observacao;
+      document.getElementById('leituraObsModal').style.display = 'flex';
+   }
+}
+
 function verificarObservacaoCliente(nome) {
   const avisoEl = document.getElementById("clienteObsAviso");
   if (!avisoEl) return;
@@ -219,7 +229,8 @@ function verificarObservacaoCliente(nome) {
   }
   const info = (state.clientesInfo || {})[String(nome).trim()] || {};
   if (info.observacao) {
-    avisoEl.innerHTML = `📌 <b>Aviso:</b> ${esc(info.observacao)}`;
+    avisoEl.innerHTML = `⚠️ ATENÇÃO: CLIENTE COM OBSERVAÇÃO (CLIQUE AQUI)`;
+    avisoEl.onclick = () => lerObservacaoCliente(nome);
     avisoEl.style.display = "block";
   } else {
     avisoEl.style.display = "none";
@@ -240,7 +251,7 @@ function buscarSugestoesCliente(texto) {
   histReverso.forEach(v => {
      const nome = String(v.cliente || "").trim();
      if(nome && !clientesMap[nome]) {
-         clientesMap[nome] = { whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
+         clientesMap[nome] = { nick: v.nickCliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
      } else if (nome && clientesMap[nome]) {
          if (!clientesMap[nome].whatsapp && v.whatsapp) clientesMap[nome].whatsapp = v.whatsapp;
          if (!clientesMap[nome].tiktok && v.tiktok) clientesMap[nome].tiktok = v.tiktok;
@@ -260,8 +271,8 @@ function buscarSugestoesCliente(texto) {
     const obsIcon = hasObs ? ' <span style="font-size:11px;" title="Possui observação">📌</span>' : '';
     
     return `
-    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(nome).replace(/'/g, "\\'")}', '${esc(dados.whatsapp).replace(/'/g, "\\'")}', '${esc(dados.tiktok).replace(/'/g, "\\'")}')">
-      👤 ${esc(nome)}${obsIcon}
+    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(nome).replace(/'/g, "\\'")}', '${esc(dados.nick).replace(/'/g, "\\'")}', '${esc(dados.whatsapp).replace(/'/g, "\\'")}', '${esc(dados.tiktok).replace(/'/g, "\\'")}')">
+      👤 ${esc(nome)}${obsIcon} <span class="autocomplete-nick">🎮 ${esc(dados.nick)}</span>
     </div>
   `}).join("");
   dropdown.style.display = "block";
@@ -334,14 +345,9 @@ function sugerirNickPresente(texto, index) {
   dropdown.style.display = "block";
 }
 
-function selecionarSugestaoCliente(nome, whatsapp, tiktok) {
+function selecionarSugestaoCliente(nome, nick, whatsapp, tiktok) {
   document.getElementById("clienteInput").value = nome;
-  
-  const histReverso = [...(state.historicoVendas || [])].reverse();
-  const ultimaVenda = histReverso.find(v => String(v.cliente || "").trim() === nome);
-  if (ultimaVenda && ultimaVenda.nickCliente) {
-      document.getElementById("nickClienteInput").value = ultimaVenda.nickCliente;
-  }
+  document.getElementById("nickClienteInput").value = nick;
 
   if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = whatsapp || "";
   if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = tiktok || "";
