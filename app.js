@@ -210,6 +210,22 @@ document.addEventListener("click", (e) => {
   }
 });
 
+function verificarObservacaoCliente(nome) {
+  const avisoEl = document.getElementById("clienteObsAviso");
+  if (!avisoEl) return;
+  if (!nome) {
+    avisoEl.style.display = "none";
+    return;
+  }
+  const info = (state.clientesInfo || {})[String(nome).trim()] || {};
+  if (info.observacao) {
+    avisoEl.innerHTML = `📌 <b>Aviso:</b> ${esc(info.observacao)}`;
+    avisoEl.style.display = "block";
+  } else {
+    avisoEl.style.display = "none";
+  }
+}
+
 function buscarSugestoesCliente(texto) {
   const dropdown = document.getElementById("clienteSuggestions");
   if (!dropdown) return;
@@ -240,9 +256,12 @@ function buscarSugestoesCliente(texto) {
 
   dropdown.innerHTML = sugestoes.slice(0, 6).map(nome => {
     const dados = clientesMap[nome];
+    const hasObs = state.clientesInfo && state.clientesInfo[nome] && state.clientesInfo[nome].observacao;
+    const obsIcon = hasObs ? ' <span style="font-size:11px;" title="Possui observação">📌</span>' : '';
+    
     return `
     <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(nome).replace(/'/g, "\\'")}', '${esc(dados.whatsapp).replace(/'/g, "\\'")}', '${esc(dados.tiktok).replace(/'/g, "\\'")}')">
-      👤 ${esc(nome)}
+      👤 ${esc(nome)}${obsIcon}
     </div>
   `}).join("");
   dropdown.style.display = "block";
@@ -327,12 +346,16 @@ function selecionarSugestaoCliente(nome, whatsapp, tiktok) {
   if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = whatsapp || "";
   if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = tiktok || "";
   document.getElementById("clienteSuggestions").style.display = "none";
+  
+  verificarObservacaoCliente(nome);
 }
 
 function selecionarSugestaoNick(nome, nick) {
   document.getElementById("clienteInput").value = nome;
   document.getElementById("nickClienteInput").value = nick;
   document.getElementById("nickSuggestions").style.display = "none";
+  
+  verificarObservacaoCliente(nome);
 }
 
 function selecionarSugestaoNickPresente(nick, index) {
@@ -358,6 +381,8 @@ function preencherNovaVenda(nome, nick) {
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
   mostrarNotificacao(`Formulário preenchido com ${nome}! Ajuste o Nick se for outra conta.`, "info");
+  
+  verificarObservacaoCliente(nome);
 }
 
 function sincronizarDadosCliente(nomeCliente, whatsapp, tiktok) {
@@ -1769,6 +1794,9 @@ function adicionarVenda() {
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens();
   atualizarPreviewVBucks();
+  
+  verificarObservacaoCliente("");
+  
   save();
   mostrarNotificacao("Venda registrada com sucesso!", "sucesso");
 }
@@ -2186,6 +2214,7 @@ document.getElementById("limparTudoBtn").addEventListener("click", () => {
   document.getElementById("quantidadeInput").value = "1";
   atualizarCamposItens(); 
   atualizarPreviewVBucks();
+  verificarObservacaoCliente("");
 });
 
 document.getElementById("limparSoValorBtn").addEventListener("click", () => {
