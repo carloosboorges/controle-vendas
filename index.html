@@ -451,8 +451,6 @@
           <input id="clienteInput" type="text" maxlength="80" placeholder="Ex.: João123" oninput="buscarSugestoesCliente(this.value); verificarObservacaoCliente(this.value)" autocomplete="off">
           <div id="clienteSuggestions" class="autocomplete-dropdown"></div>
         </div>
-        <!-- Botão Dinâmico de Aviso -->
-        <div id="clienteObsAviso" style="display:none; margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #d84315, #ff8f00); border-radius: 8px; color: #fff; font-size: 12px; font-weight: 800; text-align: center; cursor: pointer; box-shadow: 0 4px 15px rgba(255, 143, 0, 0.35); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'"></div>
       </div>
       
       <div class="field" style="position: relative;">
@@ -463,6 +461,9 @@
         </div>
       </div>
     </div>
+
+    <!-- Botão Dinâmico de Aviso (Movido para fora da coluna, largura 100% e design mais fino) -->
+    <div id="clienteObsAviso" style="display:none; width: 100%; margin-top: 12px; padding: 8px 12px; background: linear-gradient(135deg, #d84315, #ff8f00); border-radius: 8px; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-align: center; cursor: pointer; box-shadow: 0 4px 15px rgba(255, 143, 0, 0.25); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'"></div>
 
     <!-- TERCEIRA LINHA: Área de Seleção dos Itens Vendidos -->
     <div id="itensGroupContainer" style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;"></div>
