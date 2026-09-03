@@ -2242,10 +2242,22 @@ function toggleMostrarSenha() {
   }
 }
 
+// Memoriza que dia é hoje assim que o sistema abre
+ultimaDataHojeConhecida = obterDataHojeFormatada();
+
 inicializar();
 
 setInterval(() => {
+  // 1. Atualiza apenas os cronômetros das contas (sem quebrar seleções)
   if (state && contasAberto === false) { 
     renderContasCards();
+  }
+
+  // 2. Vigia silencioso de virada de dia/mês/ano
+  const dataAtual = obterDataHojeFormatada();
+  if (ultimaDataHojeConhecida !== dataAtual) {
+    ultimaDataHojeConhecida = dataAtual; // Atualiza a memória
+    render(); // Dá um "F5 invisível" na tela inteira apenas nessa virada exata!
+    mostrarNotificacao("📅 Novo dia iniciado! Painel atualizado.", "info");
   }
 }, 1000);
