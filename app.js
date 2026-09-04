@@ -211,7 +211,6 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// FUNÇÕES DA NOVA CAIXINHA DE ALERTA DE CLIENTE
 function lerObservacaoCliente(nome) {
    const info = (state.clientesInfo || {})[String(nome).trim()] || {};
    if (info.observacao) {
@@ -1331,6 +1330,33 @@ function obterItensDaVenda() {
   return lista;
 }
 
+function confirmarRemoverTimersConta(idx, nomeConta) {
+  abrirModalConfirmacao(
+    "🗑️ Resetar Timers",
+    `Os timers de envio da conta ${nomeConta} serão resetados (liberando as 5 vagas). Tem certeza que deseja continuar?`,
+    () => { 
+      removerTimersConta(idx); 
+      mostrarNotificacao(`Timers da conta ${nomeConta} resetados!`, "sucesso"); 
+    }
+  );
+}
+
+function confirmarRemoverVendasConta(nomeConta) {
+  abrirModalConfirmacao(
+    "💲 Zerar R$ da Sessão",
+    `O valor arrecadado (R$) na sessão atual para a conta ${nomeConta} será zerado. Tem certeza que deseja continuar?`,
+    () => { 
+      removerVendasContaSessao(nomeConta); 
+    }
+  );
+}
+
+function removerVendasContaSessao(nomeConta) {
+  state.vendas = (state.vendas || []).filter(v => v.conta !== nomeConta);
+  save();
+  mostrarNotificacao(`Vendas da sessão da conta ${nomeConta} zeradas!`, "sucesso");
+}
+
 function render() {
   if (!state) return;
   const baseEl = document.getElementById("valorBaseDisplay");
@@ -1735,9 +1761,12 @@ function renderContasCards(t) {
     const painelCreds = (c.email || c.senha) ? `<div style="display:flex; gap: 8px; margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">${btnEmail}${btnSenha}</div>` : '';
 
     return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
-      <div class="account-card-head">
-        <div class="name">${esc(c.nome)}</div>
-        <button type="button" class="btn-danger reset-timer-btn" onclick="removerTimersConta(${state.contas.indexOf(c)})">🗑️ Resetar</button>
+      <div class="account-card-head" style="align-items: flex-start;">
+        <div class="name" style="word-break: break-word; flex:1;">${esc(c.nome)}</div>
+        <div style="display:flex; gap: 4px; flex-shrink: 0;">
+          <button type="button" class="btn-danger reset-timer-btn" style="padding: 4px 6px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar vendas da sessão nesta conta">💲 R$</button>
+          <button type="button" class="btn-danger reset-timer-btn" style="padding: 4px 6px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar limite de envios">⏱️ Timers</button>
+        </div>
       </div>
       <div class="amount">${money(t[c.nome] || 0)}</div>
       <div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
@@ -2243,22 +2272,19 @@ function toggleMostrarSenha() {
   }
 }
 
-// Memoriza que dia é hoje assim que o sistema abre
 ultimaDataHojeConhecida = obterDataHojeFormatada();
 
 inicializar();
 
 setInterval(() => {
-  // 1. Atualiza apenas os cronômetros das contas (sem quebrar seleções)
   if (state && contasAberto === false) { 
     renderContasCards();
   }
 
-  // 2. Vigia silencioso de virada de dia/mês/ano
   const dataAtual = obterDataHojeFormatada();
   if (ultimaDataHojeConhecida !== dataAtual) {
-    ultimaDataHojeConhecida = dataAtual; // Atualiza a memória
-    render(); // Dá um "F5 invisível" na tela inteira apenas nessa virada exata!
+    ultimaDataHojeConhecida = dataAtual; 
+    render(); 
     mostrarNotificacao("📅 Novo dia iniciado! Painel atualizado.", "info");
   }
 }, 1000);
