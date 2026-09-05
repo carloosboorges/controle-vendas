@@ -70,9 +70,6 @@ let clientesTermoBusca = "";
 
 let balancoAberto = false;
 
-// ==========================================
-// RÁDIO COMUNICADOR (Sincronia entre abas)
-// ==========================================
 const syncChannel = new BroadcastChannel('putz_sync_channel');
 syncChannel.onmessage = (event) => {
   if (event.data === 'update' && currentUser) {
@@ -80,9 +77,6 @@ syncChannel.onmessage = (event) => {
   }
 };
 
-// ==========================================
-// SENSOR DE PRESENÇA (Sincronia entre PC/Celular)
-// ==========================================
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && currentUser) {
     sincronizarSilencioso();
@@ -355,6 +349,7 @@ function buscarSugestoesWhatsapp(texto) {
   if (!dropdown) return;
   
   let termo = String(texto).replace(/\D/g, ""); 
+  
   if (termo.startsWith("55") && termo.length > 2) {
       termo = termo.substring(2);
   }
@@ -1369,7 +1364,6 @@ async function save() {
     });
     if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
     
-    // Grita no rádio interno para as outras abas atualizarem!
     syncChannel.postMessage('update');
   } catch (err) {
     if (footer) footer.textContent = "⚠️ Erro ao salvar na nuvem";
@@ -1900,11 +1894,11 @@ function renderContasCards(t) {
     const painelCreds = (c.email || c.senha) ? `<div style="display:flex; gap: 8px; margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">${btnEmail}${btnSenha}</div>` : '';
 
     return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
-      <div class="account-card-head" style="display:flex; align-items:flex-start; flex-wrap:nowrap; gap:6px;">
-        <div class="name" style="word-break: break-all; flex:1;">${esc(c.nome)}</div>
-        <div style="display:flex; gap:4px; flex-shrink:0;">
-          <button type="button" class="btn-danger" style="font-size: 11px; padding: 6px 10px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar vendas da sessão nesta conta">💲 Zerar R$</button>
-          <button type="button" class="btn-danger" style="font-size: 11px; padding: 6px 10px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar limite de envios">⏱️ Timers</button>
+      <div class="account-card-head" style="display:flex; align-items:center; flex-wrap:nowrap; gap:6px;">
+        <div class="name" style="white-space: nowrap; flex:1; font-size: 15px;">${esc(c.nome)}</div>
+        <div style="display:flex; gap: 4px; flex-shrink: 0;">
+          <button type="button" class="btn-danger" style="font-size: 11px; padding: 6px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar R$ da Sessão">💲</button>
+          <button type="button" class="btn-danger" style="font-size: 11px; padding: 6px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar Timers">⏱️</button>
         </div>
       </div>
       <div class="amount">${money(t[c.nome] || 0)}</div>
