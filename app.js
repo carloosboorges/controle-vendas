@@ -188,14 +188,16 @@ document.addEventListener("click", (e) => {
     }
     
     const dropCliente = document.getElementById("clienteSuggestions");
-    if (dropCliente && dropCliente.style.display === "block") {
-      dropCliente.style.display = "none";
-    }
+    if (dropCliente && dropCliente.style.display === "block") dropCliente.style.display = "none";
     
     const dropNick = document.getElementById("nickSuggestions");
-    if (dropNick && dropNick.style.display === "block") {
-      dropNick.style.display = "none";
-    }
+    if (dropNick && dropNick.style.display === "block") dropNick.style.display = "none";
+
+    const dropWpp = document.getElementById("whatsappSuggestions");
+    if (dropWpp && dropWpp.style.display === "block") dropWpp.style.display = "none";
+
+    const dropTk = document.getElementById("tiktokSuggestions");
+    if (dropTk && dropTk.style.display === "block") dropTk.style.display = "none";
 
     for (let j = 0; j < 20; j++) {
        const dropP = document.getElementById("nickPresenteSuggestions_" + j);
@@ -292,7 +294,7 @@ function buscarSugestoesNick(texto) {
   histReverso.forEach(v => {
      const nick = String(v.nickCliente || "").trim();
      if(nick && !nicksMap[nick]) {
-         nicksMap[nick] = v.cliente || "";
+         nicksMap[nick] = { nome: v.cliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
      }
   });
 
@@ -303,11 +305,90 @@ function buscarSugestoesNick(texto) {
     return;
   }
 
-  dropdown.innerHTML = sugestoes.slice(0, 6).map(nick => `
-    <div class="autocomplete-item" onclick="selecionarSugestaoNick('${esc(nicksMap[nick]).replace(/'/g, "\\'")}', '${esc(nick).replace(/'/g, "\\'")}')">
-      🎮 ${esc(nick)} <span class="autocomplete-nick">👤 ${esc(nicksMap[nick])}</span>
+  dropdown.innerHTML = sugestoes.slice(0, 6).map(nick => {
+    const d = nicksMap[nick];
+    return `
+    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(d.nome).replace(/'/g, "\\'")}', '${esc(nick).replace(/'/g, "\\'")}', '${esc(d.whatsapp).replace(/'/g, "\\'")}', '${esc(d.tiktok).replace(/'/g, "\\'")}')">
+      🎮 ${esc(nick)} <span class="autocomplete-nick">👤 ${esc(d.nome)}</span>
     </div>
-  `).join("");
+  `}).join("");
+  dropdown.style.display = "block";
+}
+
+function buscarSugestoesWhatsapp(texto) {
+  const dropdown = document.getElementById("whatsappSuggestions");
+  if (!dropdown) return;
+  const termo = String(texto).replace(/\D/g, ""); 
+  if (!termo || termo.length < 3) { 
+    dropdown.style.display = "none";
+    return;
+  }
+
+  const wppMap = {};
+  const histReverso = [...(state.historicoVendas || [])].reverse();
+  histReverso.forEach(v => {
+     const wpp = String(v.whatsapp || "");
+     const wppNumbers = wpp.replace(/\D/g, "");
+     if(wppNumbers && wppNumbers.includes(termo) && !wppMap[wpp]) {
+         wppMap[wpp] = {
+             nome: v.cliente || "",
+             nick: v.nickCliente || "",
+             tiktok: v.tiktok || ""
+         };
+     }
+  });
+
+  const sugestoes = Object.keys(wppMap);
+  if (sugestoes.length === 0) {
+    dropdown.style.display = "none";
+    return;
+  }
+
+  dropdown.innerHTML = sugestoes.slice(0, 6).map(wpp => {
+    const d = wppMap[wpp];
+    return `
+    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(d.nome).replace(/'/g, "\\'")}', '${esc(d.nick).replace(/'/g, "\\'")}', '${esc(wpp).replace(/'/g, "\\'")}', '${esc(d.tiktok).replace(/'/g, "\\'")}')">
+      📱 ${esc(wpp)} <span class="autocomplete-nick">👤 ${esc(d.nome)}</span>
+    </div>
+  `}).join("");
+  dropdown.style.display = "block";
+}
+
+function buscarSugestoesTiktok(texto) {
+  const dropdown = document.getElementById("tiktokSuggestions");
+  if (!dropdown) return;
+  const termo = String(texto).toLowerCase().trim();
+  if (!termo || termo.length < 2) {
+    dropdown.style.display = "none";
+    return;
+  }
+
+  const tkMap = {};
+  const histReverso = [...(state.historicoVendas || [])].reverse();
+  histReverso.forEach(v => {
+     const tk = String(v.tiktok || "").trim();
+     if(tk && tk.toLowerCase().includes(termo) && !tkMap[tk]) {
+         tkMap[tk] = {
+             nome: v.cliente || "",
+             nick: v.nickCliente || "",
+             whatsapp: v.whatsapp || ""
+         };
+     }
+  });
+
+  const sugestoes = Object.keys(tkMap);
+  if (sugestoes.length === 0) {
+    dropdown.style.display = "none";
+    return;
+  }
+
+  dropdown.innerHTML = sugestoes.slice(0, 6).map(tk => {
+    const d = tkMap[tk];
+    return `
+    <div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(d.nome).replace(/'/g, "\\'")}', '${esc(d.nick).replace(/'/g, "\\'")}', '${esc(d.whatsapp).replace(/'/g, "\\'")}', '${esc(tk).replace(/'/g, "\\'")}')">
+      🎵 ${esc(tk)} <span class="autocomplete-nick">👤 ${esc(d.nome)}</span>
+    </div>
+  `}).join("");
   dropdown.style.display = "block";
 }
 
@@ -348,18 +429,13 @@ function sugerirNickPresente(texto, index) {
 function selecionarSugestaoCliente(nome, nick, whatsapp, tiktok) {
   document.getElementById("clienteInput").value = nome;
   document.getElementById("nickClienteInput").value = nick;
-
   if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = whatsapp || "";
   if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = tiktok || "";
-  document.getElementById("clienteSuggestions").style.display = "none";
   
-  verificarObservacaoCliente(nome);
-}
-
-function selecionarSugestaoNick(nome, nick) {
-  document.getElementById("clienteInput").value = nome;
-  document.getElementById("nickClienteInput").value = nick;
-  document.getElementById("nickSuggestions").style.display = "none";
+  if (document.getElementById("clienteSuggestions")) document.getElementById("clienteSuggestions").style.display = "none";
+  if (document.getElementById("nickSuggestions")) document.getElementById("nickSuggestions").style.display = "none";
+  if (document.getElementById("whatsappSuggestions")) document.getElementById("whatsappSuggestions").style.display = "none";
+  if (document.getElementById("tiktokSuggestions")) document.getElementById("tiktokSuggestions").style.display = "none";
   
   verificarObservacaoCliente(nome);
 }
@@ -1760,9 +1836,10 @@ function renderContasCards(t) {
     const btnSenha = c.senha ? `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 8px;" onclick="copiarTexto('${esc(c.senha)}', 'Senha', event)">🔑 Copiar Senha</button>` : '';
     const painelCreds = (c.email || c.senha) ? `<div style="display:flex; gap: 8px; margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">${btnEmail}${btnSenha}</div>` : '';
 
+    // Ajustei o align-items, adicionei flex-wrap: nowrap, e coloquei um min-width: 0 pro texto ellipsis funcionar certinho!
     return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
       <div class="account-card-head" style="align-items: center; flex-wrap: nowrap; gap: 6px;">
-        <div class="name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;" title="${esc(c.nome)}">${esc(c.nome)}</div>
+        <div class="name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;" title="${esc(c.nome)}">${esc(c.nome)}</div>
         <div style="display:flex; gap: 4px; flex-shrink: 0;">
           <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar vendas da sessão nesta conta">💲 Zerar R$</button>
           <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar limite de envios">⏱️ Timers</button>
