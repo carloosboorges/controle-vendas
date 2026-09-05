@@ -70,6 +70,41 @@ let clientesTermoBusca = "";
 
 let balancoAberto = false;
 
+// ==========================================
+// RÁDIO COMUNICADOR (Sincronia entre abas)
+// ==========================================
+const syncChannel = new BroadcastChannel('putz_sync_channel');
+syncChannel.onmessage = (event) => {
+  if (event.data === 'update' && currentUser) {
+    sincronizarSilencioso();
+  }
+};
+
+// ==========================================
+// SENSOR DE PRESENÇA (Sincronia entre PC/Celular)
+// ==========================================
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && currentUser) {
+    sincronizarSilencioso();
+  }
+});
+
+async function sincronizarSilencioso() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.1&select=*`, {
+      headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+    });
+    const rows = await res.json();
+    if (Array.isArray(rows) && rows.length > 0 && rows[0].data) {
+      state = rows[0].data;
+      sanitizarDados();
+      render();
+    }
+  } catch (err) {
+    console.warn("Sincronização em segundo plano falhou.", err);
+  }
+}
+
 function copiarTexto(texto, tipo = "Texto", event = null) {
   if (event) event.stopPropagation();
   if (!texto || texto === "—") return;
@@ -315,14 +350,11 @@ function buscarSugestoesNick(texto) {
   dropdown.style.display = "block";
 }
 
-// ==== BUSCA INTELIGENTE POR WHATSAPP ====
 function buscarSugestoesWhatsapp(texto) {
   const dropdown = document.getElementById("whatsappSuggestions");
   if (!dropdown) return;
   
   let termo = String(texto).replace(/\D/g, ""); 
-  
-  // Se quem está digitando colocou 55 no começo, a gente ignora pra bater direto com o DDD
   if (termo.startsWith("55") && termo.length > 2) {
       termo = termo.substring(2);
   }
@@ -340,7 +372,6 @@ function buscarSugestoesWhatsapp(texto) {
      if (!wppOriginal) return;
      
      let wppNumbers = wppOriginal.replace(/\D/g, "");
-     // Se o número salvo no banco tiver 55 no começo, a gente ignora também
      if (wppNumbers.startsWith("55") && wppNumbers.length > 2) {
          wppNumbers = wppNumbers.substring(2);
      }
@@ -373,12 +404,10 @@ function buscarSugestoesWhatsapp(texto) {
   dropdown.style.display = "block";
 }
 
-// ==== BUSCA INTELIGENTE POR TIKTOK ====
 function buscarSugestoesTiktok(texto) {
   const dropdown = document.getElementById("tiktokSuggestions");
   if (!dropdown) return;
   
-  // Remove arroba na hora da busca para facilitar
   let termo = String(texto).toLowerCase().trim().replace(/@/g, "");
   if (!termo || termo.length < 2) {
     dropdown.style.display = "none";
@@ -1339,6 +1368,9 @@ async function save() {
       body: JSON.stringify({ id: 1, data: state, updated_at: new Date().toISOString() })
     });
     if (footer) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
+    
+    // Grita no rádio interno para as outras abas atualizarem!
+    syncChannel.postMessage('update');
   } catch (err) {
     if (footer) footer.textContent = "⚠️ Erro ao salvar na nuvem";
   }
@@ -1868,11 +1900,11 @@ function renderContasCards(t) {
     const painelCreds = (c.email || c.senha) ? `<div style="display:flex; gap: 8px; margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">${btnEmail}${btnSenha}</div>` : '';
 
     return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
-      <div class="account-card-head" style="align-items: center; flex-wrap: nowrap; gap: 6px;">
-        <div class="name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;" title="${esc(c.nome)}">${esc(c.nome)}</div>
-        <div style="display:flex; gap: 4px; flex-shrink: 0;">
-          <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar vendas da sessão nesta conta">💲 Zerar R$</button>
-          <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar limite de envios">⏱️ Timers</button>
+      <div class="account-card-head" style="display:flex; align-items:flex-start; flex-wrap:nowrap; gap:6px;">
+        <div class="name" style="word-break: break-all; flex:1;">${esc(c.nome)}</div>
+        <div style="display:flex; gap:4px; flex-shrink:0;">
+          <button type="button" class="btn-danger" style="font-size: 11px; padding: 6px 10px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar vendas da sessão nesta conta">💲 Zerar R$</button>
+          <button type="button" class="btn-danger" style="font-size: 11px; padding: 6px 10px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar limite de envios">⏱️ Timers</button>
         </div>
       </div>
       <div class="amount">${money(t[c.nome] || 0)}</div>
