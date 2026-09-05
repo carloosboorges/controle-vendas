@@ -432,14 +432,20 @@
         <input id="quantidadeInput" type="number" min="1" step="1" value="1" oninput="atualizarCamposItens()">
       </div>
       
-      <div class="field">
+      <div class="field" style="position: relative;">
         <label>TikTok</label>
-        <input id="tiktokInput" type="text" maxlength="40" placeholder="Ex.: @seu_tiktok">
+        <div class="autocomplete-wrapper">
+          <input id="tiktokInput" type="text" maxlength="40" placeholder="Ex.: @seu_tiktok" oninput="buscarSugestoesTiktok(this.value)" autocomplete="off">
+          <div id="tiktokSuggestions" class="autocomplete-dropdown"></div>
+        </div>
       </div>
 
-      <div class="field">
+      <div class="field" style="position: relative;">
         <label>WhatsApp</label>
-        <input id="whatsappInput" type="text" maxlength="25" placeholder="Ex.: 5527999999999" oninput="mascaraTelefone(event)">
+        <div class="autocomplete-wrapper">
+          <input id="whatsappInput" type="text" maxlength="25" placeholder="Ex.: 5527999999999" oninput="mascaraTelefone(event); buscarSugestoesWhatsapp(this.value)" autocomplete="off">
+          <div id="whatsappSuggestions" class="autocomplete-dropdown"></div>
+        </div>
       </div>
     </div>
 
@@ -462,7 +468,7 @@
       </div>
     </div>
 
-    <!-- Botão Dinâmico de Aviso (Movido para fora da coluna, largura 100% e design mais fino) -->
+    <!-- Botão Dinâmico de Aviso -->
     <div id="clienteObsAviso" style="display:none; width: 100%; margin-top: 12px; padding: 8px 12px; background: linear-gradient(135deg, #d84315, #ff8f00); border-radius: 8px; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-align: center; cursor: pointer; box-shadow: 0 4px 15px rgba(255, 143, 0, 0.25); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'"></div>
 
     <!-- TERCEIRA LINHA: Área de Seleção dos Itens Vendidos -->
