@@ -349,7 +349,6 @@ function buscarSugestoesWhatsapp(texto) {
   if (!dropdown) return;
   
   let termo = String(texto).replace(/\D/g, ""); 
-  
   if (termo.startsWith("55") && termo.length > 2) {
       termo = termo.substring(2);
   }
@@ -1490,6 +1489,30 @@ function removerVendasContaSessao(nomeConta) {
   mostrarNotificacao(`Vendas da sessão da conta ${nomeConta} zeradas!`, "sucesso");
 }
 
+function adicionarTimerManual(nomeConta) {
+  const usadas = usadasDaConta(nomeConta);
+  if (usadas >= 5) {
+    mostrarNotificacao(`A conta ${nomeConta} já atingiu o limite de 5 envios!`, "erro");
+    return;
+  }
+  
+  abrirModalConfirmacao(
+    "➕ Adicionar Envio Manual",
+    `Deseja ocupar 1 vaga de envio na conta ${nomeConta} por 24h (sem registrar venda ou faturamento)?`,
+    () => {
+      const agora = Date.now();
+      state.reservas.push({
+        id: `manual-${Date.now()}`,
+        conta: nomeConta,
+        vendaId: 'envio-manual',
+        expiresAt: agora + 86400000
+      });
+      save();
+      mostrarNotificacao(`Envio manual ativado na conta ${nomeConta}!`, "sucesso");
+    }
+  );
+}
+
 function render() {
   if (!state) return;
   const baseEl = document.getElementById("valorBaseDisplay");
@@ -1894,11 +1917,12 @@ function renderContasCards(t) {
     const painelCreds = (c.email || c.senha) ? `<div style="display:flex; gap: 8px; margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">${btnEmail}${btnSenha}</div>` : '';
 
     return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
-      <div class="account-card-head" style="display:flex; align-items:center; flex-wrap:nowrap; gap:6px;">
-        <div class="name" style="white-space: nowrap; flex:1; font-size: 15px;">${esc(c.nome)}</div>
+      <div class="account-card-head" style="align-items: center; flex-wrap: nowrap; gap: 6px;">
+        <div class="name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;" title="${esc(c.nome)}">${esc(c.nome)}</div>
         <div style="display:flex; gap: 4px; flex-shrink: 0;">
-          <button type="button" class="btn-danger" style="font-size: 11px; padding: 6px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar R$ da Sessão">💲</button>
-          <button type="button" class="btn-danger" style="font-size: 11px; padding: 6px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar Timers">⏱️</button>
+          <button type="button" class="btn-green" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="adicionarTimerManual('${esc(c.nome).replace(/'/g, "\\'")}')" title="Adicionar envio manual (sem registrar venda)">➕⏱️</button>
+          <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar R$ da Sessão">💲</button>
+          <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar Timers">⏱️</button>
         </div>
       </div>
       <div class="amount">${money(t[c.nome] || 0)}</div>
