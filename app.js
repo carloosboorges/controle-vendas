@@ -895,6 +895,8 @@ function limparBuscaClientes() {
 function mudarPaginaClientes(p) {
   clientesPaginaAtual = p;
   renderizarHistoricoClientesCompleto();
+  const barraBusca = document.querySelector("#conteudoAbaClientes .history-search-bar-box");
+  if (barraBusca) barraBusca.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderizarHistoricoClientesCompleto() {
@@ -924,7 +926,6 @@ function renderizarHistoricoClientesCompleto() {
     clientesMap[nomeCliente].totalVbucks += v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
     clientesMap[nomeCliente].totalPedidos += 1;
     
-    // Adiciona contatos na "string invisível" para a busca puxar tudo
     const nick = String(v.nickCliente || "").toLowerCase();
     const tk = String(v.tiktok || "").toLowerCase();
     const tkLimpo = tk.replace(/@/g, "");
@@ -1071,7 +1072,12 @@ function limparBuscaHistorico() {
   render();
 }
 
-function mudarPaginaHistorico(p) { historicoPaginaAtual = p; render(); }
+function mudarPaginaHistorico(p) { 
+  historicoPaginaAtual = p; 
+  render(); 
+  const barraBusca = document.querySelector(".history-search-bar-box");
+  if (barraBusca) barraBusca.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 function atualizarPreviewVBucks() {
   const input = document.getElementById("valorInput");
@@ -1944,12 +1950,12 @@ function renderContasCards(t) {
     const painelCreds = (c.email || c.senha) ? `<div style="display:flex; gap: 8px; margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">${btnEmail}${btnSenha}</div>` : '';
 
     return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
-      <div class="account-card-head" style="display:flex; align-items:flex-start; flex-wrap:nowrap; gap:6px;">
-        <div class="name" style="word-break: break-all; flex:1;">${esc(c.nome)}</div>
-        <div style="display:flex; gap:4px; flex-shrink:0;">
-          <button type="button" class="btn-green" style="font-size: 11px; padding: 6px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="adicionarTimerManual('${esc(c.nome).replace(/'/g, "\\'")}')" title="Adicionar envio manual (sem registrar venda)">➕⏱️</button>
-          <button type="button" class="btn-danger" style="font-size: 11px; padding: 6px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar R$ da Sessão">💲</button>
-          <button type="button" class="btn-danger" style="font-size: 11px; padding: 6px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar Timers">⏱️</button>
+      <div class="account-card-head" style="display:flex; align-items:center; flex-wrap:nowrap; gap:6px;">
+        <div class="name" style="white-space: nowrap; flex:1; font-size: 15px;">${esc(c.nome)}</div>
+        <div style="display:flex; gap: 4px; flex-shrink: 0;">
+          <button type="button" class="btn-green" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="adicionarTimerManual('${esc(c.nome).replace(/'/g, "\\'")}')" title="Adicionar envio manual (sem registrar venda)">➕⏱️</button>
+          <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar R$ da Sessão">💲</button>
+          <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar Timers">⏱️</button>
         </div>
       </div>
       <div class="amount">${money(t[c.nome] || 0)}</div>
