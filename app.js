@@ -349,6 +349,7 @@ function buscarSugestoesWhatsapp(texto) {
   if (!dropdown) return;
   
   let termo = String(texto).replace(/\D/g, ""); 
+  
   if (termo.startsWith("55") && termo.length > 2) {
       termo = termo.substring(2);
   }
@@ -910,18 +911,44 @@ function renderizarHistoricoClientesCompleto() {
     if (!nomeCliente) return;
 
     if (!clientesMap[nomeCliente]) {
-      clientesMap[nomeCliente] = { nome: nomeCliente, totalGasto: 0, totalVbucks: 0, totalPedidos: 0 };
+      clientesMap[nomeCliente] = { 
+          nome: nomeCliente, 
+          totalGasto: 0, 
+          totalVbucks: 0, 
+          totalPedidos: 0,
+          searchString: nomeCliente.toLowerCase()
+      };
     }
 
     clientesMap[nomeCliente].totalGasto += Number(v.valor || 0);
     clientesMap[nomeCliente].totalVbucks += v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
     clientesMap[nomeCliente].totalPedidos += 1;
+    
+    // Adiciona contatos na "string invisível" para a busca puxar tudo
+    const nick = String(v.nickCliente || "").toLowerCase();
+    const tk = String(v.tiktok || "").toLowerCase();
+    const tkLimpo = tk.replace(/@/g, "");
+    const wpp = String(v.whatsapp || "").toLowerCase();
+    const wppLimpo = wpp.replace(/\D/g, "");
+
+    clientesMap[nomeCliente].searchString += ` ${nick} ${tk} ${tkLimpo} ${wpp} ${wppLimpo} `;
   });
 
   let listaClientes = Object.values(clientesMap).sort((a, b) => b.totalGasto - a.totalGasto);
 
   if (clientesTermoBusca) {
-    listaClientes = listaClientes.filter(c => c.nome.toLowerCase().includes(clientesTermoBusca));
+    let termoNumerico = clientesTermoBusca.replace(/\D/g, "");
+    let termoTk = clientesTermoBusca.replace(/@/g, "");
+    
+    if (termoNumerico.startsWith("55") && termoNumerico.length > 2) {
+        termoNumerico = termoNumerico.substring(2);
+    }
+
+    listaClientes = listaClientes.filter(c => {
+      return c.searchString.includes(clientesTermoBusca) || 
+             (termoTk.length >= 2 && c.searchString.includes(termoTk)) ||
+             (termoNumerico.length >= 3 && c.searchString.includes(termoNumerico));
+    });
   }
 
   const totalClientesFiltrados = listaClientes.length;
@@ -1917,12 +1944,12 @@ function renderContasCards(t) {
     const painelCreds = (c.email || c.senha) ? `<div style="display:flex; gap: 8px; margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">${btnEmail}${btnSenha}</div>` : '';
 
     return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
-      <div class="account-card-head" style="align-items: center; flex-wrap: nowrap; gap: 6px;">
-        <div class="name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;" title="${esc(c.nome)}">${esc(c.nome)}</div>
-        <div style="display:flex; gap: 4px; flex-shrink: 0;">
-          <button type="button" class="btn-green" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="adicionarTimerManual('${esc(c.nome).replace(/'/g, "\\'")}')" title="Adicionar envio manual (sem registrar venda)">➕⏱️</button>
-          <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar R$ da Sessão">💲</button>
-          <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar Timers">⏱️</button>
+      <div class="account-card-head" style="display:flex; align-items:flex-start; flex-wrap:nowrap; gap:6px;">
+        <div class="name" style="word-break: break-all; flex:1;">${esc(c.nome)}</div>
+        <div style="display:flex; gap:4px; flex-shrink:0;">
+          <button type="button" class="btn-green" style="font-size: 11px; padding: 6px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="adicionarTimerManual('${esc(c.nome).replace(/'/g, "\\'")}')" title="Adicionar envio manual (sem registrar venda)">➕⏱️</button>
+          <button type="button" class="btn-danger" style="font-size: 11px; padding: 6px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar R$ da Sessão">💲</button>
+          <button type="button" class="btn-danger" style="font-size: 11px; padding: 6px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar Timers">⏱️</button>
         </div>
       </div>
       <div class="amount">${money(t[c.nome] || 0)}</div>
