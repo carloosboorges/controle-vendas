@@ -1951,7 +1951,6 @@ function renderContasCards(t) {
     const disponiveis = Math.max(0, 5 - quantidade);
     const reservasAtivas = (state.reservas || []).filter(r => r.conta === c.nome && r.expiresAt > Date.now());
     
-    // Calcula quantas vagas estão comprometidas por agendamentos futuros
     const agendamentosPendentes = (state.agendamentos || []).filter(a => a.conta === c.nome).reduce((sum, a) => sum + (a.quantidade || 1), 0);
     const avisoAgenda = agendamentosPendentes > 0 ? `<div style="font-size: 11px; color: #ffb74d; margin-top: 4px; font-weight: bold; background: rgba(255, 152, 0, 0.1); padding: 4px 6px; border-radius: 4px;">⚠️ ${agendamentosPendentes} ${agendamentosPendentes === 1 ? 'vaga reservada' : 'vagas reservadas'} (Pré-venda)</div>` : '';
 
@@ -1984,6 +1983,65 @@ function renderContasCards(t) {
       ${painelCreds}
     </div>`;
   }).join("");
+}
+
+function adicionarVenda() {
+  limparReservasExpiradas();
+  const conta = document.getElementById("contaSelect").value;
+  const valor = parseFloat(document.getElementById("valorInput").value);
+  const cliente = document.getElementById("clienteInput").value.trim();
+  const nickCliente = document.getElementById("nickClienteInput").value.trim();
+  const whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
+  const tiktok = document.getElementById("tiktokInput")?.value.trim() || "";
+  const observacao = document.getElementById("observacaoInput")?.value.trim() || "";
+  const quantidade = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
+  const itens = obterItensDaVenda();
+  const baseAtual = state.valorBase100 || 2.5;
+
+  if (!conta) { mostrarNotificacao("Ative pelo menos uma conta.", "erro"); return; }
+  if (!valor || valor <= 0) { mostrarNotificacao("Digite um valor válido.", "erro"); return; }
+  if (!cliente || !nickCliente) { mostrarNotificacao("Preencha cliente e nick do comprador.", "erro"); return; }
+
+  const usadas = usadasDaConta(conta);
+  if (usadas + quantidade > 5) { mostrarNotificacao(`Limite excedido na conta ${conta}.`, "erro"); return; }
+
+  const contaObj = (state.contas || []).find(c => c.nome === conta);
+  const vbucksNecessarios = Math.round((valor / baseAtual) * 100);
+  if (Number(contaObj?.vbucks) < vbucksNecessarios) { mostrarNotificacao("Saldo de V-Bucks insuficiente na conta.", "erro"); return; }
+
+  contaObj.vbucks = Math.max(0, Number(contaObj.vbucks) - vbucksNecessarios);
+  const agora = Date.now(), d = new Date();
+  const vendaId = crypto.randomUUID ? crypto.randomUUID() : `venda-${Date.now()}`;
+
+  const novaVenda = {
+    id: vendaId, conta, valor: Number(valor), vbucks: vbucksNecessarios, valorBaseMomento: baseAtual,
+    quantidade, cliente, nickCliente, observacao, item: itens[0] || "", itens,
+    whatsapp, tiktok,
+    data: d.toLocaleDateString("pt-BR"), hora: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), criadoEmMs: agora
+  };
+
+  state.vendas.push(novaVenda);
+  state.historicoVendas.push({ ...novaVenda, itens: [...itens] });
+  for (let n = 0; n < quantidade; n++) {
+    state.reservas.push({ id: `timer-${Date.now()}-${n}`, conta, vendaId, expiresAt: agora + 86400000 });
+  }
+
+  sincronizarDadosCliente(cliente, whatsapp, tiktok);
+
+  document.getElementById("valorInput").value = "";
+  document.getElementById("clienteInput").value = "";
+  document.getElementById("nickClienteInput").value = "";
+  if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = "";
+  if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = "";
+  document.getElementById("observacaoInput").value = "";
+  document.getElementById("quantidadeInput").value = "1";
+  atualizarCamposItens();
+  atualizarPreviewVBucks();
+  
+  verificarObservacaoCliente("");
+  
+  save();
+  mostrarNotificacao("Venda registrada com sucesso!", "sucesso");
 }
 
 function abrirModalEdicaoPorId(vendaId) {
@@ -2134,11 +2192,15 @@ function salvarEdicaoVenda() {
 }
 
 function excluirHistoricoPorId(vendaId) {
-  const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
-  if (i < 0) return;
-  const venda = state.historicoVendas[i];
+  const initialIndex = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
+  if (initialIndex < 0) return;
+  const clientName = state.historicoVendas[initialIndex].cliente;
 
-  abrirModalConfirmacao("🗑️ Mover para Lixeira", `Mover venda de ${venda.cliente} para a lixeira?`, () => {
+  abrirModalConfirmacao("🗑️ Mover para Lixeira", `Mover venda de ${clientName} para a lixeira?`, () => {
+    const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
+    if (i < 0) return;
+    const venda = state.historicoVendas[i];
+
     const conta = (state.contas || []).find(c => c.nome === venda.conta);
     if (conta) conta.vbucks += (venda.vbucks || 0);
     state.reservas = (state.reservas || []).filter(r => r.vendaId !== venda.id);
@@ -2628,9 +2690,9 @@ function abrirModalEdicaoAgendamento(id) {
 }
 
 function efetivarAgendamento(id) {
-  const idx = (state.agendamentos || []).findIndex(a => a.id === id);
-  if (idx < 0) return;
-  const agendamento = state.agendamentos[idx];
+  const initialIndex = (state.agendamentos || []).findIndex(a => a.id === id);
+  if (initialIndex < 0) return;
+  const agendamento = state.agendamentos[initialIndex];
 
   const usadas = usadasDaConta(agendamento.conta);
   if (usadas + agendamento.quantidade > 5) { 
@@ -2648,12 +2710,18 @@ function efetivarAgendamento(id) {
       "✅ Efetivar Pré-venda",
       `Confirmar o envio para ${agendamento.cliente}? Os V-Bucks serão descontados, a vaga ocupada, e o valor entrará no caixa imediatamente.`,
       () => {
-          contaObj.vbucks = Math.max(0, Number(contaObj.vbucks) - agendamento.vbucks);
+          const currentIdx = (state.agendamentos || []).findIndex(a => a.id === id);
+          if(currentIdx < 0) return;
+          const currentAgendamento = state.agendamentos[currentIdx];
+
+          contaObj.vbucks = Math.max(0, Number(contaObj.vbucks) - currentAgendamento.vbucks);
+          
           const agora = Date.now(), d = new Date();
           const vendaId = crypto.randomUUID ? crypto.randomUUID() : `venda-${Date.now()}`;
 
           const novaVenda = {
-              ...agendamento, id: vendaId,
+              ...currentAgendamento, 
+              id: vendaId,
               data: d.toLocaleDateString("pt-BR"), 
               hora: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), 
               criadoEmMs: agora
@@ -2661,14 +2729,14 @@ function efetivarAgendamento(id) {
           delete novaVenda.dataRegistro;
           delete novaVenda.horaRegistro;
 
-          state.vendas.unshift(novaVenda);
-          state.historicoVendas.unshift(JSON.parse(JSON.stringify(novaVenda)));
+          state.vendas.push(novaVenda);
+          state.historicoVendas.push(JSON.parse(JSON.stringify(novaVenda)));
           
-          for (let n = 0; n < agendamento.quantidade; n++) {
-              state.reservas.push({ id: `timer-${Date.now()}-${n}`, conta: agendamento.conta, vendaId, expiresAt: agora + 86400000 });
+          for (let n = 0; n < currentAgendamento.quantidade; n++) {
+              state.reservas.push({ id: `timer-${Date.now()}-${n}`, conta: currentAgendamento.conta, vendaId: vendaId, expiresAt: agora + 86400000 });
           }
 
-          state.agendamentos.splice(idx, 1);
+          state.agendamentos.splice(currentIdx, 1);
           save();
           mostrarNotificacao("Venda efetivada com sucesso! O Timer começou a rodar.", "sucesso");
       }
@@ -2676,17 +2744,20 @@ function efetivarAgendamento(id) {
 }
 
 function excluirAgendamento(id) {
-  const idx = (state.agendamentos || []).findIndex(a => a.id === id);
-  if (idx < 0) return;
-  const agendamento = state.agendamentos[idx];
+  const initialIndex = (state.agendamentos || []).findIndex(a => a.id === id);
+  if (initialIndex < 0) return;
+  const clientName = state.agendamentos[initialIndex].cliente;
 
   abrirModalConfirmacao(
     "🗑️ Cancelar Agendamento", 
-    `Deseja realmente cancelar a pré-venda de ${agendamento.cliente}? O dinheiro não será somado ao caixa.`, 
+    `Deseja realmente cancelar a pré-venda de ${clientName}? O dinheiro não será somado ao caixa. Essa ação não tem volta.`, 
     () => {
-      state.agendamentos.splice(idx, 1);
-      save();
-      mostrarNotificacao("Agendamento cancelado.", "info");
+      const idx = (state.agendamentos || []).findIndex(a => a.id === id);
+      if (idx > -1) {
+        state.agendamentos.splice(idx, 1);
+        save();
+        mostrarNotificacao("Agendamento cancelado.", "info");
+      }
     }
   );
 }
