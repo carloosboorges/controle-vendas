@@ -2487,7 +2487,8 @@ ultimaDataHojeConhecida = obterDataHojeFormatada();
 inicializar();
 
 setInterval(() => {
-  if (state && contasAberto === false) { 
+  // Agora vai atualizar os timers independentemente da aba estar aberta ou não
+  if (state) { 
     renderContasCards();
   }
 
