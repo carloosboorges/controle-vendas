@@ -31,7 +31,8 @@ const DADOS_DEMO = {
   historicoVendas: [],
   lixeiraVendas: [],
   apoiadorRegistros: {},
-  clientesInfo: {}
+  clientesInfo: {},
+  agendamentos: []
 };
 
 let currentUser = null;
@@ -170,24 +171,32 @@ function toggleGerenciarContas() {
 function mudarAbaHistorico(aba) {
   abaHistoricoAtiva = aba;
   const btnVendas = document.getElementById("tabBtnVendas");
+  const btnAgendamentos = document.getElementById("tabBtnAgendamentos");
   const btnApoiador = document.getElementById("tabBtnApoiador");
   const btnClientes = document.getElementById("tabBtnClientes");
   
   const divVendas = document.getElementById("conteudoAbaVendas");
+  const divAgendamentos = document.getElementById("conteudoAbaAgendamentos");
   const divApoiador = document.getElementById("conteudoAbaApoiador");
   const divClientes = document.getElementById("conteudoAbaClientes");
 
   if (btnVendas) btnVendas.classList.remove("active");
+  if (btnAgendamentos) btnAgendamentos.classList.remove("active");
   if (btnApoiador) btnApoiador.classList.remove("active");
   if (btnClientes) btnClientes.classList.remove("active");
 
   if (divVendas) divVendas.style.display = "none";
+  if (divAgendamentos) divAgendamentos.style.display = "none";
   if (divApoiador) divApoiador.style.display = "none";
   if (divClientes) divClientes.style.display = "none";
 
   if (aba === 'vendas') {
     if (btnVendas) btnVendas.classList.add("active");
     if (divVendas) divVendas.style.display = "block";
+  } else if (aba === 'agendamentos') {
+    if (btnAgendamentos) btnAgendamentos.classList.add("active");
+    if (divAgendamentos) divAgendamentos.style.display = "block";
+    if (typeof renderizarAgendamentos === 'function') renderizarAgendamentos();
   } else if (aba === 'apoiador') {
     if (btnApoiador) btnApoiador.classList.add("active");
     if (divApoiador) divApoiador.style.display = "block";
@@ -863,7 +872,8 @@ function renderizarHistoricoApoiadorCompleto() {
                 <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">$${Number(r.brutoUsd || 0).toFixed(2)} USD</td>
                 <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">${money(r.liquidoBrl)}</td>
                 <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">
-                  <button type="button" class="btn-danger" style="padding:4px 8px; font-size:11px;" onclick="removerRegistroApoiadorCompleto('${k}')">Excluir</button>
+                  <button type="button" class="btn-gray" style="padding:4px 8px; font-size:11px; margin-right:4px;" onclick="editarRegistroApoiador('${k}')">✏️ Editar</button>
+                  <button type="button" class="btn-danger" style="padding:4px 8px; font-size:11px;" onclick="removerRegistroApoiadorCompleto('${k}')">✕ Excluir</button>
                 </td>
               </tr>
             `;
@@ -1374,6 +1384,7 @@ function sanitizarDados() {
   if (!Array.isArray(state.lixeiraVendas)) state.lixeiraVendas = [];
   if (!state.apoiadorRegistros) state.apoiadorRegistros = {};
   if (!state.clientesInfo) state.clientesInfo = {};
+  if (!Array.isArray(state.agendamentos)) state.agendamentos = [];
 }
 
 async function save() {
@@ -1921,7 +1932,9 @@ function render() {
     }
   }
 
-  if (abaHistoricoAtiva === 'apoiador') {
+  if (abaHistoricoAtiva === 'agendamentos' && typeof renderizarAgendamentos === 'function') {
+    renderizarAgendamentos();
+  } else if (abaHistoricoAtiva === 'apoiador') {
     renderizarHistoricoApoiadorCompleto();
   } else if (abaHistoricoAtiva === 'clientes') {
     renderizarHistoricoClientesCompleto();
@@ -1938,6 +1951,10 @@ function renderContasCards(t) {
     const disponiveis = Math.max(0, 5 - quantidade);
     const reservasAtivas = (state.reservas || []).filter(r => r.conta === c.nome && r.expiresAt > Date.now());
     
+    // Calcula quantas vagas estão comprometidas por agendamentos futuros
+    const agendamentosPendentes = (state.agendamentos || []).filter(a => a.conta === c.nome).reduce((sum, a) => sum + (a.quantidade || 1), 0);
+    const avisoAgenda = agendamentosPendentes > 0 ? `<div style="font-size: 11px; color: #ffb74d; margin-top: 4px; font-weight: bold; background: rgba(255, 152, 0, 0.1); padding: 4px 6px; border-radius: 4px;">⚠️ ${agendamentosPendentes} ${agendamentosPendentes === 1 ? 'vaga reservada' : 'vagas reservadas'} (Pré-venda)</div>` : '';
+
     const tempos = reservasAtivas.map((r, n) => `
       <div class="timer-line">
         <span>Venda ${n + 1}: ${tempoRestante(r.expiresAt - Date.now())}</span>
@@ -1951,7 +1968,7 @@ function renderContasCards(t) {
 
     return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
       <div class="account-card-head" style="display:flex; align-items:center; flex-wrap:nowrap; gap:6px;">
-        <div class="name" style="white-space: nowrap; flex:1; font-size: 15px;">${esc(c.nome)}</div>
+        <div class="name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;" title="${esc(c.nome)}">${esc(c.nome)}</div>
         <div style="display:flex; gap: 4px; flex-shrink: 0;">
           <button type="button" class="btn-green" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="adicionarTimerManual('${esc(c.nome).replace(/'/g, "\\'")}')" title="Adicionar envio manual (sem registrar venda)">➕⏱️</button>
           <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar R$ da Sessão">💲</button>
@@ -1962,75 +1979,21 @@ function renderContasCards(t) {
       <div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
       <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta sessão</div>
       <div class="sales-count">📦 ${quantidade}/5 usadas · ${disponiveis} ${disponiveis === 1 ? "disponível" : "disponíveis"}</div>
+      ${avisoAgenda}
       <div class="timer">${tempos.length ? tempos.join("") : `🟢 5 vagas disponíveis`}</div>
       ${painelCreds}
     </div>`;
   }).join("");
 }
 
-function adicionarVenda() {
-  limparReservasExpiradas();
-  const conta = document.getElementById("contaSelect").value;
-  const valor = parseFloat(document.getElementById("valorInput").value);
-  const cliente = document.getElementById("clienteInput").value.trim();
-  const nickCliente = document.getElementById("nickClienteInput").value.trim();
-  const whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
-  const tiktok = document.getElementById("tiktokInput")?.value.trim() || "";
-  const observacao = document.getElementById("observacaoInput")?.value.trim() || "";
-  const quantidade = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
-  const itens = obterItensDaVenda();
-  const baseAtual = state.valorBase100 || 2.5;
-
-  if (!conta) { mostrarNotificacao("Ative pelo menos uma conta.", "erro"); return; }
-  if (!valor || valor <= 0) { mostrarNotificacao("Digite um valor válido.", "erro"); return; }
-  if (!cliente || !nickCliente) { mostrarNotificacao("Preencha cliente e nick do comprador.", "erro"); return; }
-
-  const usadas = usadasDaConta(conta);
-  if (usadas + quantidade > 5) { mostrarNotificacao(`Limite excedido na conta ${conta}.`, "erro"); return; }
-
-  const contaObj = (state.contas || []).find(c => c.nome === conta);
-  const vbucksNecessarios = Math.round((valor / baseAtual) * 100);
-  if (Number(contaObj?.vbucks) < vbucksNecessarios) { mostrarNotificacao("Saldo de V-Bucks insuficiente na conta.", "erro"); return; }
-
-  contaObj.vbucks = Math.max(0, Number(contaObj.vbucks) - vbucksNecessarios);
-  const agora = Date.now(), d = new Date();
-  const vendaId = crypto.randomUUID ? crypto.randomUUID() : `venda-${Date.now()}`;
-
-  const novaVenda = {
-    id: vendaId, conta, valor: Number(valor), vbucks: vbucksNecessarios, valorBaseMomento: baseAtual,
-    quantidade, cliente, nickCliente, observacao, item: itens[0] || "", itens,
-    whatsapp, tiktok,
-    data: d.toLocaleDateString("pt-BR"), hora: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), criadoEmMs: agora
-  };
-
-  state.vendas.push(novaVenda);
-  state.historicoVendas.push({ ...novaVenda, itens: [...itens] });
-  for (let n = 0; n < quantidade; n++) {
-    state.reservas.push({ id: `timer-${Date.now()}-${n}`, conta, vendaId, expiresAt: agora + 86400000 });
-  }
-
-  sincronizarDadosCliente(cliente, whatsapp, tiktok);
-
-  document.getElementById("valorInput").value = "";
-  document.getElementById("clienteInput").value = "";
-  document.getElementById("nickClienteInput").value = "";
-  if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = "";
-  if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = "";
-  document.getElementById("observacaoInput").value = "";
-  document.getElementById("quantidadeInput").value = "1";
-  atualizarCamposItens();
-  atualizarPreviewVBucks();
-  
-  verificarObservacaoCliente("");
-  
-  save();
-  mostrarNotificacao("Venda registrada com sucesso!", "sucesso");
-}
-
 function abrirModalEdicaoPorId(vendaId) {
   const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
   if (i < 0) return;
   const venda = state.historicoVendas[i];
+
+  const tipoInput = document.getElementById("editTipoRegistro");
+  if(tipoInput) tipoInput.value = "venda";
+  document.getElementById("editSaleTitle").innerHTML = "✏️ Editar Registro de Venda";
 
   document.getElementById("editVendaId").value = vendaId;
   const selectConta = document.getElementById("editContaSelect");
@@ -2070,7 +2033,7 @@ function abrirModalEdicaoPorId(vendaId) {
       <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
           <label style="font-size:12px;">Item ${idx + 1}</label>
-          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="removerItemEdicao(${idx})">✕</button>` : ""}
+          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove()">✕</button>` : ""}
         </div>
         <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
           <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
@@ -2086,9 +2049,14 @@ function abrirModalEdicaoPorId(vendaId) {
 
 function salvarEdicaoVenda() {
   const vendaId = document.getElementById("editVendaId").value;
-  const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
+  const tipoRegistro = document.getElementById("editTipoRegistro")?.value || "venda";
+  
+  const isAgendamento = tipoRegistro === "agendamento";
+  const listaOriginal = isAgendamento ? state.agendamentos : state.historicoVendas;
+  
+  const i = (listaOriginal || []).findIndex(v => v.id === vendaId);
   if (i < 0) return;
-  const venda = state.historicoVendas[i];
+  const venda = listaOriginal[i];
 
   const novaConta = document.getElementById("editContaSelect").value;
   const cliente = document.getElementById("editClientInput").value.trim();
@@ -2117,7 +2085,7 @@ function salvarEdicaoVenda() {
   const novoVbucks = Math.round((valor / (venda.valorBaseMomento || state.valorBase100 || 2.5)) * 100);
   const vbucksAntigo = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, venda.valorBaseMomento);
 
-  if (venda.conta !== novaConta || venda.valor !== valor) {
+  if (!isAgendamento && (venda.conta !== novaConta || venda.valor !== valor)) {
     const cAntiga = state.contas.find(c => c.nome === venda.conta);
     if (cAntiga) cAntiga.vbucks += vbucksAntigo; 
     
@@ -2132,8 +2100,6 @@ function salvarEdicaoVenda() {
   venda.tiktok = tiktok;
   venda.nickPresente = ""; 
   venda.observacao = observacao;
-  venda.data = novaData;
-  venda.hora = novaHora || venda.hora || "—";
   venda.valor = Number(valor);
   venda.vbucks = novoVbucks;
   if (novosItens.length > 0) {
@@ -2141,38 +2107,30 @@ function salvarEdicaoVenda() {
     venda.item = novosItens[0];
   }
 
-  const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
-  if (sessaoVenda) {
-    sessaoVenda.conta = novaConta;
-    sessaoVenda.cliente = cliente;
-    sessaoVenda.nickCliente = nick;
-    sessaoVenda.whatsapp = whatsapp;
-    sessaoVenda.tiktok = tiktok;
-    sessaoVenda.nickPresente = "";
-    sessaoVenda.observacao = observacao;
-    sessaoVenda.data = novaData;
-    sessaoVenda.hora = novaHora;
-    sessaoVenda.valor = Number(valor);
-    sessaoVenda.vbucks = novoVbucks;
-    if (novosItens.length > 0) {
-      sessaoVenda.itens = novosItens;
-      sessaoVenda.item = novosItens[0];
+  if (isAgendamento) {
+    venda.dataRegistro = novaData;
+    venda.horaRegistro = novaHora || venda.horaRegistro || "—";
+  } else {
+    venda.data = novaData;
+    venda.hora = novaHora || venda.hora || "—";
+    
+    const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
+    if (sessaoVenda) {
+        Object.assign(sessaoVenda, { conta: novaConta, cliente, nickCliente: nick, whatsapp, tiktok, observacao, data: novaData, hora: novaHora, valor: Number(valor), vbucks: novoVbucks, itens: novosItens.length ? novosItens : sessaoVenda.itens, item: novosItens.length ? novosItens[0] : sessaoVenda.item });
     }
-  }
-
-  if (state.reservas) {
-    state.reservas.forEach(r => {
-      if (r.vendaId === venda.id) {
-        r.conta = novaConta;
-      }
-    });
+    if (state.reservas) {
+      state.reservas.forEach(r => { if (r.vendaId === venda.id) r.conta = novaConta; });
+    }
   }
 
   sincronizarDadosCliente(cliente, whatsapp, tiktok);
 
   save();
   fecharModalEdicao();
-  mostrarNotificacao("Alterações salvas com sucesso!", "sucesso");
+  
+  if (isAgendamento && typeof renderizarAgendamentos === "function") renderizarAgendamentos();
+  
+  mostrarNotificacao(isAgendamento ? "Pré-venda atualizada!" : "Alterações salvas com sucesso!", "sucesso");
 }
 
 function excluirHistoricoPorId(vendaId) {
@@ -2478,3 +2436,257 @@ setInterval(() => {
     mostrarNotificacao("📅 Novo dia iniciado! Painel atualizado.", "info");
   }
 }, 1000);
+
+// ==========================================
+// FUNÇÕES RECUPERADAS (APOIADOR)
+// ==========================================
+function editarRegistroApoiador(chaveMes) {
+  apoiadorMesSelecionadoTemp = chaveMes;
+  const [m, a] = chaveMes.split("/").map(Number);
+  apoiadorPopoverAno = a;
+  atualizarModalApoiadorHTML();
+  document.getElementById("apoiadorModal").style.display = "flex";
+}
+
+function removerRegistroApoiadorCompleto(chave) {
+  abrirModalConfirmacao("🗑️ Excluir Apoiador", `Tem certeza que deseja excluir o registro de ${chave}?`, () => {
+    delete state.apoiadorRegistros[chave];
+    save();
+    renderizarHistoricoApoiadorCompleto();
+    mostrarNotificacao(`Registro de ${chave} excluído.`, "info");
+  });
+}
+
+// ==========================================
+// MÓDULO DE PRÉ-VENDAS / AGENDAMENTOS (AGORA INTEGRADO)
+// ==========================================
+function agendarVenda() {
+  limparReservasExpiradas();
+  const conta = document.getElementById("contaSelect").value;
+  const valor = parseFloat(document.getElementById("valorInput").value);
+  const cliente = document.getElementById("clienteInput").value.trim();
+  const nickCliente = document.getElementById("nickClienteInput").value.trim();
+  const whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
+  const tiktok = document.getElementById("tiktokInput")?.value.trim() || "";
+  const observacao = document.getElementById("observacaoInput")?.value.trim() || "";
+  const quantidade = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
+  const itens = obterItensDaVenda();
+  const baseAtual = state.valorBase100 || 2.5;
+
+  if (!conta) { mostrarNotificacao("Selecione a conta de onde o item sairá.", "erro"); return; }
+  if (!valor || valor <= 0) { mostrarNotificacao("Digite um valor válido pago antecipadamente.", "erro"); return; }
+  if (!cliente || !nickCliente) { mostrarNotificacao("Preencha o cliente e o nick.", "erro"); return; }
+
+  const vbucksNecessarios = Math.round((valor / baseAtual) * 100);
+  
+  const contaObj = (state.contas || []).find(c => c.nome === conta);
+  if (Number(contaObj?.vbucks) < vbucksNecessarios) { 
+      mostrarNotificacao("Aviso: Saldo de V-Bucks atual é insuficiente, mas o agendamento será salvo.", "info"); 
+  }
+
+  const agora = Date.now(), d = new Date();
+  const agendamentoId = crypto.randomUUID ? crypto.randomUUID() : `agenda-${Date.now()}`;
+
+  const novoAgendamento = {
+    id: agendamentoId, 
+    conta, 
+    valor: Number(valor), 
+    vbucks: vbucksNecessarios, 
+    valorBaseMomento: baseAtual,
+    quantidade, 
+    cliente, 
+    nickCliente, 
+    observacao, 
+    item: itens[0] || "", 
+    itens,
+    whatsapp, 
+    tiktok,
+    dataRegistro: d.toLocaleDateString("pt-BR"), 
+    horaRegistro: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), 
+    criadoEmMs: agora
+  };
+
+  if (!state.agendamentos) state.agendamentos = [];
+  state.agendamentos.unshift(novoAgendamento);
+
+  sincronizarDadosCliente(cliente, whatsapp, tiktok);
+  document.getElementById("limparTudoBtn").click();
+  
+  save();
+  mostrarNotificacao("⏳ Pré-venda agendada com sucesso!", "sucesso");
+}
+
+function renderizarAgendamentos() {
+  const container = document.getElementById("listaAgendamentosContainer");
+  if (!container) return;
+  const agendamentos = state.agendamentos || [];
+
+  if (agendamentos.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--muted); font-size:13px;">Nenhuma pré-venda agendada no momento. Tudo limpo!</div>`;
+    return;
+  }
+
+  container.innerHTML = agendamentos.map(a => {
+    const vb = a.vbucks !== undefined ? Number(a.vbucks) : valorParaVBucks(a.valor, a.valorBaseMomento);
+    const itensHtmlStr = renderizarListaItensHtml(a.itens || [a.item]);
+
+    const infosContato = [];
+    const iconeTikTok = `<svg style="width:14px;height:14px;fill:currentColor;" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z"/></svg>`;
+
+    if (a.whatsapp) infosContato.push(`<div style="display:flex; align-items:center; gap:4px; white-space: nowrap;">📱 <span class="copyable-text" onclick="copiarTexto('${esc(a.whatsapp)}', 'WhatsApp', event)" style="font-size:13px; font-weight:600; color:#eee;">${esc(a.whatsapp)}</span></div>`);
+    if (a.tiktok) infosContato.push(`<div style="display:flex; align-items:center; gap:4px; white-space: nowrap;">${iconeTikTok} <span class="copyable-text" onclick="copiarTexto('${esc(a.tiktok)}', 'TikTok', event)" style="font-size:13px; font-weight:600; color:#eee;">${esc(a.tiktok)}</span></div>`);
+    
+    const contatoHtml = infosContato.length > 0 ? `<div class="history-client" style="margin-top: 4px; display:flex; align-items:center; gap: 12px; flex-wrap: nowrap;">${infosContato.join("")}</div>` : "";
+    const observacaoHtml = a.observacao ? `<div style="margin-top: 6px; font-size: 12px; color: #ffb74d; background: rgba(255, 152, 0, 0.1); padding: 4px 8px; border-radius: 6px; border-left: 3px solid #ff9800;">💬 <b>Observação:</b> ${esc(a.observacao)}</div>` : "";
+
+    return `
+    <div class="history-card" style="border-left: 4px solid #3b82f6;">
+      <div class="history-main">
+        <div class="history-info">
+          <div class="history-account">Conta reservada: <span class="copyable-text" onclick="copiarTexto('${esc(a.conta)}', 'Conta', event)">${esc(a.conta)}</span></div>
+          <div class="history-client">👤 <span class="copyable-text" onclick="copiarTexto('${esc(a.cliente)}', 'Cliente', event)">${esc(a.cliente)}</span></div>
+          <div class="history-client">🎮 <span class="copyable-text" onclick="copiarTexto('${esc(a.nickCliente)}', 'Nick', event)">${esc(a.nickCliente)}</span></div>
+          ${contatoHtml}
+          <div class="history-item" style="margin-top: 8px;">${itensHtmlStr}</div>
+          <div class="history-date">📅 Agendado em: ${esc(a.dataRegistro)} às ${esc(a.horaRegistro)}</div>
+          ${observacaoHtml}
+        </div>
+        <div class="history-value">${money(a.valor)}</div>
+      </div>
+      <div class="history-details">
+        <span>🪙 ${formatVBucks(vb)} V-Bucks exigidos</span>
+        <div class="history-actions">
+          <button type="button" class="btn-primary" style="padding:6px 12px; font-weight: bold; background: #3b82f6;" onclick="efetivarAgendamento('${esc(a.id)}')">✅ Efetivar Venda</button>
+          <button type="button" class="btn-gray" onclick="abrirModalEdicaoAgendamento('${esc(a.id)}')">✏️ Editar</button>
+          <button type="button" class="btn-danger" onclick="excluirAgendamento('${esc(a.id)}')">🗑️ Cancelar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function abrirModalEdicaoAgendamento(id) {
+  const idx = (state.agendamentos || []).findIndex(a => a.id === id);
+  if (idx < 0) return;
+  const agendamento = state.agendamentos[idx];
+
+  const tipoInput = document.getElementById("editTipoRegistro");
+  if(tipoInput) tipoInput.value = "agendamento";
+  
+  document.getElementById("editVendaId").value = id;
+  document.getElementById("editSaleTitle").innerHTML = "✏️ Editar Pré-venda Agendada";
+  
+  const selectConta = document.getElementById("editContaSelect");
+  if (selectConta) {
+    selectConta.innerHTML = (state.contas || []).map(c => `
+      <option value="${esc(c.nome)}" ${c.nome === agendamento.conta ? "selected" : ""}>
+        ${esc(c.nome)} (${formatVBucks(c.vbucks)} VB)
+      </option>
+    `).join("");
+    selectConta.value = agendamento.conta;
+  }
+
+  document.getElementById("editClientInput").value = agendamento.cliente || "";
+  document.getElementById("editNickInput").value = agendamento.nickCliente || "";
+  if (document.getElementById("editWhatsappInput")) document.getElementById("editWhatsappInput").value = agendamento.whatsapp || "";
+  if (document.getElementById("editTiktokInput")) document.getElementById("editTiktokInput").value = agendamento.tiktok || "";
+  document.getElementById("editObservacaoInput").value = agendamento.observacao || "";
+  document.getElementById("editDataInput").value = agendamento.dataRegistro || "";
+  document.getElementById("editHoraInput").value = agendamento.horaRegistro || "";
+  document.getElementById("editValorInput").value = Number(agendamento.valor || 0).toFixed(2);
+  
+  atualizarPreviewVBucksEdicao();
+
+  const container = document.getElementById("editItensListContainer");
+  const itens = Array.isArray(agendamento.itens) && agendamento.itens.length ? agendamento.itens : [agendamento.item || ""];
+
+  container.innerHTML = itens.map((itemObj, idx) => {
+    let tipo = "Outro", nome = "", presente = "";
+    if (typeof itemObj === "string") {
+      const parsed = parseItemString(itemObj);
+      tipo = parsed.tipo; nome = parsed.nome;
+    } else if (itemObj) {
+      tipo = itemObj.tipo || "Outro"; nome = itemObj.nome || ""; presente = itemObj.presente || "";
+    }
+    const optionsHtml = CATEGORIAS_ITENS.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join("");
+    return `
+      <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+          <label style="font-size:12px;">Item ${idx + 1}</label>
+          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove()">✕</button>` : ""}
+        </div>
+        <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
+          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 150px; padding: 10px;">
+          <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick (Opcional)" style="flex: 1.5; min-width: 120px; padding: 10px;">
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  document.getElementById("editSaleModal").style.display = "flex";
+}
+
+function efetivarAgendamento(id) {
+  const idx = (state.agendamentos || []).findIndex(a => a.id === id);
+  if (idx < 0) return;
+  const agendamento = state.agendamentos[idx];
+
+  const usadas = usadasDaConta(agendamento.conta);
+  if (usadas + agendamento.quantidade > 5) { 
+      mostrarNotificacao(`A conta ${agendamento.conta} não tem as ${agendamento.quantidade} vagas livres necessárias agora.`, "erro"); 
+      return; 
+  }
+
+  const contaObj = (state.contas || []).find(c => c.nome === agendamento.conta);
+  if (!contaObj || Number(contaObj.vbucks) < agendamento.vbucks) { 
+      mostrarNotificacao(`Saldo de V-Bucks insuficiente na conta ${agendamento.conta} para efetivar a venda.`, "erro"); 
+      return; 
+  }
+
+  abrirModalConfirmacao(
+      "✅ Efetivar Pré-venda",
+      `Confirmar o envio para ${agendamento.cliente}? Os V-Bucks serão descontados, a vaga ocupada, e o valor entrará no caixa imediatamente.`,
+      () => {
+          contaObj.vbucks = Math.max(0, Number(contaObj.vbucks) - agendamento.vbucks);
+          const agora = Date.now(), d = new Date();
+          const vendaId = crypto.randomUUID ? crypto.randomUUID() : `venda-${Date.now()}`;
+
+          const novaVenda = {
+              ...agendamento, id: vendaId,
+              data: d.toLocaleDateString("pt-BR"), 
+              hora: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), 
+              criadoEmMs: agora
+          };
+          delete novaVenda.dataRegistro;
+          delete novaVenda.horaRegistro;
+
+          state.vendas.unshift(novaVenda);
+          state.historicoVendas.unshift(JSON.parse(JSON.stringify(novaVenda)));
+          
+          for (let n = 0; n < agendamento.quantidade; n++) {
+              state.reservas.push({ id: `timer-${Date.now()}-${n}`, conta: agendamento.conta, vendaId, expiresAt: agora + 86400000 });
+          }
+
+          state.agendamentos.splice(idx, 1);
+          save();
+          mostrarNotificacao("Venda efetivada com sucesso! O Timer começou a rodar.", "sucesso");
+      }
+  );
+}
+
+function excluirAgendamento(id) {
+  const idx = (state.agendamentos || []).findIndex(a => a.id === id);
+  if (idx < 0) return;
+  const agendamento = state.agendamentos[idx];
+
+  abrirModalConfirmacao(
+    "🗑️ Cancelar Agendamento", 
+    `Deseja realmente cancelar a pré-venda de ${agendamento.cliente}? O dinheiro não será somado ao caixa.`, 
+    () => {
+      state.agendamentos.splice(idx, 1);
+      save();
+      mostrarNotificacao("Agendamento cancelado.", "info");
+    }
+  );
+}

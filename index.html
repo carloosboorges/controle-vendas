@@ -272,7 +272,7 @@
     </div>
   </div>
 
-  <!-- Modal de Edição Completa de Venda -->
+  <!-- Modal de Edição Completa de Venda e Pré-venda -->
   <div id="editSaleModal" class="modal-overlay" style="display:none;">
     <div class="modal-card modal-card-large">
       <div class="modal-head">
@@ -280,6 +280,8 @@
         <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEdicao()">✕</button>
       </div>
       <input type="hidden" id="editVendaId">
+      <input type="hidden" id="editTipoRegistro" value="venda">
+      
       <div class="modal-body-grid">
         <div class="field">
           <label>Conta utilizada</label>
@@ -631,8 +633,11 @@
         <div class="history-search-bar-box" style="margin-bottom: 15px;">
           <div class="history-search-input-wrapper" style="flex: 1;">
             <span class="search-icon">🔍</span>
-            <input
-             id="clienteSearchInput" type="text" placeholder="Buscar por Nome, Nick, WhatsApp ou TikTok..." oninput="filtrarClientesInput(this.value)"
+            <input 
+              id="clienteSearchInput" 
+              type="text" 
+              placeholder="Buscar por Nome, Nick, WhatsApp ou TikTok..."
+              oninput="filtrarClientesInput(this.value)"
             >
             <button type="button" class="btn-clear-search" id="clearClienteSearchBtn" style="display:none;" onclick="limparBuscaClientes()">✕</button>
           </div>
@@ -651,6 +656,5 @@
 </div>
 
 <script src="app.js"></script>
-<script src="agendamentos.js"></script>
 </body>
 </html>
