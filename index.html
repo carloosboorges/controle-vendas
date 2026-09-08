@@ -272,7 +272,7 @@
     </div>
   </div>
 
-  <!-- Modal de Edição Completa de Venda -->
+  <!-- Modal de Edição Completa de Venda e Pré-venda -->
   <div id="editSaleModal" class="modal-overlay" style="display:none;">
     <div class="modal-card modal-card-large">
       <div class="modal-head">
@@ -280,6 +280,8 @@
         <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEdicao()">✕</button>
       </div>
       <input type="hidden" id="editVendaId">
+      <input type="hidden" id="editTipoRegistro" value="venda">
+      
       <div class="modal-body-grid">
         <div class="field">
           <label>Conta utilizada</label>
@@ -432,14 +434,20 @@
         <input id="quantidadeInput" type="number" min="1" step="1" value="1" oninput="atualizarCamposItens()">
       </div>
       
-      <div class="field">
+      <div class="field" style="position: relative;">
         <label>TikTok</label>
-        <input id="tiktokInput" type="text" maxlength="40" placeholder="Ex.: @seu_tiktok">
+        <div class="autocomplete-wrapper">
+          <input id="tiktokInput" type="text" maxlength="40" placeholder="Ex.: @seu_tiktok" oninput="buscarSugestoesTiktok(this.value)" autocomplete="off">
+          <div id="tiktokSuggestions" class="autocomplete-dropdown"></div>
+        </div>
       </div>
 
-      <div class="field">
+      <div class="field" style="position: relative;">
         <label>WhatsApp</label>
-        <input id="whatsappInput" type="text" maxlength="25" placeholder="Ex.: 5527999999999" oninput="mascaraTelefone(event)">
+        <div class="autocomplete-wrapper">
+          <input id="whatsappInput" type="text" maxlength="25" placeholder="Ex.: 5527999999999" oninput="mascaraTelefone(event); buscarSugestoesWhatsapp(this.value)" autocomplete="off">
+          <div id="whatsappSuggestions" class="autocomplete-dropdown"></div>
+        </div>
       </div>
     </div>
 
@@ -462,7 +470,7 @@
       </div>
     </div>
 
-    <!-- Botão Dinâmico de Aviso (Movido para fora da coluna, largura 100% e design mais fino) -->
+    <!-- Botão Dinâmico de Aviso -->
     <div id="clienteObsAviso" style="display:none; width: 100%; margin-top: 12px; padding: 8px 12px; background: linear-gradient(135deg, #d84315, #ff8f00); border-radius: 8px; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-align: center; cursor: pointer; box-shadow: 0 4px 15px rgba(255, 143, 0, 0.25); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'"></div>
 
     <!-- TERCEIRA LINHA: Área de Seleção dos Itens Vendidos -->
@@ -477,6 +485,7 @@
     <!-- Botões de Ação Atualizados -->
     <div class="form-actions-row" style="margin-top: 16px; display: flex; gap: 10px;">
       <button type="button" class="btn-primary" style="flex: 1;" onclick="adicionarVenda()">➕ Adicionar venda</button>
+      <button type="button" class="btn-primary" style="flex: 1; background: var(--accent); border-color: var(--accent);" onclick="agendarVenda()">⏳ Agendar Pré-venda</button>
       <button type="button" class="btn-gray" id="limparSoValorBtn">💲 Limpar Valor</button>
       <button type="button" class="btn-gray" id="limparTudoBtn">🧹 Limpar Tudo</button>
     </div>
@@ -526,10 +535,11 @@
   <!-- Histórico com Abas de Alternância -->
   <section class="panel">
     <div class="history-top-bar" style="margin-bottom: 15px;">
-      <div class="history-tabs-bar" style="margin: 0; border: none; padding: 0; display: flex; width: 100%; gap: 10px;">
-        <button type="button" class="history-tab-btn active" id="tabBtnVendas" onclick="mudarAbaHistorico('vendas')" style="flex: 1; text-align: center;">📜 Histórico de Vendas</button>
-        <button type="button" class="history-tab-btn" id="tabBtnApoiador" onclick="mudarAbaHistorico('apoiador')" style="flex: 1; text-align: center;">🤝 Histórico Código Apoiador</button>
-        <button type="button" class="history-tab-btn" id="tabBtnClientes" onclick="mudarAbaHistorico('clientes')" style="flex: 1; text-align: center;">👥 Histórico de Clientes</button>
+      <div class="history-tabs-bar" style="margin: 0; border: none; padding: 0; display: flex; width: 100%; gap: 10px; flex-wrap: wrap;">
+        <button type="button" class="history-tab-btn active" id="tabBtnVendas" onclick="mudarAbaHistorico('vendas')" style="flex: 1; text-align: center; min-width: 150px;">📜 Vendas</button>
+        <button type="button" class="history-tab-btn" id="tabBtnAgendamentos" onclick="mudarAbaHistorico('agendamentos')" style="flex: 1; text-align: center; min-width: 150px;">⏳ Pré-vendas</button>
+        <button type="button" class="history-tab-btn" id="tabBtnApoiador" onclick="mudarAbaHistorico('apoiador')" style="flex: 1; text-align: center; min-width: 150px;">🤝 Apoiador</button>
+        <button type="button" class="history-tab-btn" id="tabBtnClientes" onclick="mudarAbaHistorico('clientes')" style="flex: 1; text-align: center; min-width: 150px;">👥 Clientes</button>
       </div>
     </div>
     
@@ -588,6 +598,17 @@
       <div id="historyPagination" class="history-pagination-container"></div>
     </div>
 
+    <!-- Conteúdo da Aba Pré-vendas / Agendamentos -->
+    <div id="conteudoAbaAgendamentos" style="display: none; margin-top: 20px;">
+      <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: var(--accent-light);">⏳ Gerenciamento de Pré-vendas</h3>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px;">Estes são os clientes que já pagaram, mas o item ainda não foi enviado. Clique em "Efetivar Venda" apenas na hora em que realizar o envio real pelo jogo.</p>
+        <div id="listaAgendamentosContainer"></div>
+      </div>
+    </div>
+
     <!-- Conteúdo da Aba Código Apoiador -->
     <div id="conteudoAbaApoiador" style="display: none; margin-top: 20px;">
       <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
@@ -615,7 +636,7 @@
             <input 
               id="clienteSearchInput" 
               type="text" 
-              placeholder="Pesquisar cliente pelo nome completo..."
+              placeholder="Buscar por Nome, Nick, WhatsApp ou TikTok..."
               oninput="filtrarClientesInput(this.value)"
             >
             <button type="button" class="btn-clear-search" id="clearClienteSearchBtn" style="display:none;" onclick="limparBuscaClientes()">✕</button>
