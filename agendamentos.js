@@ -2,6 +2,230 @@
 // MÓDULO DE PRÉ-VENDAS / AGENDAMENTOS
 // ==========================================
 
+// Variáveis de Estado do Calendário de Agendamento (Novo Form)
+let agendaViewMes = new Date().getMonth();
+let agendaViewAno = new Date().getFullYear();
+let agendaPopoverAberto = false;
+
+// Variáveis de Estado do Calendário de Edição
+let editAgendaViewMes = new Date().getMonth();
+let editAgendaViewAno = new Date().getFullYear();
+let editAgendaPopoverAberto = false;
+
+// ================= FUNÇÕES DO CALENDÁRIO NOVO =================
+
+function toggleAgendaCalendario(e) {
+  if (e) e.stopPropagation();
+  // Fecha outros popovers caso estejam abertos (se existirem globalmente)
+  if (typeof calPopoverAberto !== 'undefined') calPopoverAberto = false;
+  if (typeof mesPopoverAberto !== 'undefined') mesPopoverAberto = false;
+  if (typeof anoPopoverAberto !== 'undefined') anoPopoverAberto = false;
+  if (typeof apoiadorPopoverAberto !== 'undefined') apoiadorPopoverAberto = false;
+  
+  agendaPopoverAberto = !agendaPopoverAberto;
+  renderAgendaCalendario();
+}
+
+function navegarAgendaMes(direcao, e) {
+  if (e) e.stopPropagation();
+  agendaViewMes += direcao;
+  if (agendaViewMes < 0) { agendaViewMes = 11; agendaViewAno--; }
+  else if (agendaViewMes > 11) { agendaViewMes = 0; agendaViewAno++; }
+  renderAgendaCalendario();
+}
+
+function selecionarAgendaDia(diaStr, e) {
+  if (e) e.stopPropagation();
+  
+  const [d, m, a] = diaStr.split("/");
+  const dataEscolhida = new Date(a, m - 1, d);
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  
+  // Bloqueio do passado visual e lógico
+  if (dataEscolhida < hoje) {
+     mostrarNotificacao("Erro: Não é possível agendar uma pré-venda no passado!", "erro");
+     return; 
+  }
+  
+  const inputHidden = document.getElementById("dataEnvioInput");
+  const label = document.getElementById("labelAgendaData");
+  
+  if (inputHidden && label) {
+     inputHidden.value = `${a}-${m}-${d}`; 
+     
+     if (dataEscolhida.getTime() === hoje.getTime()) {
+        label.textContent = "Hoje";
+     } else {
+        label.textContent = diaStr;
+     }
+  }
+  
+  agendaPopoverAberto = false;
+  renderAgendaCalendario();
+}
+
+function renderAgendaCalendario() {
+  const placeholder = document.getElementById("agendaPopoverPlaceholder");
+  if (!placeholder) return;
+  
+  if (!agendaPopoverAberto) {
+     placeholder.innerHTML = "";
+     return;
+  }
+  
+  const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  const diasSemana = ["D", "S", "T", "Q", "Q", "S", "S"];
+  const primeiroDiaSemana = new Date(agendaViewAno, agendaViewMes, 1).getDay();
+  const totalDiasMes = new Date(agendaViewAno, agendaViewMes + 1, 0).getDate();
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  
+  const inputHidden = document.getElementById("dataEnvioInput");
+  let dataAtiva = "";
+  if (inputHidden && inputHidden.value) {
+     const [ya, ma, da] = inputHidden.value.split("-");
+     dataAtiva = `${da}/${ma}/${ya}`;
+  } else {
+     dataAtiva = obterDataHojeFormatada();
+  }
+
+  let diasHtml = "";
+  for (let i = 0; i < primeiroDiaSemana; i++) { diasHtml += `<div class="cal-day-empty"></div>`; }
+  
+  for (let dia = 1; dia <= totalDiasMes; dia++) {
+    const dataStr = `${String(dia).padStart(2, "0")}/${String(agendaViewMes + 1).padStart(2, "0")}/${agendaViewAno}`;
+    const dataObj = new Date(agendaViewAno, agendaViewMes, dia);
+    
+    const isPassado = dataObj < hoje; 
+    const isToday = dataObj.getTime() === hoje.getTime();
+    const isSelected = dataStr === dataAtiva;
+
+    diasHtml += `
+      <button type="button" class="cal-day-btn ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""}"
+        ${isPassado ? "disabled style='opacity:0.25; cursor:not-allowed; border:none;'" : ""} onclick="selecionarAgendaDia('${dataStr}', event)">
+        ${dia}
+      </button>
+    `;
+  }
+
+  placeholder.innerHTML = `
+    <div class="custom-calendar-popover" style="top: calc(100% + 6px); left: 0; transform: none; width: 250px;" onclick="event.stopPropagation()">
+      <div class="calendar-header-nav">
+        <button type="button" class="calendar-nav-btn" onclick="navegarAgendaMes(-1, event)">‹</button>
+        <strong>${nomesMeses[agendaViewMes]} ${agendaViewAno}</strong>
+        <button type="button" class="calendar-nav-btn" onclick="navegarAgendaMes(1, event)">›</button>
+      </div>
+      <div class="calendar-weekdays-grid">${diasSemana.map(d => `<span>${d}</span>`).join("")}</div>
+      <div class="calendar-days-grid">${diasHtml}</div>
+    </div>
+  `;
+}
+
+// ================= FUNÇÕES DO CALENDÁRIO DE EDIÇÃO =================
+
+function toggleEditAgendaCalendario(e) {
+  if (e) e.stopPropagation();
+  editAgendaPopoverAberto = !editAgendaPopoverAberto;
+  renderEditAgendaCalendario();
+}
+
+function navegarEditAgendaMes(direcao, e) {
+  if (e) e.stopPropagation();
+  editAgendaViewMes += direcao;
+  if (editAgendaViewMes < 0) { editAgendaViewMes = 11; editAgendaViewAno--; }
+  else if (editAgendaViewMes > 11) { editAgendaViewMes = 0; editAgendaViewAno++; }
+  renderEditAgendaCalendario();
+}
+
+function selecionarEditAgendaDia(diaStr, e) {
+  if (e) e.stopPropagation();
+  
+  const [d, m, a] = diaStr.split("/");
+  const dataEscolhida = new Date(a, m - 1, d);
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  
+  if (dataEscolhida < hoje) {
+     mostrarNotificacao("Erro: Não é possível reagendar para uma data que já passou!", "erro");
+     return;
+  }
+  
+  const inputHidden = document.getElementById("editDataEnvioInput");
+  const label = document.getElementById("labelEditAgendaData");
+  
+  if (inputHidden && label) {
+     inputHidden.value = `${a}-${m}-${d}`; 
+     if (dataEscolhida.getTime() === hoje.getTime()) {
+        label.textContent = "Hoje";
+     } else {
+        label.textContent = diaStr;
+     }
+  }
+  
+  editAgendaPopoverAberto = false;
+  renderEditAgendaCalendario();
+}
+
+function renderEditAgendaCalendario() {
+  const placeholder = document.getElementById("editAgendaPopoverPlaceholder");
+  if (!placeholder) return;
+  
+  if (!editAgendaPopoverAberto) {
+     placeholder.innerHTML = "";
+     return;
+  }
+  
+  const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  const diasSemana = ["D", "S", "T", "Q", "Q", "S", "S"];
+  const primeiroDiaSemana = new Date(editAgendaViewAno, editAgendaViewMes, 1).getDay();
+  const totalDiasMes = new Date(editAgendaViewAno, editAgendaViewMes + 1, 0).getDate();
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  
+  const inputHidden = document.getElementById("editDataEnvioInput");
+  let dataAtiva = "";
+  if (inputHidden && inputHidden.value) {
+     const [ya, ma, da] = inputHidden.value.split("-");
+     dataAtiva = `${da}/${ma}/${ya}`;
+  } else {
+     dataAtiva = obterDataHojeFormatada();
+  }
+
+  let diasHtml = "";
+  for (let i = 0; i < primeiroDiaSemana; i++) { diasHtml += `<div class="cal-day-empty"></div>`; }
+  
+  for (let dia = 1; dia <= totalDiasMes; dia++) {
+    const dataStr = `${String(dia).padStart(2, "0")}/${String(editAgendaViewMes + 1).padStart(2, "0")}/${editAgendaViewAno}`;
+    const dataObj = new Date(editAgendaViewAno, editAgendaViewMes, dia);
+    
+    const isPassado = dataObj < hoje; 
+    const isToday = dataObj.getTime() === hoje.getTime();
+    const isSelected = dataStr === dataAtiva;
+
+    diasHtml += `
+      <button type="button" class="cal-day-btn ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""}"
+        ${isPassado ? "disabled style='opacity:0.25; cursor:not-allowed; border:none;'" : ""} onclick="selecionarEditAgendaDia('${dataStr}', event)">
+        ${dia}
+      </button>
+    `;
+  }
+
+  placeholder.innerHTML = `
+    <div class="custom-calendar-popover" style="top: calc(100% + 6px); left: 0; transform: none; width: 250px;" onclick="event.stopPropagation()">
+      <div class="calendar-header-nav">
+        <button type="button" class="calendar-nav-btn" onclick="navegarEditAgendaMes(-1, event)">‹</button>
+        <strong>${nomesMeses[editAgendaViewMes]} ${editAgendaViewAno}</strong>
+        <button type="button" class="calendar-nav-btn" onclick="navegarEditAgendaMes(1, event)">›</button>
+      </div>
+      <div class="calendar-weekdays-grid">${diasSemana.map(d => `<span>${d}</span>`).join("")}</div>
+      <div class="calendar-days-grid">${diasHtml}</div>
+    </div>
+  `;
+}
+
+// ================= LÓGICA PRINCIPAL =================
+
 function agendarVenda() {
   limparReservasExpiradas();
   const conta = document.getElementById("contaSelect").value;
@@ -15,11 +239,21 @@ function agendarVenda() {
   const itens = obterItensDaVenda();
   const baseAtual = state.valorBase100 || 2.5;
 
-  // NOVA LÓGICA DE DATA DE ENVIO
+  // Lógica do Calendário Customizado
   const dataEnvioCrua = document.getElementById("dataEnvioInput")?.value;
-  let dataEnvioFormatada = obterDataHojeFormatada(); // Se deixar vazio, joga para hoje
+  let dataEnvioFormatada = obterDataHojeFormatada(); // Default é hoje
+  
   if (dataEnvioCrua) {
     const [ano, mes, dia] = dataEnvioCrua.split("-");
+    const dataEscolhida = new Date(ano, mes - 1, dia);
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0); 
+
+    if (dataEscolhida < hoje) {
+      mostrarNotificacao("Erro: Você não pode agendar uma pré-venda para uma data no passado!", "erro");
+      return;
+    }
+    
     dataEnvioFormatada = `${dia}/${mes}/${ano}`;
   }
 
@@ -51,7 +285,7 @@ function agendarVenda() {
     itens,
     whatsapp, 
     tiktok,
-    dataEnvio: dataEnvioFormatada, // DATA QUE O ITEM SERÁ ENVIADO
+    dataEnvio: dataEnvioFormatada,
     dataRegistro: d.toLocaleDateString("pt-BR"), 
     horaRegistro: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), 
     criadoEmMs: agora
@@ -62,9 +296,8 @@ function agendarVenda() {
 
   sincronizarDadosCliente(cliente, whatsapp, tiktok);
   
-  // Limpar form
+  // Limpar e resetar form
   document.getElementById("limparTudoBtn").click();
-  if (document.getElementById("dataEnvioInput")) document.getElementById("dataEnvioInput").value = "";
   
   save();
   mostrarNotificacao(`⏳ Pré-venda agendada para ${dataEnvioFormatada}!`, "sucesso");
@@ -75,14 +308,12 @@ function renderizarAgendamentos() {
   if (!container) return;
   const agendamentos = state.agendamentos || [];
 
-  // SOMA TOTAL DE TODAS AS PRÉ-VENDAS PENDENTES NO SISTEMA
   const valorTotalPreVendas = agendamentos.reduce((acc, a) => acc + Number(a.valor || 0), 0);
   
-  // Painel de Total das Pré-Vendas
   const headerTotalHtml = `
-    <div style="background: rgba(142,68,255,0.15); border: 1px solid var(--accent); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(142, 68, 255, 0.1);">
+    <div style="background: rgba(142,68,255,0.08); border: 1px solid rgba(168,85,247,0.25); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
         <span style="font-size: 15px; font-weight: 700; color: #fff;">💰 Total Acumulado em Pré-vendas (Não enviadas):</span>
-        <span style="font-size: 24px; font-weight: 900; color: var(--green); text-shadow: 0 0 10px rgba(0, 230, 118, 0.3);">${money(valorTotalPreVendas)}</span>
+        <span style="font-size: 24px; font-weight: 900; color: var(--green);">${money(valorTotalPreVendas)}</span>
     </div>
   `;
 
@@ -106,17 +337,15 @@ function renderizarAgendamentos() {
     const contatoHtml = infosContato.length > 0 ? `<div class="history-client" style="margin-top: 4px; display:flex; align-items:center; gap: 12px; flex-wrap: nowrap;">${infosContato.join("")}</div>` : "";
     const observacaoHtml = a.observacao ? `<div style="margin-top: 6px; font-size: 12px; color: #ffb74d; background: rgba(255, 152, 0, 0.1); padding: 4px 8px; border-radius: 6px; border-left: 3px solid #ff9800;">💬 <b>Observação:</b> ${esc(a.observacao)}</div>` : "";
 
-    // Lógica visual da Data de Envio
     const dataEnvioFormatada = a.dataEnvio || "Imediato";
-    let badgeEnvioEstilo = "background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa;";
+    let badgeEnvioEstilo = "background: rgba(142,68,255,0.15); border: 1px solid var(--accent); color: var(--accent-light);";
     
     if (dataEnvioFormatada !== "Imediato" && parseDataBR(dataEnvioFormatada) <= hojeTime) {
-        // Se a data já bateu (Hoje) ou está atrasada, fica laranja/alerta
         badgeEnvioEstilo = "background: rgba(255, 152, 0, 0.2); border: 1px solid rgba(255, 152, 0, 0.6); color: #ffb74d;";
     }
 
     return `
-    <div class="history-card" style="border-left: 4px solid #3b82f6;">
+    <div class="history-card" style="border-left: 4px solid var(--accent-light);">
       <div class="history-main">
         <div class="history-info">
           <div class="history-account">Conta reservada: <span class="copyable-text" onclick="copiarTexto('${esc(a.conta)}', 'Conta', event)">${esc(a.conta)}</span></div>
@@ -137,7 +366,7 @@ function renderizarAgendamentos() {
       <div class="history-details">
         <span>🪙 ${formatVBucks(vb)} V-Bucks exigidos</span>
         <div class="history-actions">
-          <button type="button" class="btn-primary" style="padding:6px 12px; font-weight: bold; background: #3b82f6;" onclick="efetivarAgendamento('${esc(a.id)}')">✅ Efetivar Venda</button>
+          <button type="button" class="btn-green" style="padding:6px 12px; font-weight: bold;" onclick="efetivarAgendamento('${esc(a.id)}')">✅ Efetivar Venda</button>
           <button type="button" class="btn-gray" onclick="abrirModalEdicaoAgendamento('${esc(a.id)}')">✏️ Editar</button>
           <button type="button" class="btn-danger" onclick="excluirAgendamento('${esc(a.id)}')">🗑️ Cancelar</button>
         </div>
@@ -178,14 +407,25 @@ function abrirModalEdicaoAgendamento(id) {
   document.getElementById("editHoraInput").value = agendamento.horaRegistro || "";
   document.getElementById("editValorInput").value = Number(agendamento.valor || 0).toFixed(2);
   
-  // Exibe o input de Edição da Data de Envio apenas para pré-venda
   const elDataEnvioContainer = document.getElementById("editDataEnvioContainer");
   if(elDataEnvioContainer) {
       elDataEnvioContainer.style.display = "block";
       const inputDataEnvio = document.getElementById("editDataEnvioInput");
+      const labelDataEnvio = document.getElementById("labelEditAgendaData");
+      
       if (inputDataEnvio && agendamento.dataEnvio) {
           const p = agendamento.dataEnvio.split("/");
-          if(p.length === 3) inputDataEnvio.value = `${p[2]}-${p[1]}-${p[0]}`;
+          if(p.length === 3) {
+              inputDataEnvio.value = `${p[2]}-${p[1]}-${p[0]}`;
+              if (labelDataEnvio) labelDataEnvio.textContent = agendamento.dataEnvio;
+              editAgendaViewMes = Number(p[1]) - 1;
+              editAgendaViewAno = Number(p[2]);
+          }
+      } else {
+          if (inputDataEnvio) inputDataEnvio.value = "";
+          if (labelDataEnvio) labelDataEnvio.textContent = "Hoje";
+          editAgendaViewMes = new Date().getMonth();
+          editAgendaViewAno = new Date().getFullYear();
       }
   }
 
@@ -260,7 +500,7 @@ function efetivarAgendamento(id) {
           };
           delete novaVenda.dataRegistro;
           delete novaVenda.horaRegistro;
-          delete novaVenda.dataEnvio; // Já foi enviada, limpa a data de programação
+          delete novaVenda.dataEnvio; 
 
           state.vendas.push(novaVenda);
           state.historicoVendas.push(JSON.parse(JSON.stringify(novaVenda)));
