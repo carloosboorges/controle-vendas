@@ -1990,6 +1990,9 @@ function fecharModalEdicao() {
   document.getElementById("editSaleModal").style.display = "none"; 
 }
 
+// ==========================================
+// FUNÇÃO DOS BOTÕES DE VALORES RÁPIDOS
+// ==========================================
 function valorRapido(v) {
   const input = document.getElementById("valorInput");
   if (!input) return;
