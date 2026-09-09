@@ -321,8 +321,14 @@
             <input id="editHoraInput" type="text" maxlength="5" placeholder="Ex.: 19:30">
           </div>
         </div>
+        
+        <!-- Data de Envio no modal apenas para Pré-venda -->
+        <div class="field" id="editDataEnvioContainer" style="display:none; margin-top: 10px;">
+          <label style="color: #ffb74d;">🚀 Data Programada p/ Envio (DD/MM/AAAA)</label>
+          <input id="editDataEnvioInput" type="text" maxlength="10" placeholder="Ex.: 25/08/2026">
+        </div>
 
-        <div class="field">
+        <div class="field" style="margin-top: 10px;">
           <div class="field-label-row">
             <label>Valor da Venda (R$)</label>
             <span id="editVbucksPreview" class="vbucks-badge-preview">🪙 0 V-Bucks</span>
@@ -406,6 +412,10 @@
       <div class="label">Vendas da Sessão</div>
       <div class="value" id="qtdVendas">0</div>
     </div>
+    <div class="card card-glow" style="border-color: #3b82f6; box-shadow: inset 0 0 20px rgba(59, 130, 246, 0.1);">
+      <div class="label" style="color: #60a5fa;">Pré-vendas (Sessão)</div>
+      <div class="value" id="totalAgendamentosSessao">R$ 0,00</div>
+    </div>
     <div class="card card-glow">
       <div class="label">Top Conta (Sessão)</div>
       <div class="value" id="topConta" style="font-size:19px">—</div>
@@ -451,7 +461,7 @@
       </div>
     </div>
 
-    <!-- SEGUNDA LINHA: Nome e Nick do Cliente -->
+    <!-- SEGUNDA LINHA: Nome e Nick do Cliente + Data de Envio -->
     <div class="toolbar" style="margin-top: 14px;">
       <div class="field" style="position: relative;">
         <label>Nome do cliente</label>
@@ -467,6 +477,12 @@
           <input id="nickClienteInput" type="text" maxlength="80" placeholder="Ex.: JoaoFortnite" oninput="buscarSugestoesNick(this.value)" autocomplete="off">
           <div id="nickSuggestions" class="autocomplete-dropdown"></div>
         </div>
+      </div>
+
+      <!-- Data de Envio (Pré-venda) -->
+      <div class="field" style="max-width:160px;min-width:130px">
+        <label>📅 Data de Envio</label>
+        <input id="dataEnvioInput" type="date">
       </div>
     </div>
 
@@ -485,7 +501,7 @@
     <!-- Botões de Ação Atualizados -->
     <div class="form-actions-row" style="margin-top: 16px; display: flex; gap: 10px;">
       <button type="button" class="btn-primary" style="flex: 1;" onclick="adicionarVenda()">➕ Adicionar venda</button>
-      <button type="button" class="btn-primary" style="flex: 1; background: var(--accent); border-color: var(--accent);" onclick="agendarVenda()">⏳ Agendar Pré-venda</button>
+      <button type="button" class="btn-primary" style="flex: 1; background: #3b82f6; border-color: #3b82f6;" onclick="agendarVenda()">⏳ Agendar Pré-venda</button>
       <button type="button" class="btn-gray" id="limparSoValorBtn">💲 Limpar Valor</button>
       <button type="button" class="btn-gray" id="limparTudoBtn">🧹 Limpar Tudo</button>
     </div>
@@ -601,6 +617,16 @@
     <!-- Conteúdo da Aba Pré-vendas / Agendamentos -->
     <div id="conteudoAbaAgendamentos" style="display: none; margin-top: 20px;">
       <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+        
+        <!-- Painel Exclusivo de Total das Pré-Vendas -->
+        <div class="history-total-card" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; background: linear-gradient(135deg, #1e3a8a, #0f172a); border-color: #3b82f6;">
+          <div>
+            <div class="history-total-label" style="color: #60a5fa;">💰 TOTAL EM PRÉ-VENDAS AGUARDANDO ENVIO</div>
+            <div class="history-total-value" id="totalAgendamentosGeral">R$ 0,00</div>
+            <div class="history-total-help" style="color:#94a3b8;">Valor acumulado de todos os clientes com pagamentos agendados.</div>
+          </div>
+        </div>
+
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
           <h3 style="margin: 0; color: var(--accent-light);">⏳ Gerenciamento de Pré-vendas</h3>
         </div>
@@ -655,6 +681,6 @@
   <footer id="statusFooter">☁️ Carregando...</footer>
 </div>
 
-<script src="app.js?v=2"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>
