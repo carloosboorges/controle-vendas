@@ -205,7 +205,6 @@ function mudarAbaHistorico(aba) {
 }
 
 document.addEventListener("click", (e) => {
-  // ATUALIZADO: Fechar calendários do agendamento se clicar fora
   if (!e.target.closest(".period-card-calendar-container") && 
       !e.target.closest(".period-card-mes-container") && 
       !e.target.closest(".period-card-ano-container") &&
@@ -1987,6 +1986,26 @@ function renderContasCards(t) {
   }).join("");
 }
 
+function fecharModalEdicao() { 
+  document.getElementById("editSaleModal").style.display = "none"; 
+}
+
+function valorRapido(v) {
+  const input = document.getElementById("valorInput");
+  if (!input) return;
+  
+  let valorAtual = input.valueAsNumber;
+  if (isNaN(valorAtual)) {
+      valorAtual = 0;
+  }
+  
+  let novoValor = Math.round((valorAtual + Number(v)) * 100) / 100;
+  input.value = novoValor;
+  
+  atualizarPreviewVBucks();
+  input.focus();
+}
+
 document.getElementById("limparTudoBtn").addEventListener("click", () => {
   document.getElementById("valorInput").value = "";
   document.getElementById("clienteInput").value = "";
@@ -1996,7 +2015,6 @@ document.getElementById("limparTudoBtn").addEventListener("click", () => {
   document.getElementById("observacaoInput").value = "";
   document.getElementById("quantidadeInput").value = "1";
   
-  // Reseta os custom popovers de Data de Envio
   const dataEnvioInp = document.getElementById("dataEnvioInput");
   const labelAgenda = document.getElementById("labelAgendaData");
   if (dataEnvioInp) dataEnvioInp.value = "";
@@ -2041,29 +2059,4 @@ setInterval(() => {
     render(); 
     mostrarNotificacao("📅 Novo dia iniciado! Painel atualizado.", "info");
   }
-
-  // ==========================================
-// FUNÇÃO DOS BOTÕES DE VALORES RÁPIDOS
-// ==========================================
-function valorRapido(v) {
-  const input = document.getElementById("valorInput");
-  if (!input) return;
-  
-  // valueAsNumber pega o número real ignorando se a interface usa vírgula ou ponto
-  let valorAtual = input.valueAsNumber;
-  
-  // Se o campo estiver vazio, considera como zero
-  if (isNaN(valorAtual)) {
-      valorAtual = 0;
-  }
-  
-  // Soma os valores e arredonda corretamente para evitar bugs de decimais do JS
-  let novoValor = Math.round((valorAtual + Number(v)) * 100) / 100;
-  
-  // Entrega o número puro. O navegador cuida de mostrar a vírgula para você
-  input.value = novoValor;
-  
-  atualizarPreviewVBucks();
-  input.focus();
-}
 }, 1000);
