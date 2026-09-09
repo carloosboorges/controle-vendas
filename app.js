@@ -2041,4 +2041,29 @@ setInterval(() => {
     render(); 
     mostrarNotificacao("📅 Novo dia iniciado! Painel atualizado.", "info");
   }
+
+  // ==========================================
+// FUNÇÃO DOS BOTÕES DE VALORES RÁPIDOS
+// ==========================================
+function valorRapido(v) {
+  const input = document.getElementById("valorInput");
+  if (!input) return;
+  
+  // valueAsNumber pega o número real ignorando se a interface usa vírgula ou ponto
+  let valorAtual = input.valueAsNumber;
+  
+  // Se o campo estiver vazio, considera como zero
+  if (isNaN(valorAtual)) {
+      valorAtual = 0;
+  }
+  
+  // Soma os valores e arredonda corretamente para evitar bugs de decimais do JS
+  let novoValor = Math.round((valorAtual + Number(v)) * 100) / 100;
+  
+  // Entrega o número puro. O navegador cuida de mostrar a vírgula para você
+  input.value = novoValor;
+  
+  atualizarPreviewVBucks();
+  input.focus();
+}
 }, 1000);
