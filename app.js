@@ -73,7 +73,6 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// Helper de Data Universal
 function parseDataBR(str) {
   if (!str) return 0;
   const partes = str.split('/');
@@ -1015,6 +1014,8 @@ function renderizarHistoricoClientesCompleto() {
       `;
     }
   }
+}
+
 function renderizarListaItensHtml(itens) {
   if (!Array.isArray(itens) || itens.length === 0) return "🎁 —";
   return itens.map((itemObj, n) => {
@@ -1932,4 +1933,133 @@ function render() {
   }
 }
 
+function renderContasCards(t) {
+  if (!t) t = totais();
+  const container = document.getElementById("totaisPorConta");
+  if (!container || !state) return;
+
+  const hojeTime = new Date().setHours(0,0,0,0);
+
+  container.innerHTML = (state.contas || []).filter(c => c.ativa).map(c => {
+    const quantidade = usadasDaConta(c.nome);
+    const disponiveis = Math.max(0, 5 - quantidade);
+    const reservasAtivas = (state.reservas || []).filter(r => r.conta === c.nome && r.expiresAt > Date.now());
+    
+    const agendamentosPendentes = (state.agendamentos || []).filter(a => {
+      if (a.conta !== c.nome) return false;
+      if (!a.dataEnvio) return true; 
+      return parseDataBR(a.dataEnvio) <= hojeTime;
+    }).reduce((sum, a) => sum + (a.quantidade || 1), 0);
+    
+    const avisoAgenda = agendamentosPendentes > 0 
+      ? `<div style="font-size: 11px; color: #ffb74d; margin-top: 4px; font-weight: bold; background: rgba(255, 152, 0, 0.1); padding: 4px 6px; border-radius: 4px;">⚠️ ${agendamentosPendentes} ${agendamentosPendentes === 1 ? 'vaga reservada' : 'vagas reservadas'} (Envio Hoje!)</div>` 
+      : '';
+
+    const tempos = reservasAtivas.map((r, n) => `
+      <div class="timer-line">
+        <span>Venda ${n + 1}: ${tempoRestante(r.expiresAt - Date.now())}</span>
+        <button type="button" class="btn-danger timer-remove-btn" onclick="removerTimerEspecifico(${state.reservas.indexOf(r)})">✕</button>
+      </div>
+    `);
+
+    const btnEmail = c.email ? `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 8px;" onclick="copiarTexto('${esc(c.email)}', 'E-mail', event)">📧 Copiar E-mail</button>` : '';
+    const btnSenha = c.senha ? `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 8px;" onclick="copiarTexto('${esc(c.senha)}', 'Senha', event)">🔑 Copiar Senha</button>` : '';
+    const painelCreds = (c.email || c.senha) ? `<div style="display:flex; gap: 8px; margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">${btnEmail}${btnSenha}</div>` : '';
+
+    return `<div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
+      <div class="account-card-head" style="display:flex; align-items:center; flex-wrap:nowrap; gap:6px;">
+        <div class="name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;" title="${esc(c.nome)}">${esc(c.nome)}</div>
+        <div style="display:flex; gap: 4px; flex-shrink: 0;">
+          <button type="button" class="btn-green" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="adicionarTimerManual('${esc(c.nome).replace(/'/g, "\\'")}')" title="Adicionar envio manual (sem registrar venda)">➕⏱️</button>
+          <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar R$ da Sessão">💲</button>
+          <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar Timers">⏱️</button>
+        </div>
+      </div>
+      <div class="amount">${money(t[c.nome] || 0)}</div>
+      <div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
+      <div class="sales-count">🛒 ${quantidade} ${quantidade === 1 ? "venda" : "vendas"} nesta sessão</div>
+      <div class="sales-count">📦 ${quantidade}/5 usadas · ${disponiveis} ${disponiveis === 1 ? "disponível" : "disponíveis"}</div>
+      ${avisoAgenda}
+      <div class="timer">${tempos.length ? tempos.join("") : `🟢 5 vagas disponíveis`}</div>
+      ${painelCreds}
+    </div>`;
+  }).join("");
 }
+
+function fecharModalEdicao() { 
+  document.getElementById("editSaleModal").style.display = "none"; 
+}
+
+// ==========================================
+// FUNÇÃO DOS BOTÕES DE VALORES RÁPIDOS
+// ==========================================
+function valorRapido(v) {
+  const input = document.getElementById("valorInput");
+  if (!input) return;
+  
+  let valorAtual = input.valueAsNumber;
+  if (isNaN(valorAtual)) {
+      valorAtual = 0;
+  }
+  
+  let novoValor = Math.round((valorAtual + Number(v)) * 100) / 100;
+  input.value = novoValor;
+  
+  atualizarPreviewVBucks();
+  input.focus();
+}
+
+document.getElementById("limparTudoBtn").addEventListener("click", () => {
+  document.getElementById("valorInput").value = "";
+  document.getElementById("clienteInput").value = "";
+  document.getElementById("nickClienteInput").value = "";
+  if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = "";
+  if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = "";
+  document.getElementById("observacaoInput").value = "";
+  document.getElementById("quantidadeInput").value = "1";
+  
+  const dataEnvioInp = document.getElementById("dataEnvioInput");
+  const labelAgenda = document.getElementById("labelAgendaData");
+  if (dataEnvioInp) dataEnvioInp.value = "";
+  if (labelAgenda) labelAgenda.textContent = "Hoje";
+  
+  atualizarCamposItens(); 
+  atualizarPreviewVBucks();
+  verificarObservacaoCliente("");
+});
+
+document.getElementById("limparSoValorBtn").addEventListener("click", () => {
+  document.getElementById("valorInput").value = "";
+  atualizarPreviewVBucks();
+  document.getElementById("valorInput").focus();
+});
+
+function toggleMostrarSenha() {
+  const passInput = document.getElementById("authPassword");
+  const toggleBtn = document.getElementById("togglePasswordBtn");
+  
+  if (passInput.type === "password") {
+    passInput.type = "text";
+    toggleBtn.textContent = "🙈"; 
+  } else {
+    passInput.type = "password";
+    toggleBtn.textContent = "👁️"; 
+  }
+}
+
+ultimaDataHojeConhecida = obterDataHojeFormatada();
+
+inicializar();
+
+setInterval(() => {
+  if (state) { 
+    renderContasCards();
+  }
+
+  const dataAtual = obterDataHojeFormatada();
+  if (ultimaDataHojeConhecida !== dataAtual) {
+    ultimaDataHojeConhecida = dataAtual; 
+    render(); 
+    mostrarNotificacao("📅 Novo dia iniciado! Painel atualizado.", "info");
+  }
+}, 1000);
