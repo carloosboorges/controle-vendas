@@ -1106,9 +1106,11 @@ function adicionarVenda() {
   const observacao = document.getElementById("observacaoInput")?.value.trim() || "", quantidade = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
   const itens = obterItensDaVenda(), baseAtual = state.valorBase100 || 2.5;
 
-  if (!conta) { mostrarNotificacao("Ative pelo menos uma conta.", "erro"); return; }
+ if (!conta) { mostrarNotificacao("Ative pelo menos uma conta.", "erro"); return; }
   if (!valor || valor <= 0) { mostrarNotificacao("Digite um valor válido.", "erro"); return; }
-  if (!cliente || !nickCliente) { mostrarNotificacao("Preencha cliente e nick do comprador.", "erro"); return; }
+  if (!cliente) { mostrarNotificacao("Preencha o nome do cliente.", "erro"); return; }
+  if (!nickCliente) { mostrarNotificacao("Preencha o nick do cliente.", "erro"); return; }
+  if (itens.length < quantidade) { mostrarNotificacao("Preencha o nome do(s) item(ns) vendido(s).", "erro"); return; }
   const usadas = usadasDaConta(conta);
   if (usadas + quantidade > 5) { mostrarNotificacao(`Limite excedido na conta ${conta}.`, "erro"); return; }
 
@@ -1182,13 +1184,25 @@ function salvarEdicaoVenda() {
   const whatsapp = document.getElementById("editWhatsappInput")?.value.trim() || "", tiktok = document.getElementById("editTiktokInput")?.value.trim() || "", observacao = document.getElementById("editObservacaoInput").value.trim();
   const novaData = document.getElementById("editDataInput").value.trim(), novaHora = document.getElementById("editHoraInput").value.trim(), valor = parseFloat(document.getElementById("editValorInput").value);
 
-  if (!novaConta || !cliente || !nick || !novaData || !valor) { mostrarNotificacao("Preencha os campos obrigatórios.", "erro"); return; }
+  if (!novaConta) { mostrarNotificacao("Selecione a conta utilizada.", "erro"); return; }
+  if (!valor || valor <= 0) { mostrarNotificacao("Digite um valor válido.", "erro"); return; }
+  if (!novaData) { mostrarNotificacao("Preencha a data da venda.", "erro"); return; }
+  if (!cliente) { mostrarNotificacao("Preencha o nome do cliente.", "erro"); return; }
+  if (!nick) { mostrarNotificacao("Preencha o nick do cliente.", "erro"); return; }
 
-  const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box"), novosItens = [];
+  const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
+  const novosItens = [];
   itemBoxes.forEach(box => {
-    const tipo = box.querySelector(".edit-modal-item-type").value, nome = box.querySelector(".edit-modal-item-name").value.trim(), presente = box.querySelector(".edit-modal-item-presente").value.trim();
+    const tipo = box.querySelector(".edit-modal-item-type").value;
+    const nome = box.querySelector(".edit-modal-item-name").value.trim();
+    const presente = box.querySelector(".edit-modal-item-presente").value.trim();
     if (nome) novosItens.push({ tipo, nome, presente });
   });
+
+  if (novosItens.length < itemBoxes.length) { 
+    mostrarNotificacao("Preencha o nome do(s) item(ns) vendido(s).", "erro"); 
+    return; 
+  }
 
   const novoVbucks = Math.round((valor / (venda.valorBaseMomento || state.valorBase100 || 2.5)) * 100), vbucksAntigo = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, venda.valorBaseMomento);
 

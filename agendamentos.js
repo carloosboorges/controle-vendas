@@ -257,9 +257,11 @@ function agendarVenda() {
     dataEnvioFormatada = `${dia}/${mes}/${ano}`;
   }
 
-  if (!conta) { mostrarNotificacao("Selecione a conta de onde o item sairá.", "erro"); return; }
+ if (!conta) { mostrarNotificacao("Selecione a conta de onde o item sairá.", "erro"); return; }
   if (!valor || valor <= 0) { mostrarNotificacao("Digite um valor válido pago antecipadamente.", "erro"); return; }
-  if (!cliente || !nickCliente) { mostrarNotificacao("Preencha o cliente e o nick.", "erro"); return; }
+  if (!cliente) { mostrarNotificacao("Preencha o nome do cliente.", "erro"); return; }
+  if (!nickCliente) { mostrarNotificacao("Preencha o nick do cliente.", "erro"); return; }
+  if (itens.length < quantidade) { mostrarNotificacao("Preencha o nome do(s) item(ns) agendado(s).", "erro"); return; }
 
   const vbucksNecessarios = Math.round((valor / baseAtual) * 100);
   
