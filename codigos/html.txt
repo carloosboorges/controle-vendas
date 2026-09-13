@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Putz Story — Controle de Vendas</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="container">
+  
+  <header class="main-header">
+    <div class="header-actions-bar">
+      <button type="button" class="btn-gray" id="authBtn" onclick="abrirModalAuth()">🔑 Entrar</button>
+    </div>
+
+    <div class="logo-area">
+      <img src="logo.png/putz-store2.png" alt="Putz Story Logo" class="brand-logo">
+      <div class="subtitle">Painel Oficial de Controle de Vendas & Envios</div>
+    </div>
+  </header>
+
+  <div id="authModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="modalTitle" style="margin:0;">🔑 Acesso Administrativo</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalAuth()">✕</button>
+      </div>
+      <div id="authFormArea">
+        <div class="field" style="margin-top:12px;">
+          <label>E-mail</label>
+          <input id="authEmail" type="email" placeholder="seuemail@exemplo.com">
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Senha</label>
+          <div style="position: relative; display: flex; align-items: center;">
+            <input id="authPassword" type="password" placeholder="Sua senha" style="padding-right: 35px;">
+            <span id="togglePasswordBtn" onclick="toggleMostrarSenha()" style="position: absolute; right: 12px; cursor: pointer; font-size: 16px; user-select: none;" title="Mostrar/Ocultar Senha">👁️</span>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-top:12px;">
+          <input type="checkbox" id="lembrarCredenciais" style="width:16px; height:16px; cursor:pointer;">
+          <label for="lembrarCredenciais" style="font-size:13px; color:var(--muted); cursor:pointer;">Manter conectado</label>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:16px;">
+          <button type="button" class="btn-green" style="flex:1;" onclick="fazerLogin()">Entrar</button>
+          <button type="button" class="btn-gray" onclick="fecharModalAuth()">Cancelar</button>
+        </div>
+      </div>
+      <div id="authUserInfo" style="display:none; margin-top:12px;">
+        <p id="userLoggedText" style="font-size:14px; margin:0 0 14px;"></p>
+        <button type="button" class="btn-danger" style="width:100%;" onclick="fazerLogout()">🚪 Sair da Conta</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="clienteDetalhesModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card modal-card-large" style="max-width: 650px;">
+      <div class="modal-head" style="align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+        <div id="detalhesClienteTitulo" style="margin:0; flex: 1 1 250px; min-width: 0; word-wrap: break-word;">
+          <h3 style="margin:0; color:var(--accent-light);">👤 Detalhes do Cliente</h3>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: flex-start; flex-shrink: 0; margin-left: auto;">
+          <div id="containerBtnNovaVendaCliente" style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;"></div>
+          <button type="button" class="btn-danger close-modal-btn" style="flex-shrink: 0;" onclick="fecharModalDetalhesCliente()">✕</button>
+        </div>
+      </div>
+      
+      <div style="margin: 15px 0; background: rgba(142,68,255,0.08); border: 1px solid rgba(168,85,247,0.25); border-radius: 12px; padding: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center;">
+        <div>
+          <div style="font-size: 11px; color: var(--muted); text-transform: uppercase;">Total Gasto</div>
+          <div id="detalhesClienteTotalGasto" style="font-size: 18px; font-weight: 900; color: var(--green); margin-top: 4px;">R$ 0,00</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: var(--muted); text-transform: uppercase;">V-Bucks Resgatados</div>
+          <div id="detalhesClienteTotalVbucks" style="font-size: 18px; font-weight: 900; color: var(--accent-light); margin-top: 4px;">0 VB</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; color: var(--muted); text-transform: uppercase;">Total de Pedidos</div>
+          <div id="detalhesClienteTotalPedidos" style="font-size: 18px; font-weight: 900; color: #fff; margin-top: 4px;">0</div>
+        </div>
+      </div>
+
+      <div style="font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 8px;">📜 Histórico de Pedidos Realizados:</div>
+      <div id="detalhesClienteListaPedidos" style="max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;"></div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top: 20px;">
+        <button type="button" class="btn-gray" onclick="fecharModalDetalhesCliente()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editClienteModal" class="modal-overlay" style="display:none; z-index: 1050;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 style="margin:0; color:var(--accent-light);">✏️ Editar Perfil do Cliente</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEdicaoCliente()">✕</button>
+      </div>
+      <input type="hidden" id="editClienteNomeOriginal">
+      <p style="font-size:12px; color:var(--muted); margin:10px 0 14px;">Altere o nome ou os contatos gerais. Isso atualizará <b>todas</b> as compras antigas dessa pessoa.</p>
+      
+      <div class="field" style="margin-top:14px;">
+        <label>Nome Completo do Cliente</label>
+        <input id="editClienteNomeInput" type="text" maxlength="80">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>WhatsApp</label>
+        <input id="editClienteWhatsappInput" type="text" maxlength="25" oninput="mascaraTelefone(event)">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>TikTok</label>
+        <input id="editClienteTiktokInput" type="text" maxlength="40">
+      </div>
+      
+      <div class="field" style="margin-top:10px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
+        <label style="color:var(--accent-light);">📌 Observação Fixa do Cliente (opcional)</label>
+        <input id="editClienteObservacaoInput" type="text" maxlength="150" placeholder="Ex: Cliente VIP, prefere pacotões, etc...">
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-green" style="flex:1;" onclick="salvarEdicaoCliente()">💾 Salvar Alterações</button>
+        <button type="button" class="btn-gray" onclick="fecharModalEdicaoCliente()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="leituraObsModal" class="modal-overlay" style="display:none; z-index: 1060;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 style="margin:0; color: #ffb74d;">⚠️ Observação Salva</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="document.getElementById('leituraObsModal').style.display='none'">✕</button>
+      </div>
+      <div id="leituraObsNome" style="font-size:13px; font-weight:700; color:#fff; margin-top: 14px;"></div>
+      <div id="leituraObsTexto" style="font-size:14px; color:#fff; margin:8px 0 16px; background: rgba(0,0,0,0.3); padding: 14px; border-radius: 8px; border-left: 4px solid #ff9800; line-height: 1.5; word-wrap: break-word;"></div>
+      <div style="display:flex; justify-content:flex-end;">
+        <button type="button" class="btn-green" style="padding: 8px 24px;" onclick="document.getElementById('leituraObsModal').style.display='none'">Estou ciente</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="apoiadorModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card modal-card-large" style="overflow: visible;">
+      <div class="modal-head">
+        <h3 style="margin:0; color:var(--accent-light);">🤝 Gerenciar Código Apoiador</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalApoiador()">✕</button>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin:10px 0 14px;">Registre o valor bruto fechado em dólares ($) e o valor líquido real (R$) recebido no mês:</p>
+      
+      <div class="apoiador-form-grid" style="position: relative; z-index: 50;">
+        <div class="field" id="apoiadorSeletorContainer" style="grid-column: 1 / -1;"></div>
+        <div class="field">
+          <label>Valor Bruto ($ USD)</label>
+          <input id="apoiadorBrutoUsd" type="number" step="0.01" min="0" placeholder="Ex: 200.00" style="width:100%; box-sizing:border-box;">
+        </div>
+        <div class="field">
+          <label>Líquido Recebido (R$)</label>
+          <input id="apoiadorLiquidoBrl" type="number" step="0.01" min="0" placeholder="Ex: 950.00" style="width:100%; box-sizing:border-box;">
+        </div>
+      </div>
+      <button type="button" class="btn-green" style="width:100%; margin-top:14px; margin-bottom:16px;" onclick="salvarRegistroApoiador()">💾 Salvar / Atualizar Apoiador do Mês</button>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+        <button type="button" class="btn-gray" onclick="fecharModalApoiador()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="valorBaseModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 style="margin:0;">⚙️ Alterar Valor Base</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalValorBase()">✕</button>
+      </div>
+      <p style="font-size:13px; color:var(--muted); margin:12px 0 8px;">Defina o novo valor cobrado por cada 100 V-Bucks:</p>
+      <div class="field">
+        <label>Valor por 100 V-Bucks (R$)</label>
+        <input id="novoValorBaseInput" type="number" step="0.01" min="0.01" placeholder="Ex.: 2.50">
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="button" class="btn-green" style="flex:1;" onclick="salvarValorBaseModal()">💾 Salvar Novo Valor</button>
+        <button type="button" class="btn-gray" onclick="fecharModalValorBase()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="addContaModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 style="margin:0;">➕ Adicionar Nova Conta</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalAddConta()">✕</button>
+      </div>
+      <div class="field" style="margin-top:14px;">
+        <label>Nome / Nick da Conta</label>
+        <input id="novaContaNomeInput" type="text" maxlength="60" placeholder="Ex.: Putz0606">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>Saldo Inicial de V-Bucks (opcional)</label>
+        <input id="novaContaVbucksInput" type="text" placeholder="Ex.: 8100 ou 8.100" value="0">
+      </div>
+      <div class="field" style="margin-top:10px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
+        <label>E-mail de Login (opcional)</label>
+        <input id="novaContaEmailInput" type="email" placeholder="email@epic.com">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>Senha da Epic (opcional)</label>
+        <input id="novaContaSenhaInput" type="text" placeholder="Sua senha">
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button type="button" class="btn-green" style="flex:1;" onclick="salvarNovaContaModal()">➕ Adicionar Conta</button>
+        <button type="button" class="btn-gray" onclick="fecharModalAddConta()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editContaModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="editContaTitle" style="margin:0;">✏️ Editar Conta</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEditConta()">✕</button>
+      </div>
+      <input type="hidden" id="editContaIndex">
+      <div class="field" style="margin-top:14px;">
+        <label>Nick da Conta</label>
+        <input id="editContaNomeInput" type="text" maxlength="60">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>Saldo Atual de V-Bucks</label>
+        <input id="editContaVbucksInput" type="text" placeholder="Ex.: 8100 ou 8.100">
+      </div>
+      <div class="field" style="margin-top:10px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
+        <label>E-mail de Login (opcional)</label>
+        <input id="editContaEmailInput" type="email" placeholder="email@epic.com">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>Senha da Epic (opcional)</label>
+        <input id="editContaSenhaInput" type="text" placeholder="Sua senha">
+      </div>
+
+      <div class="field" style="margin-top:12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
+        <label style="color:var(--green); font-weight:700;">➕ Somar V-Bucks ao Saldo</label>
+        <div style="display:flex; gap:8px;">
+          <input id="editContaSomarVbucksInput" type="number" step="50" placeholder="Ex.: 800, 2400 ou 12500">
+          <button type="button" class="btn-green" style="padding:0 14px; font-size:13px; white-space:nowrap;" onclick="aplicarSomaVbucksModal()">Somar</button>
+        </div>
+      </div>
+
+      <div class="quick" style="margin-top:8px;">
+        <button type="button" style="font-size:11px; padding:5px 10px;" onclick="somarPacoteRapido(800)">+800</button>
+        <button type="button" style="font-size:11px; padding:5px 10px;" onclick="somarPacoteRapido(2400)">+2.400</button>
+        <button type="button" style="font-size:11px; padding:5px 10px;" onclick="somarPacoteRapido(4500)">+4.500</button>
+        <button type="button" style="font-size:11px; padding:5px 10px;" onclick="somarPacoteRapido(12500)">+12.500</button>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:18px;">
+        <button type="button" class="btn-green" style="flex:1;" onclick="salvarEdicaoContaModal()">💾 Salvar Dados</button>
+        <button type="button" class="btn-gray" onclick="fecharModalEditConta()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editSaleModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card modal-card-large">
+      <div class="modal-head">
+        <h3 id="editSaleTitle" style="margin:0;">✏️ Editar Registro de Venda</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEdicao()">✕</button>
+      </div>
+      <input type="hidden" id="editVendaId">
+      <input type="hidden" id="editTipoRegistro" value="venda">
+      
+      <div class="modal-body-grid">
+        <div class="field">
+          <label>Conta utilizada</label>
+          <select id="editContaSelect"></select>
+        </div>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+          <div class="field">
+            <label>Nome do Cliente</label>
+            <input id="editClientInput" type="text" maxlength="80">
+          </div>
+          <div class="field">
+            <label>Nick do Cliente</label>
+            <input id="editNickInput" type="text" maxlength="80">
+          </div>
+        </div>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+          <div class="field">
+            <label>WhatsApp</label>
+            <input id="editWhatsappInput" type="text" maxlength="25" oninput="mascaraTelefone(event)">
+          </div>
+          <div class="field">
+            <label>TikTok</label>
+            <input id="editTiktokInput" type="text" maxlength="40">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:10px;">
+          <div class="field">
+            <label>📅 Data da Venda (DD/MM/AAAA)</label>
+            <input id="editDataInput" type="text" maxlength="10" placeholder="Ex.: 23/08/2026">
+          </div>
+          <div class="field">
+            <label>⏰ Horário (HH:MM)</label>
+            <input id="editHoraInput" type="text" maxlength="5" placeholder="Ex.: 19:30">
+          </div>
+        </div>
+
+        <!-- CALENDÁRIO CUSTOMIZADO DE EDIÇÃO DA DATA DE ENVIO -->
+        <div class="field" id="editDataEnvioContainer" style="display: none; margin-top: 10px; position: relative;">
+          <label style="color: var(--accent-light);">🚀 Data programada para Envio</label>
+          <div style="background: #090412; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-light)'" onmouseout="this.style.borderColor='var(--border)'" onclick="toggleEditAgendaCalendario(event)">
+            <span id="labelEditAgendaData" style="color: #fff; font-weight: 600;">Hoje</span>
+            <span style="color: var(--muted); font-size: 16px;">📅</span>
+          </div>
+          <div id="editAgendaPopoverPlaceholder"></div>
+          <input type="hidden" id="editDataEnvioInput" value="">
+        </div>
+
+        <div class="field" style="margin-top: 10px;">
+          <div class="field-label-row">
+            <label>Valor da Venda (R$)</label>
+            <span id="editVbucksPreview" class="vbucks-badge-preview">🪙 0 V-Bucks</span>
+          </div>
+          <input id="editValorInput" type="number" step="0.01" min="0.01" oninput="atualizarPreviewVBucksEdicao()">
+        </div>
+
+        <div id="editItensListContainer" style="display:flex; flex-direction:column; gap:8px; margin-top: 8px;"></div>
+
+        <div class="field" style="margin-top: 10px;">
+          <label>💬 Observação (opcional)</label>
+          <input id="editObservacaoInput" type="text" maxlength="150" placeholder="Ex.: Cliente pediu para enviar só amanhã">
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-green" style="flex:1;" onclick="salvarEdicaoVenda()">💾 Salvar Alterações</button>
+        <button type="button" class="btn-gray" onclick="fecharModalEdicao()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="trashModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card modal-card-large">
+      <div class="modal-head">
+        <h3 style="margin:0; color:var(--accent-light);">🗑️ Lixeira de Vendas</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalLixeira()">✕</button>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin:10px 0 14px;">Vendas excluídas que podem ser restauradas ao histórico a qualquer momento:</p>
+      <div id="trashListContainer" class="trash-list-container"></div>
+      
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+        <button type="button" class="btn-danger" onclick="esvaziarLixeira()">🔥 Esvaziar Lixeira</button>
+        <button type="button" class="btn-gray" onclick="fecharModalLixeira()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="genericConfirmModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="genericConfirmTitle" style="margin:0;">⚠️ Confirmação</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalConfirmacao()">✕</button>
+      </div>
+      <p id="genericConfirmDesc" style="font-size:14px; color:var(--muted); margin:14px 0 18px;"></p>
+      <div style="display:flex; gap:10px;">
+        <button type="button" class="btn-danger" style="flex:1;" id="genericConfirmOkBtn">Confirmar</button>
+        <button type="button" class="btn-gray" onclick="fecharModalConfirmacao()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <section class="panel pricing-panel">
+    <div class="pricing-box">
+      <div>
+        <div class="label">⚙️ Valor Base</div>
+        <div class="pricing-help">Valor cobrado a cada 100 V-Bucks.</div>
+      </div>
+      <div class="pricing-controls">
+        <strong id="valorBaseDisplay">R$ 2,50</strong>
+        <button type="button" class="btn-gray" onclick="abrirModalValorBase()">✏️ Alterar</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="summary">
+    <div class="card card-glow">
+      <div class="label">Total da Sessão</div>
+      <div class="value" id="totalGeral">R$ 0,00</div>
+    </div>
+    <div class="card card-glow">
+      <div class="label">Vendas da Sessão</div>
+      <div class="value" id="qtdVendas">0</div>
+    </div>
+    <div class="card card-glow">
+      <div class="label">Pré-vendas (Sessão)</div>
+      <div class="value" id="totalAgendamentosSessao">R$ 0,00</div>
+    </div>
+    <div class="card card-glow">
+      <div class="label">Top Conta (Sessão)</div>
+      <div class="value" id="topConta" style="font-size:19px">—</div>
+    </div>
+  </section>
+
+  <section class="panel panel-form">
+    <h2>➕ Registrar Venda</h2>
+    
+    <div class="toolbar">
+      <div class="field">
+        <label>Conta utilizada</label>
+        <select id="contaSelect"></select>
+      </div>
+      <div class="field field-valor">
+        <div class="field-label-row">
+          <label>Valor da venda</label>
+          <span id="valorVbucksPreview" class="vbucks-badge-preview">🪙 0 V-Bucks</span>
+        </div>
+        <input id="valorInput" type="number" min="0.01" step="0.01" placeholder="Ex.: 45,00" oninput="atualizarPreviewVBucks()">
+      </div>
+      <div class="field" style="max-width:180px;min-width:130px">
+        <label>Quantidade de itens</label>
+        <input id="quantidadeInput" type="number" min="1" step="1" value="1" oninput="atualizarCamposItens()">
+      </div>
+      
+      <div class="field" style="position: relative;">
+        <label>TikTok</label>
+        <div class="autocomplete-wrapper">
+          <input id="tiktokInput" type="text" maxlength="40" placeholder="Ex.: @seu_tiktok" oninput="buscarSugestoesTiktok(this.value)" autocomplete="off">
+          <div id="tiktokSuggestions" class="autocomplete-dropdown"></div>
+        </div>
+      </div>
+
+      <div class="field" style="position: relative;">
+        <label>WhatsApp</label>
+        <div class="autocomplete-wrapper">
+          <input id="whatsappInput" type="text" maxlength="25" placeholder="Ex.: 5527999999999" oninput="mascaraTelefone(event); buscarSugestoesWhatsapp(this.value)" autocomplete="off">
+          <div id="whatsappSuggestions" class="autocomplete-dropdown"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar" style="margin-top: 14px;">
+      <div class="field" style="position: relative;">
+        <label>Nome do cliente</label>
+        <div class="autocomplete-wrapper">
+          <input id="clienteInput" type="text" maxlength="80" placeholder="Ex.: João123" oninput="buscarSugestoesCliente(this.value); verificarObservacaoCliente(this.value)" autocomplete="off">
+          <div id="clienteSuggestions" class="autocomplete-dropdown"></div>
+        </div>
+      </div>
+      
+      <div class="field" style="position: relative;">
+        <label>Nick do cliente</label>
+        <div class="autocomplete-wrapper">
+          <input id="nickClienteInput" type="text" maxlength="80" placeholder="Ex.: JoaoFortnite" oninput="buscarSugestoesNick(this.value)" autocomplete="off">
+          <div id="nickSuggestions" class="autocomplete-dropdown"></div>
+        </div>
+      </div>
+      
+      <!-- CALENDÁRIO CUSTOMIZADO NA TELA PRINCIPAL (Nativo removido) -->
+      <div class="field" style="max-width: 170px; position: relative;" id="boxAgendaCalendario">
+        <label>📅 Data de Envio</label>
+        <div style="background: #090412; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-light)'" onmouseout="this.style.borderColor='var(--border)'" onclick="toggleAgendaCalendario(event)">
+          <span id="labelAgendaData" style="color: #fff; font-weight: 600;">Hoje</span>
+          <span style="color: var(--muted); font-size: 16px;">📅</span>
+        </div>
+        <div id="agendaPopoverPlaceholder"></div>
+        <!-- Input escondido para manter o JS principal funcionando igual -->
+        <input type="hidden" id="dataEnvioInput" value="">
+      </div>
+    </div>
+
+    <div id="clienteObsAviso" style="display:none; width: 100%; margin-top: 12px; padding: 8px 12px; background: linear-gradient(135deg, #d84315, #ff8f00); border-radius: 8px; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-align: center; cursor: pointer; box-shadow: 0 4px 15px rgba(255, 143, 0, 0.25); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'"></div>
+
+    <div id="itensGroupContainer" style="margin-top: 14px; display: flex; flex-direction: column; gap: 8px;"></div>
+
+    <div class="field" style="margin-top: 14px;">
+      <label>💬 Observação (opcional)</label>
+      <input id="observacaoInput" type="text" maxlength="150" placeholder="Ex.: Cliente pediu para enviar só amanhã">
+    </div>
+
+    <div class="form-actions-row" style="margin-top: 16px; display: flex; gap: 10px;">
+      <button type="button" class="btn-primary" style="flex: 1;" onclick="adicionarVenda()">➕ Adicionar venda</button>
+      <button type="button" class="btn-primary" style="flex: 1;" onclick="agendarVenda()">⏳ Agendar Pré-venda</button>
+      <button type="button" class="btn-gray" id="limparSoValorBtn">💲 Limpar Valor</button>
+      <button type="button" class="btn-gray" id="limparTudoBtn">🧹 Limpar Tudo</button>
+    </div>
+
+    <div class="quick" style="margin-top: 14px;">
+      <span class="small" style="align-self:center">Valores rápidos:</span>
+      <button type="button" onclick="valorRapido(2.5)">R$ 2,50</button>
+      <button type="button" onclick="valorRapido(10)">R$ 10</button>
+      <button type="button" onclick="valorRapido(12.5)">R$ 12,50</button>
+      <button type="button" onclick="valorRapido(20)">R$ 20</button>
+      <button type="button" onclick="valorRapido(30)">R$ 30</button>
+      <button type="button" onclick="valorRapido(37.5)">R$ 37,50</button>
+      <button type="button" onclick="valorRapido(45)">R$ 45</button>
+      <button type="button" onclick="valorRapido(50)">R$ 50</button>
+      <button type="button" onclick="valorRapido(60)">R$ 60</button>
+      <button type="button" onclick="valorRapido(75)">R$ 75</button>
+      <button type="button" onclick="valorRapido(85)">R$ 85</button>
+      <button type="button" onclick="valorRapido(90)">R$ 90</button>
+      <button type="button" onclick="valorRapido(100)">R$ 100</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+      <h2 style="margin: 0;">💰 Total por Conta & Status de Envios</h2>
+      <button type="button" class="btn-danger btn-compact" onclick="abrirModalConfirmacao('🔄 Nova Sessão', 'Deseja iniciar uma nova sessão? O histórico e timers continuarão salvos.', novaLive)">🔄 Nova Sessão</button>
+    </div>
+    <div id="totaisPorConta" class="account-grid"></div>
+  </section>
+
+  <section class="panel" style="padding: 14px 20px;">
+    <button type="button" class="btn-financial-toggle" id="btnContasToggle" onclick="toggleGerenciarContas()" style="width:100%; display:flex; justify-content:space-between; align-items:center; background:transparent; border:none; color:var(--text); font-weight:700; font-size:1rem; cursor:pointer; padding:6px 0;">
+      <span>⚙️ Gerenciar Contas & Saldos</span>
+      <span id="contasToggleArrow" class="toggle-arrow">▾</span>
+    </button>
+    <div id="contasContent" class="financial-balance-content" style="display:none; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 14px;">
+      <div class="section-actions" style="margin-bottom: 12px;">
+        <button type="button" class="btn-green" onclick="abrirModalAddConta()">➕ Adicionar Conta</button>
+      </div>
+      <div id="contas"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="history-top-bar" style="margin-bottom: 15px;">
+      <div class="history-tabs-bar" style="margin: 0; border: none; padding: 0; display: flex; width: 100%; gap: 10px; flex-wrap: wrap;">
+        <button type="button" class="history-tab-btn active" id="tabBtnVendas" onclick="mudarAbaHistorico('vendas')" style="flex: 1; text-align: center; min-width: 150px;">📜 Vendas</button>
+        <button type="button" class="history-tab-btn" id="tabBtnAgendamentos" onclick="mudarAbaHistorico('agendamentos')" style="flex: 1; text-align: center; min-width: 150px;">⏳ Pré-vendas</button>
+        <button type="button" class="history-tab-btn" id="tabBtnApoiador" onclick="mudarAbaHistorico('apoiador')" style="flex: 1; text-align: center; min-width: 150px;">🤝 Apoiador</button>
+        <button type="button" class="history-tab-btn" id="tabBtnClientes" onclick="mudarAbaHistorico('clientes')" style="flex: 1; text-align: center; min-width: 150px;">👥 Clientes</button>
+      </div>
+    </div>
+    
+    <div id="conteudoAbaVendas">
+      <div class="history-content-full">
+        <div class="history-total-card" style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div class="history-total-label">💰 TOTAL DO HISTÓRICO</div>
+            <div class="history-total-value" id="historicoTotal">R$ 0,00</div>
+            <div class="history-total-help">Valor acumulado de todas as vendas registradas.</div>
+          </div>
+          <div>
+            <button type="button" class="btn-green" style="font-size:13px; padding:10px 16px;" onclick="abrirModalApoiador()">🤝 Gerenciar Código Apoiador</button>
+          </div>
+        </div>
+        <div class="history-permanent-sales">
+          <span>🛒 TOTAL DE VENDAS</span>
+          <strong id="historicoQtdTotal">0 pedidos · 0 itens enviados</strong>
+        </div>
+        
+        <div class="history-periods" id="historicoPeriodos"></div>
+
+        <div class="financial-toggle-container">
+          <button type="button" class="btn-financial-toggle" id="btnFinancialToggle" onclick="toggleBalancoFinanceiro()">
+            <span>📊 Balanço Financeiro por Conta (Histórico Acumulado)</span>
+            <span id="financialToggleArrow" class="toggle-arrow">▾</span>
+          </button>
+          <div id="financialBalanceContent" class="financial-balance-content" style="display:none;"></div>
+        </div>
+      </div>
+
+      <div class="history-search-bar-box" style="margin-top: 16px; display: flex; gap: 10px; align-items: center;">
+        <div class="history-search-input-wrapper" style="flex: 1;">
+          <span class="search-icon">🔍</span>
+          <input id="historySearchInput" type="text" placeholder="Buscar por ID (#46), Nick, Cliente, TikTok, Item, Conta..." oninput="filtrarHistoricoInput(this.value)">
+          <button type="button" class="btn-clear-search" id="clearSearchBtn" style="display:none;" onclick="limparBuscaHistorico()">✕</button>
+        </div>
+        <button type="button" class="btn-gray btn-compact" onclick="abrirModalLixeira()" id="lixeiraBtn" title="Ver Vendas Excluídas" style="white-space: nowrap; height: 42px; padding: 0 14px; font-size: 13px;">🗑️ Lixeira (0)</button>
+      </div>
+
+      <div id="searchSummaryContainer" style="display: none;"></div>
+      <div id="historico" class="history-cards"></div>
+      <div id="historyPagination" class="history-pagination-container"></div>
+    </div>
+
+    <div id="conteudoAbaAgendamentos" style="display: none;">
+      <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: var(--accent-light);">⏳ Gerenciamento de Pré-vendas</h3>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px;">Estes são os clientes que já pagaram, mas o item ainda não foi enviado. Clique em "Efetivar Venda" apenas na hora em que realizar o envio real pelo jogo.</p>
+        
+        <div id="listaAgendamentosContainer"></div>
+      </div>
+    </div>
+
+    <div id="conteudoAbaApoiador" style="display: none;">
+      <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: var(--accent-light);">🤝 Histórico Consolidado do Código Apoiador</h3>
+          <button type="button" class="btn-green" style="font-size:12px; padding:6px 12px;" onclick="abrirModalApoiador()">➕ Adicionar / Editar Mês</button>
+        </div>
+        <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px;">Acompanhe abaixo todos os valores brutos em dólares e líquidos recebidos em reais mês a mês:</p>
+        <div id="tabelaHistoricoApoiadorCompleto"></div>
+      </div>
+    </div>
+
+    <div id="conteudoAbaClientes" style="display: none;">
+      <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: var(--accent-light);">👥 Histórico e Ranking de Clientes</h3>
+          <div id="totalClientesResumo" style="font-size: 13px; color: var(--muted); font-weight: 600;">0 clientes cadastrados</div>
+        </div>
+        
+        <div class="history-search-bar-box" style="margin-bottom: 15px;">
+          <div class="history-search-input-wrapper" style="flex: 1;">
+            <span class="search-icon">🔍</span>
+            <input id="clienteSearchInput" type="text" placeholder="Buscar por Nome, Nick, WhatsApp ou TikTok..." oninput="filtrarClientesInput(this.value)">
+            <button type="button" class="btn-clear-search" id="clearClienteSearchBtn" style="display:none;" onclick="limparBuscaClientes()">✕</button>
+          </div>
+        </div>
+
+        <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px;">Clique sobre o nome de qualquer cliente para ver o histórico detalhado de todas as compras dele:</p>
+        <div id="tabelaHistoricoClientesCompleto"></div>
+        <div id="clientesPagination" class="history-pagination-container"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer id="statusFooter">☁️ Carregando...</footer>
+</div>
+
+<script src="agendamentos.js?v=6"></script>
+<script src="app.js?v=6"></script>
+</body>
+</html>
