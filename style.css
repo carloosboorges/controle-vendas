@@ -1350,84 +1350,46 @@ footer {
   margin-top: 35px;
 }
 
-/* Responsividade */
+/* =======================================================
+   RESPONSIVIDADE (CELULARES E TELAS MENORES)
+======================================================= */
 @media (max-width: 950px) {
-  .history-periods {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .summary {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .history-periods { grid-template-columns: repeat(3, 1fr); }
+  .summary { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 850px) {
-  .account-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  .account-actions {
-    width: 100%;
-    margin-left: 0;
-    flex-wrap: wrap;
-  }
-  .account-actions button {
-    flex: 1;
-  }
+  .account-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .account-actions { width: 100%; margin-left: 0; flex-wrap: wrap; }
+  .account-actions button { flex: 1; }
 }
 
 @media (max-width: 700px) {
-  .summary {
-    grid-template-columns: 1fr;
-  }
-  .pricing-box {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .pricing-controls {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .brand-logo {
-    max-width: 240px;
-  }
-  .item-picker-row {
-    flex-direction: column;
-  }
-  .item-type-select {
-    width: 100% !important;
-  }
-  .history-periods {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .summary { grid-template-columns: 1fr; }
+  .pricing-box { flex-direction: column; align-items: flex-start; }
+  .pricing-controls { width: 100%; justify-content: space-between; }
+  .brand-logo { max-width: 240px; }
+  .item-picker-row { flex-direction: column; }
+  .item-type-select { width: 100% !important; }
+  .history-periods { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 600px) {
-  .history-main {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  .history-value {
-    text-align: left;
-    margin-left: 0;
-    font-size: 22px;
-  }
-  .history-details {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  .history-actions {
-    width: 100%;
-    margin-left: 0;
-  }
-  .history-actions button {
-    flex: 1;
-  }
-  .history-periods {
-    grid-template-columns: 1fr;
-  }
+  .container { padding: 10px 10px 40px; }
+  .summary { grid-template-columns: 1fr; gap: 10px; }
+  .history-main { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .history-value { text-align: left; margin-left: 0; font-size: 22px; }
+  .history-details { flex-direction: column; align-items: stretch; gap: 10px; }
+  .history-actions { width: 100%; margin-left: 0; display: flex; flex-direction: column; gap: 8px; }
+  .history-actions button { width: 100%; flex: none; }
+  .history-periods { grid-template-columns: 1fr; }
+  .history-total-value { font-size: 28px; }
+  .account-card-head { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .modal-card, .modal-card-large { padding: 16px; margin: 10px; width: calc(100% - 20px); max-height: 90vh; overflow-y: auto; }
+  .form-actions-row { flex-direction: column; }
+  .form-actions-row button { width: 100%; margin-top: 5px; }
+  .copyable-text { white-space: normal; word-break: break-word; }
+  .apoiador-form-grid { grid-template-columns: 1fr; }
 }
 
 /* Estilo para o popover flutuante de seleção de mês */
@@ -1446,7 +1408,7 @@ footer {
   width: 280px;
 }
 
-/* LAYOUT DO MODAL DO APOIADOR (Mês em cima, Líquido na esquerda e Bruto na direita embaixo) */
+/* LAYOUT DO MODAL DO APOIADOR */
 #apoiadorModal .modal-card-large {
   max-width: 520px;
   width: 90%;
@@ -1457,12 +1419,6 @@ footer {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin-bottom: 14px;
-}
-
-@media (max-width: 600px) {
-  .apoiador-form-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Estilo para as abas de alternância do Histórico */

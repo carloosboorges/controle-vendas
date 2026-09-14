@@ -461,7 +461,7 @@
         </div>
       </div>
       
-      <!-- CALENDÁRIO CUSTOMIZADO NA TELA PRINCIPAL (Nativo removido) -->
+      <!-- CALENDÁRIO CUSTOMIZADO NA TELA PRINCIPAL -->
       <div class="field" style="max-width: 170px; position: relative;" id="boxAgendaCalendario">
         <label>📅 Data de Envio</label>
         <div style="background: #090412; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-light)'" onmouseout="this.style.borderColor='var(--border)'" onclick="toggleAgendaCalendario(event)">
@@ -469,7 +469,6 @@
           <span style="color: var(--muted); font-size: 16px;">📅</span>
         </div>
         <div id="agendaPopoverPlaceholder"></div>
-        <!-- Input escondido para manter o JS principal funcionando igual -->
         <input type="hidden" id="dataEnvioInput" value="">
       </div>
     </div>
@@ -628,7 +627,18 @@
   <footer id="statusFooter">☁️ Carregando...</footer>
 </div>
 
-<script src="agendamentos.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<!-- 1. O NÚCLEO DO SITE E AGENDAMENTOS -->
+  <script src="js/core.js"></script>
+  <script src="js/agendamentos.js"></script>
+  
+  <!-- 2. NOSSOS NOVOS ARQUIVOS DIVIDIDOS -->
+  <script src="js/autocomplete.js"></script>
+  <script src="js/calendario.js"></script>
+  <script src="js/apoiador.js"></script>
+  <script src="js/clientes.js"></script>
+  
+  <!-- 3. A INTERFACE E A INICIALIZAÇÃO POR ÚLTIMO -->
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
