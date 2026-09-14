@@ -64,24 +64,20 @@ function abrirModalDetalhesCliente(id, nome) {
 
   const modalHead = modal.querySelector('.modal-head');
   if (modalHead) {
-    // Muda o comportamento do cabeçalho para aceitar elementos absolutos (o X do Windows)
     modalHead.style.display = "block";
     modalHead.style.width = "100%";
 
     modalHead.innerHTML = `
       <div style="position: relative; width: 100%;">
         
-        <!-- O X absoluto no topo direito (Estilo Windows/Abas) -->
         <button type="button" class="btn-danger close-modal-btn" style="position: absolute; top: -5px; right: 0; height: 36px; width: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; padding: 0; flex-shrink: 0; z-index: 10;" onclick="fecharModalDetalhesCliente()">✕</button>
 
         <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; padding-right: 50px; gap: 10px; flex-wrap: wrap;">
           
-          <!-- Esquerda: Título -->
           <div style="font-size: 12px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-top: 10px;">
             👤 Histórico de Cliente
           </div>
           
-          <!-- Direita: Botões na ordem solicitada -->
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
             <button type="button" class="btn-green" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="document.getElementById('clienteIdInput').value='${esc(id).replace(/'/g, "\\'")}'; preencherNovaVendaModal('${esc(nome).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>
             <button type="button" class="btn-gray" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="abrirModalEdicaoCliente('${esc(id).replace(/'/g, "\\'")}', '${esc(nome).replace(/'/g, "\\'")}')">✏️ Editar Perfil</button>
@@ -91,7 +87,6 @@ function abrirModalDetalhesCliente(id, nome) {
 
         </div>
         
-        <!-- Nome do Cliente isolado na linha de baixo (Nunca vai quebrar o layout) -->
         <div style="width: 100%; margin-top: 16px;">
           <h3 style="margin:0; color:#fff; font-size: 26px; font-weight: 900; line-height: 1.3; word-wrap: break-word; padding-right: 20px;">
             <span class="copyable-text" onclick="copiarTexto('${esc(nome).replace(/'/g, "\\'")}', 'Nome do Cliente', event)">${esc(nome)}</span>
@@ -306,7 +301,7 @@ function renderizarHistoricoClientesCompleto() {
   container.innerHTML = `<div style="overflow-x:auto;"><table class="financial-table" style="width:100%; border-collapse:collapse;"><thead><tr><th style="padding:12px; text-align:left; border-bottom:1px solid var(--border);">Nome do Cliente</th><th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">Total de Pedidos</th><th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">V-Bucks Acumulados</th><th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">Total Gasto (R$)</th></tr></thead><tbody>${clientesPagina.map(c => {
     const hasObs = state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao;
     const obsIcon = hasObs ? ' <span style="font-size:12px;" title="Possui observação">📌</span>' : '';
-    return `<tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesCliente('${esc(c.id).replace(/'/g, "\\'")}', '${esc(c.nome).replace(/'/g, "\\'")}')"><td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">👤 ${esc(c.nome)}${obsIcon} 🔍</td><td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--muted);">${c.totalPedidos}</td><td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">🪙 ${formatVBucks(c.totalVbucks)} VB</td><td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:900;">${maskMoney(money(c.totalGasto))}</td></tr>`;
+    return `<tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesCliente('${esc(c.id).replace(/'/g, "\\'")}', '${esc(c.nome).replace(/'/g, "\\'")}')"><td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">👤 ${esc(c.nome)}${obsIcon} 🔍</td><td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--muted);">${c.totalPedidos}</td><td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">🪙 ${formatVBucks(c.totalVbucks)} VB</td><td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:900;">${money(c.totalGasto)}</td></tr>`;
   }).join("")}</tbody></table></div>`;
   
   if (paginacaoContainer) {

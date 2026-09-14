@@ -5,6 +5,24 @@
 let historicoPaginaAtual = 1;
 let historicoTermoBusca = "";
 
+// Verifica se o modo de privacidade global está ativo
+function estaPrivacidadeAtiva() {
+  return document.body.classList.contains('privacidade-ativa') || 
+         (document.getElementById('historicoTotal') && document.getElementById('historicoTotal').textContent.includes('*'));
+}
+
+function pMoeda(val) {
+  return estaPrivacidadeAtiva() ? 'R$ *****' : money(val);
+}
+
+function pVbHistorico(vb) {
+  return estaPrivacidadeAtiva() ? '🪙 •••••• V-Bucks' : `🪙 ${formatVBucks(vb)} V-Bucks`;
+}
+
+function pVbTabela(vb) {
+  return estaPrivacidadeAtiva() ? '🪙 •••••• VB' : `🪙 ${formatVBucks(vb)} VB`;
+}
+
 function filtrarHistoricoInput(val) {
   historicoTermoBusca = String(val || "").trim().toLowerCase();
   historicoPaginaAtual = 1;
@@ -110,46 +128,46 @@ function renderizarResumoPeriodos() {
   periodosEl.innerHTML = `
     <div class="period-card period-card-calendar-container" style="position:relative; cursor:pointer;" onclick="toggleCalendarioPopover(event)">
       <div class="period-header-select"><span>📅</span><strong style="font-size:12px; color:var(--accent-light);">${diaParaFiltrar} ▾</strong></div>
-      <strong>${money(diaTotal)}</strong>
+      <strong>${pMoeda(diaTotal)}</strong>
       <small>${diaPedidos} pedidos (${diaItens} itens)</small>
-      <small class="period-vbucks-text">🪙 ${formatVBucks(diaVbucks)} V-Bucks</small>
+      <small class="period-vbucks-text">${pVbHistorico(diaVbucks)}</small>
       ${typeof calPopoverAberto !== 'undefined' && calPopoverAberto && typeof gerarHtmlCalendarioPopover === 'function' ? gerarHtmlCalendarioPopover() : ""}
     </div>
     <div class="period-card">
       <span>📅 Esta semana</span>
-      <strong>${money(semanaTotal)}</strong>
+      <strong>${pMoeda(semanaTotal)}</strong>
       <small>${semanaPedidos} pedidos (${semanaItens} itens)</small>
-      <small class="period-vbucks-text">🪙 ${formatVBucks(semanaVbucks)} V-Bucks</small>
+      <small class="period-vbucks-text">${pVbHistorico(semanaVbucks)}</small>
     </div>
     <div class="period-card period-card-mes-container" style="position:relative; cursor:pointer;" onclick="toggleMesPopover(event)">
       <div class="period-header-select"><span>🗓️</span><strong style="font-size:12px; color:var(--accent-light);">Mês ▾</strong></div>
-      <strong>${money(mesTotalVendas)}</strong>
+      <strong>${pMoeda(mesTotalVendas)}</strong>
       <small>${mesPedidos} pedidos (${mesItens} itens)</small>
-      <small class="period-vbucks-text">🪙 ${formatVBucks(mesVbucks)} V-Bucks</small>
+      <small class="period-vbucks-text">${pVbHistorico(mesVbucks)}</small>
       <div style="font-size:10px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06); padding-top:4px; line-height:1.3;">
-        <span style="color:var(--muted);">Vendas:</span> ${money(lucroVendasMes)}<br>
-        <span style="color:var(--muted);">Apoiador:</span> ${money(lucroApoiadorMes)}<br>
-        <strong style="color:var(--green);">Total: ${money(lucroVendasMes + lucroApoiadorMes)}</strong>
+        <span style="color:var(--muted);">Vendas:</span> ${pMoeda(lucroVendasMes)}<br>
+        <span style="color:var(--muted);">Apoiador:</span> ${pMoeda(lucroApoiadorMes)}<br>
+        <strong style="color:var(--green);">Total: ${pMoeda(lucroVendasMes + lucroApoiadorMes)}</strong>
       </div>
       ${typeof mesPopoverAberto !== 'undefined' && mesPopoverAberto && typeof gerarHtmlMesPopover === 'function' ? gerarHtmlMesPopover() : ""}
     </div>
     <div class="period-card period-card-ano-container" style="position:relative; cursor:pointer;" onclick="toggleAnoPopover(event)">
       <div class="period-header-select"><span>📆</span><strong style="font-size:12px; color:var(--accent-light);">Ano ${anoLocal} ▾</strong></div>
-      <strong>${money(anoTotalVendas)}</strong>
+      <strong>${pMoeda(anoTotalVendas)}</strong>
       <small>${anoPedidos} pedidos (${anoItens} itens)</small>
-      <small class="period-vbucks-text">🪙 ${formatVBucks(anoVbucks)} V-Bucks</small>
+      <small class="period-vbucks-text">${pVbHistorico(anoVbucks)}</small>
       <div style="font-size:10px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06); padding-top:4px; line-height:1.3;">
-        <span style="color:var(--muted);">Vendas:</span> ${money(lucroVendasAno)}<br>
-        <span style="color:var(--muted);">Apoiador:</span> ${money(lucroApoiadorAno)}<br>
-        <strong style="color:var(--green);">Total: ${money(lucroVendasAno + lucroApoiadorAno)}</strong>
+        <span style="color:var(--muted);">Vendas:</span> ${pMoeda(lucroVendasAno)}<br>
+        <span style="color:var(--muted);">Apoiador:</span> ${pMoeda(lucroApoiadorAno)}<br>
+        <strong style="color:var(--green);">Total: ${pMoeda(lucroVendasAno + lucroApoiadorAno)}</strong>
       </div>
       ${typeof anoPopoverAberto !== 'undefined' && anoPopoverAberto && typeof gerarHtmlAnoPopover === 'function' ? gerarHtmlAnoPopover() : ""}
     </div>
     <div class="period-card profit-card">
       <span>📈 Lucro Global</span>
-      <strong>${money(lucroContinuoGeralVendas + totalLiquidoApoiadorGlobal)}</strong>
-      <small style="color:var(--green); font-weight:700;">Vendas: ${money(lucroContinuoGeralVendas)}</small>
-      <small style="color:var(--accent-light); font-weight:700;">Apoiador: ${money(totalLiquidoApoiadorGlobal)}</small>
+      <strong>${pMoeda(lucroContinuoGeralVendas + totalLiquidoApoiadorGlobal)}</strong>
+      <small style="color:var(--green); font-weight:700;">Vendas: ${pMoeda(lucroContinuoGeralVendas)}</small>
+      <small style="color:var(--accent-light); font-weight:700;">Apoiador: ${pMoeda(totalLiquidoApoiadorGlobal)}</small>
     </div>`;
 }
 
@@ -297,14 +315,19 @@ function renderizarBalancoFinanceiro() {
       lucro: lucroLiquido,
       bruto: arr.totalValor
     };
-  }).sort((a, b) => b.bruto - a.bruto); 
+  }).sort((a, b) => {
+    const indexA = contasRegistradas.findIndex(c => c.nome === a.nome);
+    const indexB = contasRegistradas.findIndex(c => c.nome === b.nome);
+    const pesoA = indexA !== -1 ? indexA : 999;
+    const pesoB = indexB !== -1 ? indexB : 999;
+    return pesoA - pesoB;
+  }); 
 
   if (arrayBalanco.length === 0) {
     container.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--muted); font-size: 13px;">Nenhum dado financeiro para exibir.</div>`;
     return;
   }
 
-  // --- NOVA MÁGICA DE SOMAR TUDO AQUI ---
   const totaisGerais = arrayBalanco.reduce((acc, item) => {
     acc.vbucks += item.vbucks;
     acc.custo += item.custo;
@@ -329,20 +352,20 @@ function renderizarBalancoFinanceiro() {
           ${arrayBalanco.map(item => `
             <tr>
               <td style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 700; color: #fff;">${esc(item.nome)}</td>
-              <td style="padding: 10px; border-bottom: 1px solid var(--border); color: #ffb74d; font-weight: 700;">🪙 ${formatVBucks(item.vbucks)} VB</td>
-              <td style="padding: 10px; border-bottom: 1px solid var(--border); color: #ff6b81;">${money(item.custo)}</td>
-              <td style="padding: 10px; border-bottom: 1px solid var(--border); color: var(--green); font-weight: 800;">${money(item.lucro)}</td>
-              <td style="padding: 10px; border-bottom: 1px solid var(--border); font-weight: 700; color: var(--accent-light);">${money(item.bruto)}</td>
+              <td style="padding: 10px; border-bottom: 1px solid var(--border); color: #ffb74d; font-weight: 700;">${pVbTabela(item.vbucks)}</td>
+              <td style="padding: 10px; border-bottom: 1px solid var(--border); color: #ff6b81;">${pMoeda(item.custo)}</td>
+              <td style="padding: 10px; border-bottom: 1px solid var(--border); color: var(--green); font-weight: 800;">${pMoeda(item.lucro)}</td>
+              <td style="padding: 10px; border-bottom: 1px solid var(--border); font-weight: 700; color: var(--accent-light);">${pMoeda(item.bruto)}</td>
             </tr>
           `).join("")}
         </tbody>
         <tfoot style="background: rgba(142,68,255,0.1); border-top: 2px solid var(--accent-light);">
           <tr>
             <td style="padding: 12px 10px; text-align: left; font-weight: 900; color: #fff; text-transform: uppercase;">Total Geral</td>
-            <td style="padding: 12px 10px; color: #ffb74d; font-weight: 900;">🪙 ${formatVBucks(totaisGerais.vbucks)} VB</td>
-            <td style="padding: 12px 10px; color: #ff6b81; font-weight: 900;">${money(totaisGerais.custo)}</td>
-            <td style="padding: 12px 10px; color: var(--green); font-weight: 900;">${money(totaisGerais.lucro)}</td>
-            <td style="padding: 12px 10px; color: var(--accent-light); font-weight: 900;">${money(totaisGerais.bruto)}</td>
+            <td style="padding: 12px 10px; color: #ffb74d; font-weight: 900;">${pVbTabela(totaisGerais.vbucks)}</td>
+            <td style="padding: 12px 10px; color: #ff6b81; font-weight: 900;">${pMoeda(totaisGerais.custo)}</td>
+            <td style="padding: 12px 10px; color: var(--green); font-weight: 900;">${pMoeda(totaisGears = totaisGerais.lucro)}</td>
+            <td style="padding: 12px 10px; color: var(--accent-light); font-weight: 900;">${pMoeda(totaisGerais.bruto)}</td>
           </tr>
         </tfoot>
       </table>
