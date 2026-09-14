@@ -309,7 +309,6 @@
           </div>
         </div>
 
-        <!-- CALENDÁRIO CUSTOMIZADO DE EDIÇÃO DA DATA DE ENVIO -->
         <div class="field" id="editDataEnvioContainer" style="display: none; margin-top: 10px; position: relative;">
           <label style="color: var(--accent-light);">🚀 Data programada para Envio</label>
           <div style="background: #090412; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-light)'" onmouseout="this.style.borderColor='var(--border)'" onclick="toggleEditAgendaCalendario(event)">
@@ -359,7 +358,7 @@
     </div>
   </div>
 
-  <div id="genericConfirmModal" class="modal-overlay" style="display:none;">
+  <div id="genericConfirmModal" class="modal-overlay" style="display:none; z-index: 10500;">
     <div class="modal-card">
       <div class="modal-head">
         <h3 id="genericConfirmTitle" style="margin:0;">⚠️ Confirmação</h3>
@@ -449,6 +448,7 @@
         <label>Nome do cliente</label>
         <div class="autocomplete-wrapper">
           <input id="clienteInput" type="text" maxlength="80" placeholder="Ex.: João123" oninput="buscarSugestoesCliente(this.value); verificarObservacaoCliente(this.value)" autocomplete="off">
+          <input type="hidden" id="clienteIdInput" value="">
           <div id="clienteSuggestions" class="autocomplete-dropdown"></div>
         </div>
       </div>
@@ -461,7 +461,6 @@
         </div>
       </div>
       
-      <!-- CALENDÁRIO CUSTOMIZADO NA TELA PRINCIPAL -->
       <div class="field" style="max-width: 170px; position: relative;" id="boxAgendaCalendario">
         <label>📅 Data de Envio</label>
         <div style="background: #090412; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-light)'" onmouseout="this.style.borderColor='var(--border)'" onclick="toggleAgendaCalendario(event)">
@@ -557,8 +556,9 @@
         
         <div class="history-periods" id="historicoPeriodos"></div>
 
+        <!-- O BOTÃO FOI CORRIGIDO AQUI -->
         <div class="financial-toggle-container">
-          <button type="button" class="btn-financial-toggle" id="btnFinancialToggle" onclick="toggleBalancoFinanceiro()">
+          <button type="button" class="btn-financial-toggle" id="btnFinancialToggle" onclick="abrirPainelContas()">
             <span>📊 Balanço Financeiro por Conta (Histórico Acumulado)</span>
             <span id="financialToggleArrow" class="toggle-arrow">▾</span>
           </button>
@@ -627,17 +627,68 @@
   <footer id="statusFooter">☁️ Carregando...</footer>
 </div>
 
-<!-- 1. O NÚCLEO DO SITE E AGENDAMENTOS -->
+  <div id="modalAntiDuplicacao" class="modal-overlay" style="display:none; z-index: 9999;">
+    <div class="modal-card" style="max-width: 450px; text-align: center; padding: 30px;">
+      <div style="font-size: 40px; margin-bottom: 10px;">⚠️</div>
+      <h3 style="color: #ffb74d; margin-top: 0;">Cliente Já Existe!</h3>
+      <p style="color: var(--muted); font-size: 14px; margin-bottom: 15px;">
+        Você digitou o nome <strong id="antiDupNomeTexto" style="color: #fff;"></strong>, mas não clicou na sugestão. Encontramos estes perfis no sistema, clique no correto:
+      </p>
+
+      <div id="listaHomonimos" style="display:flex; flex-direction:column; gap:8px; margin-bottom: 20px; max-height: 200px; overflow-y:auto; text-align:left;">
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn-gray" onclick="confirmarVendaNovoHomonimo()" style="padding: 12px; font-size: 14px;">
+          ➕ É outra pessoa (Criar Novo Cliente)
+        </button>
+        <button class="btn-danger" onclick="fecharModalAntiDuplicacao()" style="padding: 12px; font-size: 14px; background: transparent; border: 1px solid var(--danger);">
+          ❌ Cancelar e voltar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalMesclarClientes" class="modal-overlay" style="display:none; z-index: 9999;">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-head" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin: 0; color: #fff;">🔗 Unificar Clientes</h3>
+        <button class="btn-danger close-modal-btn" onclick="fecharModalMesclar()" style="padding: 4px 10px;">✕</button>
+      </div>
+      <p style="color: var(--muted); font-size: 13px; margin-bottom: 20px;">
+        Esta ação moverá todo o histórico, V-Bucks e compras do <strong style="color:var(--danger);">Cliente Duplicado</strong> para o <strong style="color:var(--green);">Cliente Original</strong>, e o perfil duplicado será excluído.
+      </p>
+      
+      <div class="field" style="margin-bottom: 15px;">
+        <label style="color: var(--danger);">1. Cliente Duplicado (Que será apagado)</label>
+        <input type="text" id="mesclarOrigem" disabled style="background: rgba(255,71,87,0.1); border-color: rgba(255,71,87,0.3); color: #fff;">
+        <input type="hidden" id="mesclarOrigemId">
+      </div>
+
+      <div class="field" style="position: relative; margin-bottom: 25px;">
+        <label style="color: var(--green);">2. Pesquise o Cliente Original (Que receberá os dados)</label>
+        <input type="text" id="mesclarDestinoBusca" placeholder="Digite o nome do cliente original..." oninput="buscarSugestoesMesclar(this.value)" autocomplete="off">
+        <input type="hidden" id="mesclarDestinoId">
+        <div id="mesclarSuggestions" class="autocomplete-dropdown" style="top: 65px;"></div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn-gray" onclick="fecharModalMesclar()">Cancelar</button>
+        <button class="btn-green" onclick="executarMesclagem()">🔗 Unificar Histórico</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/core.js"></script>
   <script src="js/agendamentos.js"></script>
-  
-  <!-- 2. NOSSOS NOVOS ARQUIVOS DIVIDIDOS -->
   <script src="js/autocomplete.js"></script>
   <script src="js/calendario.js"></script>
   <script src="js/apoiador.js"></script>
   <script src="js/clientes.js"></script>
+  <script src="js/contas.js"></script>
+  <script src="js/historico.js"></script>
+  <script src="js/mesclar.js"></script>
   
-  <!-- 3. A INTERFACE E A INICIALIZAÇÃO POR ÚLTIMO -->
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
 </body>

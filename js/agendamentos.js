@@ -157,6 +157,7 @@ function renderEditAgendaCalendario() {
   placeholder.innerHTML = `<div class="custom-calendar-popover" style="top: calc(100% + 6px); left: 0; transform: none; width: 250px;" onclick="event.stopPropagation()"><div class="calendar-header-nav"><button type="button" class="calendar-nav-btn" onclick="navegarEditAgendaMes(-1, event)">‹</button><strong>${nomesMeses[editAgendaViewMes]} ${editAgendaViewAno}</strong><button type="button" class="calendar-nav-btn" onclick="navegarEditAgendaMes(1, event)">›</button></div><div class="calendar-weekdays-grid">${diasSemana.map(d => `<span>${d}</span>`).join("")}</div><div class="calendar-days-grid">${diasHtml}</div></div>`;
 }
 
+// ATUALIZADO: Agendamento de Venda agora possui a trava anti-duplicação!
 function agendarVenda() {
   limparReservasExpiradas();
   const conta = document.getElementById("contaSelect").value;
@@ -169,6 +170,17 @@ function agendarVenda() {
   const quantidade = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
   const itens = obterItensDaVenda();
   const baseAtual = state.valorBase100 || 2.5;
+
+  let clienteId = document.getElementById("clienteIdInput")?.value;
+
+  // TRAVA ANTI-DUPLICAÇÃO AQUI TAMBÉM!
+  if (window.ignorarChecagemDuplicacao) {
+    window.ignorarChecagemDuplicacao = false;
+  } else {
+    if (typeof checarDuplicacaoAntesDeVender === 'function') {
+      if (checarDuplicacaoAntesDeVender(cliente, clienteId, agendarVenda)) return;
+    }
+  }
 
   const dataEnvioCrua = document.getElementById("dataEnvioInput")?.value; 
   let dataEnvioFormatada = obterDataHojeFormatada(); 
@@ -196,9 +208,15 @@ function agendarVenda() {
     mostrarNotificacao("Aviso: Saldo insuficiente, mas agendamento salvo.", "info"); 
   }
 
+  // Gera o ID se for novo
+  if (!clienteId) {
+    clienteId = "cli-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4);
+  }
+
   const d = new Date();
   const novoAgendamento = { 
     id: `agenda-${Date.now()}`, 
+    clienteId: clienteId, // Salva o ID fantasma no agendamento!
     conta, valor: Number(valor), 
     vbucks: vbucksNecessarios, 
     valorBaseMomento: baseAtual, 
@@ -214,9 +232,9 @@ function agendarVenda() {
   if (!state.agendamentos) state.agendamentos = []; 
   state.agendamentos.unshift(novoAgendamento);
 
-  sincronizarDadosCliente(cliente, whatsapp, tiktok);
+  sincronizarDadosCliente(clienteId, cliente, whatsapp, tiktok);
   
-  ["valorInput", "clienteInput", "nickClienteInput", "whatsappInput", "tiktokInput", "observacaoInput"].forEach(id => {
+  ["valorInput", "clienteInput", "clienteIdInput", "nickClienteInput", "whatsappInput", "tiktokInput", "observacaoInput"].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = "";
   });
   if (document.getElementById("quantidadeInput")) document.getElementById("quantidadeInput").value = "1";
@@ -391,6 +409,7 @@ function efetivarAgendamento(id) {
     contaObj.vbucks = Math.max(0, Number(contaObj.vbucks) - agendamento.vbucks);
     const vendaId = `venda-${Date.now()}`;
     
+    // Na efetivação, ele herda o ID Fantasma que foi salvo no Agendamento!
     const novaVenda = { 
       ...agendamento, 
       id: vendaId, 

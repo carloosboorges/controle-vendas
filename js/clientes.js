@@ -5,6 +5,9 @@
 let clientesPaginaAtual = 1;
 let clientesTermoBusca = "";
 
+let clienteEmEdicaoId = null;
+let clienteEmEdicaoNome = null;
+
 function filtrarClientesInput(val) {
   clientesTermoBusca = String(val || "").trim().toLowerCase();
   clientesPaginaAtual = 1;
@@ -28,14 +31,18 @@ function mudarPaginaClientes(p) {
   if (barraBusca) barraBusca.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function abrirModalDetalhesCliente(nome) {
-  const clientePedidos = (state.historicoVendas || []).filter(v => String(v.cliente || "").trim() === nome).reverse();
+function abrirModalDetalhesCliente(id, nome) {
+  const clientePedidos = (state.historicoVendas || []).filter(v => {
+    const vId = v.clienteId || String(v.cliente || "").trim();
+    return vId === id;
+  }).reverse();
+  
   const totalGasto = clientePedidos.reduce((acc, v) => acc + Number(v.valor || 0), 0);
   const totalVbucks = clientePedidos.reduce((acc, v) => acc + (v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento)), 0);
   
   let wpp = "—";
   let tk = "—";
-  const info = (state.clientesInfo || {})[nome] || {};
+  const info = (state.clientesInfo || {})[id] || (state.clientesInfo || {})[nome] || {};
   
   if (info.whatsapp) wpp = info.whatsapp;
   if (info.tiktok) tk = info.tiktok;
@@ -49,83 +56,58 @@ function abrirModalDetalhesCliente(nome) {
     }
   }
   
-  const tituloEl = document.getElementById("detalhesClienteTitulo");
-  if (tituloEl) {
-    tituloEl.style.flex = "1 1 auto";
-    tituloEl.style.minWidth = "0"; 
-    tituloEl.style.overflow = "hidden";
-    tituloEl.style.paddingRight = "15px"; 
-    
-    tituloEl.innerHTML = `
-      <div style="display: flex; flex-direction: column; min-width: 0;">
-        <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px;">👤 Histórico de Cliente</div>
-        <h3 style="margin:0; color:#fff; font-size: 21px; font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${esc(nome)}">
-          <span class="copyable-text" onclick="copiarTexto('${esc(nome).replace(/'/g, "\\'")}', 'Nome do Cliente', event)">${esc(nome)}</span>
-        </h3>
-        <div style="display:flex; flex-direction: row; gap:16px; margin-top:8px; font-size:14px; color:#fff; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-          <span style="display:inline-flex; align-items:center; gap:6px; flex-shrink: 0;">
-            📱 <span class="copyable-text" onclick="copiarTexto('${esc(wpp).replace(/'/g, "\\'")}', 'WhatsApp', event)">${esc(wpp)}</span>
-          </span>
-          <span style="display:inline-flex; align-items:center; gap:6px; flex-shrink: 0;">
-            ${TIKTOK_SVG} <span class="copyable-text" onclick="copiarTexto('${esc(tk).replace(/'/g, "\\'")}', 'TikTok', event)">${esc(tk)}</span>
-          </span>
+  const ultimoNick = clientePedidos.length > 0 ? clientePedidos[0].nickCliente : "";
+  const modal = document.getElementById("clienteDetalhesModal");
+  if (!modal) return;
+
+  const TIKTOK_ICON = typeof TIKTOK_SVG !== "undefined" ? TIKTOK_SVG : '<svg width="14" height="14" viewBox="0 0 448 512" fill="currentColor" style="vertical-align: middle; margin-top: -2px;"><path d="M448 209.9a210.1 210.1 0 0 1 -122.8-39.3V349.4A162.6 162.6 0 1 1 185 188.3V278.2a74.6 74.6 0 1 0 52.2 71.2V0l88 0a121.2 121.2 0 0 0 1.9 22.2h0A122.2 122.2 0 0 0 381 102.4a121.4 121.4 0 0 0 67 20.1z"/></svg>';
+
+  const modalHead = modal.querySelector('.modal-head');
+  if (modalHead) {
+    // Muda o comportamento do cabeçalho para aceitar elementos absolutos (o X do Windows)
+    modalHead.style.display = "block";
+    modalHead.style.width = "100%";
+
+    modalHead.innerHTML = `
+      <div style="position: relative; width: 100%;">
+        
+        <!-- O X absoluto no topo direito (Estilo Windows/Abas) -->
+        <button type="button" class="btn-danger close-modal-btn" style="position: absolute; top: -5px; right: 0; height: 36px; width: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; padding: 0; flex-shrink: 0; z-index: 10;" onclick="fecharModalDetalhesCliente()">✕</button>
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; padding-right: 50px; gap: 10px; flex-wrap: wrap;">
+          
+          <!-- Esquerda: Título -->
+          <div style="font-size: 12px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-top: 10px;">
+            👤 Histórico de Cliente
+          </div>
+          
+          <!-- Direita: Botões na ordem solicitada -->
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+            <button type="button" class="btn-green" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="document.getElementById('clienteIdInput').value='${esc(id).replace(/'/g, "\\'")}'; preencherNovaVendaModal('${esc(nome).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>
+            <button type="button" class="btn-gray" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="abrirModalEdicaoCliente('${esc(id).replace(/'/g, "\\'")}', '${esc(nome).replace(/'/g, "\\'")}')">✏️ Editar Perfil</button>
+            <button type="button" class="btn-gray" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="abrirModalMesclar('${esc(id).replace(/'/g, "\\'")}', '${esc(nome).replace(/'/g, "\\'")}')">🔗 Mesclar</button>
+            <button type="button" class="btn-danger" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="excluirCliente('${esc(id).replace(/'/g, "\\'")}', '${esc(nome).replace(/'/g, "\\'")}'); fecharModalDetalhesCliente();">🗑️ Excluir</button>
+          </div>
+
         </div>
+        
+        <!-- Nome do Cliente isolado na linha de baixo (Nunca vai quebrar o layout) -->
+        <div style="width: 100%; margin-top: 16px;">
+          <h3 style="margin:0; color:#fff; font-size: 26px; font-weight: 900; line-height: 1.3; word-wrap: break-word; padding-right: 20px;">
+            <span class="copyable-text" onclick="copiarTexto('${esc(nome).replace(/'/g, "\\'")}', 'Nome do Cliente', event)">${esc(nome)}</span>
+          </h3>
+          <div style="display:flex; flex-wrap: wrap; gap:16px; margin-top:10px; font-size:14px; color:#fff; font-weight: 600;">
+            <span style="display:inline-flex; align-items:center; gap:6px;">
+              📱 <span class="copyable-text" onclick="copiarTexto('${esc(wpp).replace(/'/g, "\\'")}', 'WhatsApp', event)">${esc(wpp)}</span>
+            </span>
+            <span style="display:inline-flex; align-items:center; gap:6px;">
+              ${TIKTOK_ICON} <span class="copyable-text" onclick="copiarTexto('${esc(tk).replace(/'/g, "\\'")}', 'TikTok', event)">${esc(tk)}</span>
+            </span>
+          </div>
+        </div>
+
       </div>
     `;
-
-    const modalHead = tituloEl.closest('.modal-head');
-    if (modalHead) {
-      modalHead.style.display = "flex";
-      modalHead.style.flexWrap = "nowrap";
-      modalHead.style.alignItems = "flex-start";
-      modalHead.style.justifyContent = "space-between";
-    }
-  }
-  
-  const ultimoNick = clientePedidos.length > 0 ? clientePedidos[0].nickCliente : "";
-  
-  const btnArea = document.getElementById("containerBtnNovaVendaCliente");
-  if (btnArea) {
-    const rightActionsGroup = btnArea.parentNode;
-    if (rightActionsGroup) {
-      rightActionsGroup.style.display = "flex";
-      rightActionsGroup.style.flexWrap = "nowrap";
-      rightActionsGroup.style.alignItems = "flex-start";
-      rightActionsGroup.style.gap = "8px";
-      rightActionsGroup.style.flexShrink = "0"; 
-      rightActionsGroup.style.margin = "0"; 
-    }
-
-    btnArea.style.display = "flex";
-    btnArea.style.gap = "8px";
-    btnArea.style.flexWrap = "nowrap";
-    btnArea.innerHTML = `
-      <button type="button" class="btn-gray" style="height: 36px; padding: 0 16px; font-size: 12px; white-space: nowrap; display:flex; align-items:center; justify-content:center; gap:6px; border-radius: 8px; box-sizing: border-box; margin:0;" onclick="abrirModalEdicaoCliente('${esc(nome).replace(/'/g, "\\'")}')">✏️ Editar Perfil</button>
-      <button type="button" class="btn-green" style="height: 36px; padding: 0 16px; font-size: 12px; white-space: nowrap; display:flex; align-items:center; justify-content:center; gap:6px; border-radius: 8px; box-sizing: border-box; margin:0;" onclick="preencherNovaVendaModal('${esc(nome).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>
-    `;
-  }
-  
-  const modal = document.getElementById("clienteDetalhesModal");
-  if (modal) {
-    const closeBtn = modal.querySelector('.close-modal-btn');
-    if (closeBtn) {
-      closeBtn.style.height = "36px";
-      closeBtn.style.width = "36px";
-      closeBtn.style.padding = "0";
-      closeBtn.style.display = "flex";
-      closeBtn.style.alignItems = "center";
-      closeBtn.style.justifyContent = "center";
-      closeBtn.style.borderRadius = "8px"; 
-      closeBtn.style.boxSizing = "border-box";
-      closeBtn.style.margin = "0";
-      closeBtn.style.flexShrink = "0";
-    }
-
-    const cardModal = modal.querySelector('.modal-card-large');
-    if (cardModal) {
-      cardModal.style.maxWidth = '850px'; 
-      cardModal.style.width = '100%';
-    }
   }
   
   const gastoEl = document.getElementById("detalhesClienteTotalGasto");
@@ -148,7 +130,7 @@ function abrirModalDetalhesCliente(nome) {
         <div style="display: flex; flex-direction: column; gap: 6px; max-width: 75%;">
           <div style="font-size: 13px; font-weight: 800; color: var(--accent-light);">📦 Pedido #${numeroPedido} · Conta: <span style="color: #fff; font-weight: 600;">${esc(v.conta)}</span></div>
           <div style="font-size: 13px; color: var(--muted); font-weight: 600;">🎮 Nick: <span style="color: #fff; font-weight: 800;">${esc(v.nickCliente)}</span></div>
-          <div style="font-size: 13px; color: #fff; margin-top: 2px;">${renderizarListaItensHtml(v.itens || [v.item])}</div>
+          <div style="font-size: 13px; color: #fff; margin-top: 2px;">${typeof renderizarListaItensHtml === 'function' ? renderizarListaItensHtml(v.itens || [v.item]) : esc(v.item)}</div>
           <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
         </div>
         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
@@ -171,14 +153,20 @@ function fecharModalDetalhesCliente() {
   if (modal) modal.style.display = "none";
 }
 
-function abrirModalEdicaoCliente(nomeAntigo) {
-  const info = (state.clientesInfo || {})[nomeAntigo] || {};
+function abrirModalEdicaoCliente(id, nomeAntigo) {
+  clienteEmEdicaoId = id;
+  clienteEmEdicaoNome = nomeAntigo;
+
+  const info = (state.clientesInfo || {})[id] || (state.clientesInfo || {})[nomeAntigo] || {};
   let wpp = info.whatsapp;
   let tk = info.tiktok;
 
   if (!wpp || !tk) {
     const historicoReverso = [...(state.historicoVendas || [])].reverse();
-    const ultimaVenda = historicoReverso.find(v => String(v.cliente).trim() === nomeAntigo);
+    const ultimaVenda = historicoReverso.find(v => {
+      const vId = v.clienteId || String(v.cliente || "").trim();
+      return vId === id;
+    });
     if (ultimaVenda) {
       if (!wpp) wpp = ultimaVenda.whatsapp;
       if (!tk) tk = ultimaVenda.tiktok;
@@ -207,10 +195,13 @@ function abrirModalEdicaoCliente(nomeAntigo) {
 function fecharModalEdicaoCliente() {
   const modal = document.getElementById("editClienteModal");
   if (modal) modal.style.display = "none";
+  clienteEmEdicaoId = null;
+  clienteEmEdicaoNome = null;
 }
 
 function salvarEdicaoCliente() {
-  const nomeOriginal = document.getElementById("editClienteNomeOriginal")?.value;
+  const id = clienteEmEdicaoId;
+  const nomeOriginal = clienteEmEdicaoNome;
   const novoNome = document.getElementById("editClienteNomeInput")?.value.trim();
   const novoWpp = document.getElementById("editClienteWhatsappInput")?.value.trim();
   const novoTk = document.getElementById("editClienteTiktokInput")?.value.trim();
@@ -223,24 +214,29 @@ function salvarEdicaoCliente() {
 
   if (!state.clientesInfo) state.clientesInfo = {};
   
-  if (nomeOriginal && nomeOriginal !== novoNome) {
+  let currentId = id;
+  if (id === nomeOriginal && nomeOriginal !== novoNome) {
     state.clientesInfo[novoNome] = state.clientesInfo[nomeOriginal] || {};
     delete state.clientesInfo[nomeOriginal];
-  } else if (!state.clientesInfo[novoNome]) {
-    state.clientesInfo[novoNome] = {};
+    currentId = novoNome;
+  } else {
+    if (!state.clientesInfo[currentId]) state.clientesInfo[currentId] = {};
   }
   
-  state.clientesInfo[novoNome].whatsapp = novoWpp;
-  state.clientesInfo[novoNome].tiktok = novoTk;
-  state.clientesInfo[novoNome].observacao = novaObs;
+  state.clientesInfo[currentId].nome = novoNome;
+  state.clientesInfo[currentId].whatsapp = novoWpp;
+  state.clientesInfo[currentId].tiktok = novoTk;
+  state.clientesInfo[currentId].observacao = novaObs;
 
   const atualizarRegistros = (lista) => {
     if (!lista) return;
     lista.forEach(v => {
-      if (String(v.cliente).trim() === nomeOriginal) {
+      const vId = v.clienteId || String(v.cliente || "").trim();
+      if (vId === id) {
         v.cliente = novoNome;
         v.whatsapp = novoWpp;
         v.tiktok = novoTk;
+        if (!v.clienteId) v.clienteId = currentId; 
       }
     });
   };
@@ -250,13 +246,13 @@ function salvarEdicaoCliente() {
   atualizarRegistros(state.agendamentos);
   atualizarRegistros(state.lixeiraVendas);
 
-  save();
+  if (typeof save === 'function') save();
   fecharModalEdicaoCliente();
   fecharModalDetalhesCliente(); 
   mostrarNotificacao("Perfil atualizado em todo o histórico!", "sucesso");
   
   if (abaHistoricoAtiva === 'clientes') renderizarHistoricoClientesCompleto();
-  render();
+  if (typeof render === 'function') render();
 }
 
 function renderizarHistoricoClientesCompleto() {
@@ -270,16 +266,18 @@ function renderizarHistoricoClientesCompleto() {
   
   historico.forEach(v => {
     const nomeCliente = String(v.cliente || "").trim();
+    const id = v.clienteId || nomeCliente; 
+    
     if (!nomeCliente) return;
-    if (!clientesMap[nomeCliente]) {
-      clientesMap[nomeCliente] = { nome: nomeCliente, totalGasto: 0, totalVbucks: 0, totalPedidos: 0, searchString: nomeCliente.toLowerCase() };
+    if (!clientesMap[id]) {
+      clientesMap[id] = { id: id, nome: nomeCliente, totalGasto: 0, totalVbucks: 0, totalPedidos: 0, searchString: nomeCliente.toLowerCase() };
     }
-    clientesMap[nomeCliente].totalGasto += Number(v.valor || 0);
-    clientesMap[nomeCliente].totalVbucks += v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
-    clientesMap[nomeCliente].totalPedidos += 1;
+    clientesMap[id].totalGasto += Number(v.valor || 0);
+    clientesMap[id].totalVbucks += v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+    clientesMap[id].totalPedidos += 1;
     const tkLimpo = String(v.tiktok || "").toLowerCase().replace(/@/g, "");
     const wppLimpo = String(v.whatsapp || "").toLowerCase().replace(/\D/g, "");
-    clientesMap[nomeCliente].searchString += ` ${String(v.nickCliente || "").toLowerCase()} ${String(v.tiktok || "").toLowerCase()} ${tkLimpo} ${String(v.whatsapp || "").toLowerCase()} ${wppLimpo} `;
+    clientesMap[id].searchString += ` ${String(v.nickCliente || "").toLowerCase()} ${String(v.tiktok || "").toLowerCase()} ${tkLimpo} ${String(v.whatsapp || "").toLowerCase()} ${wppLimpo} `;
   });
   
   let listaClientes = Object.values(clientesMap).sort((a, b) => b.totalGasto - a.totalGasto);
@@ -306,9 +304,9 @@ function renderizarHistoricoClientesCompleto() {
   }
   
   container.innerHTML = `<div style="overflow-x:auto;"><table class="financial-table" style="width:100%; border-collapse:collapse;"><thead><tr><th style="padding:12px; text-align:left; border-bottom:1px solid var(--border);">Nome do Cliente</th><th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">Total de Pedidos</th><th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">V-Bucks Acumulados</th><th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">Total Gasto (R$)</th></tr></thead><tbody>${clientesPagina.map(c => {
-    const hasObs = state.clientesInfo && state.clientesInfo[c.nome] && state.clientesInfo[c.nome].observacao;
+    const hasObs = state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao;
     const obsIcon = hasObs ? ' <span style="font-size:12px;" title="Possui observação">📌</span>' : '';
-    return `<tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesCliente('${esc(c.nome).replace(/'/g, "\\'")}')"><td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">👤 ${esc(c.nome)}${obsIcon} 🔍</td><td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--muted);">${c.totalPedidos}</td><td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">🪙 ${formatVBucks(c.totalVbucks)} VB</td><td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:900;">${maskMoney(money(c.totalGasto))}</td></tr>`;
+    return `<tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesCliente('${esc(c.id).replace(/'/g, "\\'")}', '${esc(c.nome).replace(/'/g, "\\'")}')"><td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">👤 ${esc(c.nome)}${obsIcon} 🔍</td><td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--muted);">${c.totalPedidos}</td><td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">🪙 ${formatVBucks(c.totalVbucks)} VB</td><td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:900;">${maskMoney(money(c.totalGasto))}</td></tr>`;
   }).join("")}</tbody></table></div>`;
   
   if (paginacaoContainer) {
@@ -325,5 +323,37 @@ function renderizarHistoricoClientesCompleto() {
       }
       paginacaoContainer.innerHTML = `<div class="pagination-controls-row"><button type="button" class="pagination-btn" ${clientesPaginaAtual === 1 ? "disabled" : ""} onclick="mudarPaginaClientes(${clientesPaginaAtual - 1})">‹ Anterior</button>${bHtml}<button type="button" class="pagination-btn" ${clientesPaginaAtual === totalPaginas ? "disabled" : ""} onclick="mudarPaginaClientes(${clientesPaginaAtual + 1})">Próxima ›</button></div>`;
     }
+  }
+}
+
+function excluirCliente(clienteId, nomeCliente) {
+  if (typeof abrirModalConfirmacao === 'function') {
+    abrirModalConfirmacao(
+      "🚨 Excluir Cliente Permanente",
+      `ATENÇÃO: Você está prestes a excluir o cliente "${nomeCliente}". Isso moverá TODAS as vendas dele para a Lixeira e apagará o seu perfil. Deseja continuar?`,
+      () => {
+        const ehEsteCliente = (v) => {
+          const vId = v.clienteId || String(v.cliente || "").trim();
+          return vId === clienteId;
+        };
+
+        const vendasDoCliente = (state.historicoVendas || []).filter(ehEsteCliente);
+        
+        if (!state.lixeiraVendas) state.lixeiraVendas = [];
+        state.lixeiraVendas.unshift(...vendasDoCliente);
+
+        state.historicoVendas = (state.historicoVendas || []).filter(v => !ehEsteCliente(v));
+        state.vendas = (state.vendas || []).filter(v => !ehEsteCliente(v));
+        
+        if (state.clientesInfo && state.clientesInfo[clienteId]) {
+          delete state.clientesInfo[clienteId];
+        }
+
+        if (typeof render === 'function') render();
+        if (typeof save === 'function') save();
+        if (typeof renderizarHistoricoClientesCompleto === 'function') renderizarHistoricoClientesCompleto(); 
+        mostrarNotificacao(`Cliente excluído com sucesso!`, "sucesso");
+      }
+    );
   }
 }

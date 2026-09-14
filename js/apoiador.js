@@ -34,11 +34,18 @@ function gerarHtmlApoiadorPopover() {
   return `<div class="custom-calendar-popover" style="width:260px; top:105%; left:0; transform:none;" onclick="event.stopPropagation()"><div class="calendar-header-nav"><button type="button" class="calendar-nav-btn" onclick="navegarAnoApoiadorPopover(-1, event)">‹</button><strong>Ano ${apoiadorPopoverAno}</strong><button type="button" class="calendar-nav-btn" onclick="navegarAnoApoiadorPopover(1, event)">›</button></div><div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; margin-top:10px;">${gridMesesHtml}</div></div>`;
 }
 
-function abrirModalApoiador() {
+function abrirModalApoiador(mesEspecifico = null) {
   const modal = document.getElementById("apoiadorModal");
-  const agora = new Date();
-  apoiadorPopoverAno = agora.getFullYear();
-  apoiadorMesSelecionadoTemp = `${String(agora.getMonth() + 1).padStart(2, "0")}/${agora.getFullYear()}`;
+  if (mesEspecifico) {
+    const [m, a] = mesEspecifico.split("/");
+    apoiadorPopoverAno = Number(a);
+    apoiadorMesSelecionadoTemp = mesEspecifico;
+  } else {
+    const agora = new Date();
+    apoiadorPopoverAno = agora.getFullYear();
+    apoiadorMesSelecionadoTemp = `${String(agora.getMonth() + 1).padStart(2, "0")}/${agora.getFullYear()}`;
+  }
+  
   apoiadorPopoverAberto = false;
   atualizarModalApoiadorHTML();
   if (modal) modal.style.display = "flex";
@@ -69,7 +76,7 @@ function salvarRegistroApoiador() {
   const liquidoBrl = parseFloat(document.getElementById("apoiadorLiquidoBrl").value) || 0;
   if (!state.apoiadorRegistros) state.apoiadorRegistros = {};
   state.apoiadorRegistros[apoiadorMesSelecionadoTemp] = { brutoUsd, liquidoBrl };
-  save();
+  if (typeof save === 'function') save();
   renderizarHistoricoApoiadorCompleto();
   mostrarNotificacao(`Código apoiador salvo!`, "sucesso");
   fecharModalApoiador();
@@ -91,12 +98,41 @@ function renderizarHistoricoApoiadorCompleto() {
   container.innerHTML = `<div style="overflow-x:auto;"><table class="financial-table" style="width:100%; border-collapse:collapse;"><thead><tr><th style="padding:12px; text-align:left; border-bottom:1px solid var(--border);">Mês / Ano</th><th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">Valor Bruto ($ USD)</th><th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">Valor Líquido (R$)</th><th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">Ações</th></tr></thead><tbody>${chaves.map(k => {
     const r = registros[k];
     const [m, a] = k.split("/").map(Number);
-    return `<tr><td style="padding:12px; border-bottom:1px solid var(--border); font-weight:600; color:var(--accent-light);">📅 ${nomesMeses[m - 1]} de ${a}</td><td style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">$${Number(r.brutoUsd || 0).toFixed(2)} USD</td><td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">${maskMoney(money(r.liquidoBrl))}</td><td style="padding:12px; text-align:center; border-bottom:1px solid var(--border);"><button type="button" class="btn-danger" style="padding:4px 8px; font-size:11px;" onclick="removerRegistroApoiadorCompleto('${k}')">✕ Excluir</button></td></tr>`;
+    const nomeMesPorExtenso = `${nomesMeses[m - 1]} de ${a}`;
+    
+    return `<tr>
+      <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:600; color:var(--accent-light);">📅 ${nomeMesPorExtenso}</td>
+      <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">$${Number(r.brutoUsd || 0).toFixed(2)} USD</td>
+      <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">${maskMoney(money(r.liquidoBrl))}</td>
+      <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">
+        <div style="display:flex; justify-content:center; gap:6px;">
+          <button type="button" class="btn-gray" style="padding:4px 10px; font-size:11px;" onclick="abrirModalApoiador('${k}')">✏️ Editar</button>
+          <button type="button" class="btn-danger" style="padding:4px 10px; font-size:11px;" onclick="confirmarRemoverRegistroApoiador('${k}', '${nomeMesPorExtenso}')">✕ Excluir</button>
+        </div>
+      </td>
+    </tr>`;
   }).join("")}</tbody></table></div>`;
+}
+
+function confirmarRemoverRegistroApoiador(k, nomeMesPorExtenso) {
+  if (typeof abrirModalConfirmacao === 'function') {
+    abrirModalConfirmacao(
+      "🗑️ Excluir Registro", 
+      `Tem certeza que deseja excluir o registro de Apoiador de "${nomeMesPorExtenso}"? Essa ação não pode ser desfeita.`, 
+      () => {
+        delete state.apoiadorRegistros[k];
+        if (typeof save === 'function') save();
+        renderizarHistoricoApoiadorCompleto();
+        mostrarNotificacao(`Registro excluído com sucesso!`, "info");
+      }
+    );
+  } else {
+    removerRegistroApoiadorCompleto(k);
+  }
 }
 
 function removerRegistroApoiadorCompleto(k) {
   delete state.apoiadorRegistros[k];
-  save();
+  if (typeof save === 'function') save();
   renderizarHistoricoApoiadorCompleto();
 }
