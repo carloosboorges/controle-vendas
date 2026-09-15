@@ -134,26 +134,28 @@ function renderContasCards(t) {
     
     const tempos = reservasAtivas.map((r, n) => `<div class="timer-line"><span>Venda ${n + 1}: ${tempoRestante(r.expiresAt - Date.now())}</span><button type="button" class="btn-danger timer-remove-btn" onclick="confirmarRemoverTimerEspecifico(${state.reservas.indexOf(r)}, ${n + 1}, '${esc(c.nome).replace(/'/g, "\\'")}')">✕</button></div>`);
     
-    const btnEmail = c.email ? `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 8px;" onclick="copiarTexto('${esc(c.email)}', 'E-mail', event)">📧 Copiar E-mail</button>` : '';
-    const btnSenha = c.senha ? `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 8px;" onclick="copiarTexto('${esc(c.senha)}', 'Senha', event)">🔑 Copiar Senha</button>` : '';
-    const painelCreds = (c.email || c.senha) ? `<div style="display:flex; gap: 8px; margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">${btnEmail}${btnSenha}</div>` : '';
+    const btnEmail = c.email ? `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 8px;" onclick="copiarTexto('${esc(c.email)}', 'E-mail', event)">📧 Copiar E-mail</button>` : `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 8px; opacity: 0.3; cursor: default;" disabled>📧 Sem E-mail</button>`;
+    const btnSenha = c.senha ? `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 8px;" onclick="copiarTexto('${esc(c.senha)}', 'Senha', event)">🔑 Copiar Senha</button>` : `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 8px; opacity: 0.3; cursor: default;" disabled>🔑 Sem Senha</button>`;
+    const painelCreds = `<div style="display:flex; gap: 8px; margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">${btnEmail}${btnSenha}</div>`;
     
     return `
-      <div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}">
-        <div class="account-card-head" style="display:flex; align-items:center; flex-wrap:nowrap; gap:6px;">
-          <div class="name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;" title="${esc(c.nome)}">${esc(c.nome)}</div>
-          <div style="display:flex; gap: 4px; flex-shrink: 0;">
-            <button type="button" class="btn-green" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="adicionarTimerManual('${esc(c.nome).replace(/'/g, "\\'")}')" title="Adicionar envio manual">➕⏱️</button>
-            <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar R$ da Sessão">💲</button>
-            <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar Timers">⏱️</button>
+      <div class="total-account ${quantidade >= 5 ? "limit-reached" : ""}" style="min-height: 290px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div class="account-card-head" style="display:flex; align-items:center; flex-wrap:nowrap; gap:6px;">
+            <div class="name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;" title="${esc(c.nome)}">${esc(c.nome)}</div>
+            <div style="display:flex; gap: 4px; flex-shrink: 0;">
+              <button type="button" class="btn-green" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="adicionarTimerManual('${esc(c.nome).replace(/'/g, "\\'")}')" title="Adicionar envio manual">➕⏱️</button>
+              <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverVendasConta('${esc(c.nome).replace(/'/g, "\\'")}')" title="Zerar R$ da Sessão">💲</button>
+              <button type="button" class="btn-danger" style="font-size: 11px; padding: 5px 8px; height: fit-content; display: flex; align-items: center; justify-content: center; gap: 4px;" onclick="confirmarRemoverTimersConta(${state.contas.indexOf(c)}, '${esc(c.nome).replace(/'/g, "\\'")}')" title="Resetar Timers">⏱️</button>
+            </div>
           </div>
+          <div class="amount">${maskMoney(money(t[c.nome] || 0))}</div>
+          <div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
+          <div class="sales-count">🛒 ${quantidade === 1 ? "1 venda nessa conta" : quantidade + " vendas nessa conta"}</div>
+          <div class="sales-count">📦 ${disponiveis === 1 ? "1 venda disponível" : disponiveis + " vendas disponíveis"}</div>
+          ${avisoAgenda}
+          <div class="timer">${tempos.length ? tempos.join("") : ""}</div>
         </div>
-        <div class="amount">${maskMoney(money(t[c.nome] || 0))}</div>
-        <div class="sales-count">🪙 ${formatVBucks(c.vbucks)} V-Bucks</div>
-        <div class="sales-count">🛒 ${quantidade === 1 ? "1 venda nessa conta" : quantidade + " vendas nessa conta"}</div>
-        <div class="sales-count">📦 ${disponiveis === 1 ? "1 venda disponível" : disponiveis + " vendas disponíveis"}</div>
-        ${avisoAgenda}
-        <div class="timer">${tempos.length ? tempos.join("") : `🟢 5 disponíveis`}</div>
         ${painelCreds}
       </div>`;
   }).join("");

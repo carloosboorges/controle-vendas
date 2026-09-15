@@ -8,6 +8,7 @@ let abaHistoricoAtiva = 'vendas';
 const ITENS_POR_PAGINA = 8;
 let balancoAberto = false;
 let valoresOcultos = false;
+let clienteContextoEdicao = null;
 
 function toggleOcultarValores() {
   valoresOcultos = !valoresOcultos;
@@ -21,7 +22,7 @@ function maskMoney(valueText) {
 
 function mudarAbaHistorico(aba) {
   abaHistoricoAtiva = aba;
-  ["Vendas", "Agendamentos", "Apoiador", "Clientes"].forEach(id => {
+  ["Vendas", "Agendamentos", "Apoiador", "Clientes", "Itens"].forEach(id => {
     const btn = document.getElementById(`tabBtn${id}`);
     const div = document.getElementById(`conteudoAba${id}`);
     if (btn) btn.classList.remove("active");
@@ -38,6 +39,18 @@ function mudarAbaHistorico(aba) {
   if (aba === 'agendamentos' && typeof renderizarAgendamentos === 'function') renderizarAgendamentos();
   else if (aba === 'apoiador' && typeof renderizarHistoricoApoiadorCompleto === 'function') renderizarHistoricoApoiadorCompleto();
   else if (aba === 'clientes' && typeof renderizarHistoricoClientesCompleto === 'function') renderizarHistoricoClientesCompleto();
+  else if (aba === 'itens' && typeof renderizarHistoricoItensCompleto === 'function') renderizarHistoricoItensCompleto();
+}
+
+// Função para incrementar ou decrementar a quantidade de itens com os botões customizados
+function alterarQtdItens(delta) {
+  const input = document.getElementById("quantidadeInput");
+  if (!input) return;
+  let atual = parseInt(input.value, 10) || 1;
+  let novo = atual + delta;
+  if (novo < 1) novo = 1;
+  input.value = novo;
+  if (typeof atualizarCamposItens === 'function') atualizarCamposItens();
 }
 
 document.addEventListener("click", (e) => {
@@ -89,6 +102,11 @@ document.addEventListener("click", (e) => {
       const dropP = document.getElementById("nickPresenteSuggestions_" + j);
       if (dropP && dropP.style.display === "block") {
         dropP.style.display = "none";
+        fechouAlgo = true;
+      }
+      const dropItem = document.getElementById("itemSuggestions_" + j);
+      if (dropItem && dropItem.style.display === "block") {
+        dropItem.style.display = "none";
         fechouAlgo = true;
       }
     }
@@ -246,9 +264,27 @@ function salvarValorBaseModal() {
   mostrarNotificacao(`Valor base alterado!`, "sucesso");
 }
 
-// ==========================================
-// A FUNÇÃO PERDIDA VOLTOU PARA DESENHAR OS ITENS!
-// ==========================================
+function recalcularValorSugeridoPorItem() {
+  const inputQtd = document.getElementById("quantidadeInput");
+  const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
+  let somaVb = 0;
+  for (let i = 0; i < qtd; i++) {
+    const vbInput = document.getElementById(`itemVbucksInput_${i}`);
+    if (vbInput && vbInput.value) {
+      somaVb += Number(vbInput.value) || 0;
+    }
+  }
+  if (somaVb > 0) {
+    const base = Number(state?.valorBase100 || 2.5);
+    const valorSugerido = (somaVb / 100) * base;
+    const valorInput = document.getElementById("valorInput");
+    if (valorInput) {
+      valorInput.value = valorSugerido.toFixed(2);
+      if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
+    }
+  }
+}
+
 function atualizarCamposItens() {
   const inputQtd = document.getElementById("quantidadeInput");
   const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
@@ -261,16 +297,24 @@ function atualizarCamposItens() {
   container.innerHTML = Array.from({ length: qtd }, (_, i) => `
     <div class="item-picker-box" style="margin-bottom: 8px; width: 100%;">
       <div class="item-picker-row" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <select class="item-type-select" id="itemTypeSelect_${i}" style="flex: 1; min-width: 100px; padding: 10px;">${optionsHtml}</select>
-        <input class="item-name-input" id="itemNameInput_${i}" type="text" maxlength="120" placeholder="Item Vendido" style="flex: 2; min-width: 160px; padding: 10px;">
-        <div style="position: relative; flex: 1.5; min-width: 140px;">
-          <input class="item-name-input" id="itemPresenteInput_${i}" type="text" maxlength="80" placeholder="🎁 Nick Presente (Opcional)" style="width: 100%; padding: 10px;" oninput="typeof sugerirNickPresente === 'function' ? sugerirNickPresente(this.value, ${i}) : null" autocomplete="off">
+        <select class="item-type-select" id="itemTypeSelect_${i}" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
+        
+        <div style="position: relative; flex: 2; min-width: 140px;">
+          <input class="item-name-input" id="itemNameInput_${i}" type="text" maxlength="120" placeholder="Item Vendido" style="width: 100%; padding: 10px;" oninput="typeof buscarSugestoesItem === 'function' ? buscarSugestoesItem(this.value, ${i}) : null" autocomplete="off">
+          <div id="itemSuggestions_${i}" class="autocomplete-dropdown"></div>
+        </div>
+
+        <div style="flex: 0.8; min-width: 85px;">
+          <input class="item-vbucks-input" id="itemVbucksInput_${i}" type="number" step="50" min="0" placeholder="V-Bucks" value="" style="width: 100%; padding: 10px; text-align: center;" oninput="recalcularValorSugeridoPorItem()" title="Digite o V-Bucks oficial deste item se houver desconto ou pacotes">
+        </div>
+
+        <div style="position: relative; flex: 1.5; min-width: 120px;">
+          <input class="item-name-input" id="itemPresenteInput_${i}" type="text" maxlength="80" placeholder="🎁 P/ Nick" style="width: 100%; padding: 10px;" oninput="typeof sugerirNickPresente === 'function' ? sugerirNickPresente(this.value, ${i}) : null" autocomplete="off">
           <div id="nickPresenteSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
       </div>
     </div>`).join("");
 }
-// ==========================================
 
 function render() {
   if (!state) return;

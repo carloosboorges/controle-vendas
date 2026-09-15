@@ -122,15 +122,18 @@ function abrirModalDetalhesCliente(id, nome) {
     const numeroPedido = clientePedidos.length - index;
     return `
       <div style="background: transparent; border: 1px solid var(--border); padding: 14px; border-radius: 12px; display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-        <div style="display: flex; flex-direction: column; gap: 6px; max-width: 75%;">
+        <div style="display: flex; flex-direction: column; gap: 6px; max-width: 70%;">
           <div style="font-size: 13px; font-weight: 800; color: var(--accent-light);">📦 Pedido #${numeroPedido} · Conta: <span style="color: #fff; font-weight: 600;">${esc(v.conta)}</span></div>
           <div style="font-size: 13px; color: var(--muted); font-weight: 600;">🎮 Nick: <span style="color: #fff; font-weight: 800;">${esc(v.nickCliente)}</span></div>
           <div style="font-size: 13px; color: #fff; margin-top: 2px;">${typeof renderizarListaItensHtml === 'function' ? renderizarListaItensHtml(v.itens || [v.item]) : esc(v.item)}</div>
           <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
-          <div style="color: var(--green); font-size: 17px; font-weight: 900;">${money(v.valor)}</div>
-          <div style="color: #ffb74d; font-size: 12px; font-weight: 800;">🪙 ${formatVBucks(vb)} VB</div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+            <div style="color: var(--green); font-size: 17px; font-weight: 900;">${money(v.valor)}</div>
+            <div style="color: #ffb74d; font-size: 12px; font-weight: 800;">🪙 ${formatVBucks(vb)} VB</div>
+          </div>
+          <button type="button" class="btn-gray" style="padding: 4px 10px; font-size: 11px; border-radius: 6px;" onclick="fecharModalDetalhesCliente(); abrirModalEdicaoPorId('${esc(v.id)}', '${esc(id)}', '${esc(nome)}')">✏️ Editar Pedido</button>
         </div>
       </div>`;
   }).join("");
@@ -298,11 +301,33 @@ function renderizarHistoricoClientesCompleto() {
     return;
   }
   
-  container.innerHTML = `<div style="overflow-x:auto;"><table class="financial-table" style="width:100%; border-collapse:collapse;"><thead><tr><th style="padding:12px; text-align:left; border-bottom:1px solid var(--border);">Nome do Cliente</th><th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">Total de Pedidos</th><th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">V-Bucks Acumulados</th><th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">Total Gasto (R$)</th></tr></thead><tbody>${clientesPagina.map(c => {
-    const hasObs = state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao;
-    const obsIcon = hasObs ? ' <span style="font-size:12px;" title="Possui observação">📌</span>' : '';
-    return `<tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesCliente('${esc(c.id).replace(/'/g, "\\'")}', '${esc(c.nome).replace(/'/g, "\\'")}')"><td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">👤 ${esc(c.nome)}${obsIcon} 🔍</td><td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--muted);">${c.totalPedidos}</td><td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">🪙 ${formatVBucks(c.totalVbucks)} VB</td><td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:900;">${money(c.totalGasto)}</td></tr>`;
-  }).join("")}</tbody></table></div>`;
+  container.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table class="financial-table" style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th style="padding:12px; text-align:left; border-bottom:1px solid var(--border);">Nome do Cliente</th>
+            <th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">Total de Pedidos</th>
+            <th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">V-Bucks Acumulados</th>
+            <th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">Total Gasto (R$)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${clientesPagina.map(c => {
+            const hasObs = state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao;
+            const obsIcon = hasObs ? ' <span style="font-size:12px;" title="Possui observação">📌</span>' : '';
+            return `
+              <tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesCliente('${esc(c.id).replace(/'/g, "\\'")}', '${esc(c.nome).replace(/'/g, "\\'")}')">
+                <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">👤 ${esc(c.nome)}${obsIcon} 🔍</td>
+                <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--muted); font-weight:700;">${c.totalPedidos}</td>
+                <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">🪙 ${formatVBucks(c.totalVbucks)} VB</td>
+                <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--green); font-weight:900;">${money(c.totalGasto)}</td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>`;
   
   if (paginacaoContainer) {
     if (totalClientesFiltrados <= ITENS_POR_PAGINA) {

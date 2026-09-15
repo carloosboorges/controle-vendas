@@ -4,10 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Putz Story — Controle de Vendas</title>
+  
+  <!-- CSS Modularizado -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/componentes.css">
+  <link rel="stylesheet" href="css/modais.css">
   <link rel="stylesheet" href="style.css">
+  
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    /* Remove as setinhas padrão do input number para aplicar botões customizados */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+      -webkit-appearance: none; 
+      margin: 0; 
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+  </style>
 </head>
 <body>
 <div class="container">
@@ -261,16 +280,20 @@
     </div>
   </div>
 
-  <div id="editSaleModal" class="modal-overlay" style="display:none;">
-    <div class="modal-card modal-card-large">
-      <div class="modal-head">
-        <h3 id="editSaleTitle" style="margin:0;">✏️ Editar Registro de Venda</h3>
-        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEdicao()">✕</button>
+  <div id="editSaleModal" class="modal-overlay" style="display:none; align-items: center; justify-content: center; z-index: 1050;">
+    <div class="modal-card modal-card-large" style="max-height: 85vh; display: flex; flex-direction: column; width: 100%; max-width: 650px; box-sizing: border-box; margin: auto;">
+      
+      <div class="modal-head" style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
+        <h3 id="editSaleTitle" style="margin:0; color: var(--accent-light);">✏️ Editar Registro de Venda</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEdicao()" style="padding: 4px 10px; font-size: 14px; cursor: pointer;">✕</button>
       </div>
+      
       <input type="hidden" id="editVendaId">
       <input type="hidden" id="editTipoRegistro" value="venda">
       
-      <div class="modal-body-grid">
+      <!-- Corpo com rolagem interna isolada -->
+      <div class="modal-body-grid" style="overflow-y: auto; max-height: calc(85vh - 130px); padding-right: 6px; margin: 12px 0; flex: 1; display: flex; flex-direction: column; gap: 10px;">
+        
         <div class="field">
           <label>Conta utilizada</label>
           <select id="editContaSelect"></select>
@@ -287,7 +310,7 @@
           </div>
         </div>
         
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
           <div class="field">
             <label>WhatsApp</label>
             <input id="editWhatsappInput" type="text" maxlength="25" oninput="mascaraTelefone(event)">
@@ -309,17 +332,7 @@
           </div>
         </div>
 
-        <div class="field" id="editDataEnvioContainer" style="display: none; margin-top: 10px; position: relative;">
-          <label style="color: var(--accent-light);">🚀 Data programada para Envio</label>
-          <div style="background: #090412; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-light)'" onmouseout="this.style.borderColor='var(--border)'" onclick="toggleEditAgendaCalendario(event)">
-            <span id="labelEditAgendaData" style="color: #fff; font-weight: 600;">Hoje</span>
-            <span style="color: var(--muted); font-size: 16px;">📅</span>
-          </div>
-          <div id="editAgendaPopoverPlaceholder"></div>
-          <input type="hidden" id="editDataEnvioInput" value="">
-        </div>
-
-        <div class="field" style="margin-top: 10px;">
+        <div class="field" style="position: relative;">
           <div class="field-label-row">
             <label>Valor da Venda (R$)</label>
             <span id="editVbucksPreview" class="vbucks-badge-preview">🪙 0 V-Bucks</span>
@@ -327,17 +340,64 @@
           <input id="editValorInput" type="number" step="0.01" min="0.01" oninput="atualizarPreviewVBucksEdicao()">
         </div>
 
-        <div id="editItensListContainer" style="display:flex; flex-direction:column; gap:8px; margin-top: 8px;"></div>
+        <div id="editItensListContainer" style="display:flex; flex-direction:column; gap:8px;"></div>
 
-        <div class="field" style="margin-top: 10px;">
+        <div class="field">
           <label>💬 Observação (opcional)</label>
           <input id="editObservacaoInput" type="text" maxlength="150" placeholder="Ex.: Cliente pediu para enviar só amanhã">
         </div>
       </div>
 
+      <!-- Rodapé fixo com os botões de ação -->
+      <div style="display:flex; gap:10px; flex-shrink: 0; border-top: 1px solid var(--border); padding-top: 12px; margin-top: auto;">
+        <button type="button" class="btn-green" style="flex:1; padding: 12px;" onclick="salvarEdicaoVenda()">💾 Salvar Alterações</button>
+        <button type="button" class="btn-gray" style="padding: 12px 20px;" onclick="fecharModalEdicao()">Cancelar</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="editItemModal" class="modal-overlay" style="display:none; z-index: 1050;">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 style="margin:0; color:var(--accent-light);">✏️ Editar Item</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEdicaoItem()">✕</button>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin:10px 0 14px;">Altere o nome, categoria ou V-Bucks do item. Isso atualizará todas as vendas e recalculará os totais do sistema.</p>
+      
+      <div class="field" style="margin-top:14px;">
+        <label>Nome do Item</label>
+        <input id="editItemNomeInput" type="text" maxlength="120">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>Tipo / Categoria</label>
+        <select id="editItemTipoSelect"></select>
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label>Valor Unitário em V-Bucks</label>
+        <input id="editItemVbucksInput" type="number" step="50" min="0" placeholder="Ex: 500, 1200...">
+      </div>
+
       <div style="display:flex; gap:10px; margin-top:20px;">
-        <button type="button" class="btn-green" style="flex:1;" onclick="salvarEdicaoVenda()">💾 Salvar Alterações</button>
-        <button type="button" class="btn-gray" onclick="fecharModalEdicao()">Cancelar</button>
+        <button type="button" class="btn-green" style="flex:1;" onclick="salvarEdicaoItem()">💾 Salvar Alterações</button>
+        <button type="button" class="btn-gray" onclick="fecharModalEdicaoItem()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="itemDetalhesModal" class="modal-overlay" style="display:none; z-index: 1050;">
+    <div class="modal-card modal-card-large" style="max-width: 650px;">
+      <div class="modal-head" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 id="detalhesItemTitulo" style="margin:0; color:var(--accent-light);">📦 Compradores do Item</h3>
+        <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalDetalhesItem()">✕</button>
+      </div>
+      
+      <p style="font-size: 13px; color: var(--muted); margin: 12px 0 14px;">Lista de todos os clientes que adquiriram este item, com contatos e contas utilizadas:</p>
+      
+      <div id="detalhesItemListaCompradores" style="max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;"></div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top: 20px;">
+        <button type="button" class="btn-gray" onclick="fecharModalDetalhesItem()">Fechar</button>
       </div>
     </div>
   </div>
@@ -421,9 +481,15 @@
         </div>
         <input id="valorInput" type="number" min="0.01" step="0.01" placeholder="Ex.: 45,00" oninput="atualizarPreviewVBucks()">
       </div>
-      <div class="field" style="max-width:180px;min-width:130px">
+      
+      <!-- CAMPO DE QUANTIDADE COM BOTÕES CUSTOMIZADOS - / + -->
+      <div class="field" style="max-width:180px;min-width:140px">
         <label>Quantidade de itens</label>
-        <input id="quantidadeInput" type="number" min="1" step="1" value="1" oninput="atualizarCamposItens()">
+        <div style="display: flex; align-items: center; background: #090412; border: 1px solid var(--border); border-radius: 12px; overflow: hidden;">
+          <button type="button" onclick="alterarQtdItens(-1)" style="background: rgba(142,68,255,0.15); border: none; color: #fff; font-size: 16px; font-weight: bold; width: 36px; height: 42px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background='rgba(142,68,255,0.3)'" onmouseout="this.style.background='rgba(142,68,255,0.15)'">-</button>
+          <input id="quantidadeInput" type="number" min="1" step="1" value="1" oninput="atualizarCamposItens()" style="width: 100%; border: none; background: transparent; text-align: center; color: #fff; font-weight: 700; font-size: 15px; outline: none; padding: 0 4px;">
+          <button type="button" onclick="alterarQtdItens(1)" style="background: rgba(142,68,255,0.15); border: none; color: #fff; font-size: 16px; font-weight: bold; width: 36px; height: 42px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background='rgba(142,68,255,0.3)'" onmouseout="this.style.background='rgba(142,68,255,0.15)'">+</button>
+        </div>
       </div>
       
       <div class="field" style="position: relative;">
@@ -530,10 +596,11 @@
   <section class="panel">
     <div class="history-top-bar" style="margin-bottom: 15px;">
       <div class="history-tabs-bar" style="margin: 0; border: none; padding: 0; display: flex; width: 100%; gap: 10px; flex-wrap: wrap;">
-        <button type="button" class="history-tab-btn active" id="tabBtnVendas" onclick="mudarAbaHistorico('vendas')" style="flex: 1; text-align: center; min-width: 150px;">📜 Vendas</button>
-        <button type="button" class="history-tab-btn" id="tabBtnAgendamentos" onclick="mudarAbaHistorico('agendamentos')" style="flex: 1; text-align: center; min-width: 150px;">⏳ Pré-vendas</button>
-        <button type="button" class="history-tab-btn" id="tabBtnApoiador" onclick="mudarAbaHistorico('apoiador')" style="flex: 1; text-align: center; min-width: 150px;">🤝 Apoiador</button>
-        <button type="button" class="history-tab-btn" id="tabBtnClientes" onclick="mudarAbaHistorico('clientes')" style="flex: 1; text-align: center; min-width: 150px;">👥 Clientes</button>
+        <button type="button" class="history-tab-btn active" id="tabBtnVendas" onclick="mudarAbaHistorico('vendas')" style="flex: 1; text-align: center; min-width: 130px;">📜 Vendas</button>
+        <button type="button" class="history-tab-btn" id="tabBtnAgendamentos" onclick="mudarAbaHistorico('agendamentos')" style="flex: 1; text-align: center; min-width: 130px;">⏳ Pré-vendas</button>
+        <button type="button" class="history-tab-btn" id="tabBtnApoiador" onclick="mudarAbaHistorico('apoiador')" style="flex: 1; text-align: center; min-width: 130px;">🤝 Apoiador</button>
+        <button type="button" class="history-tab-btn" id="tabBtnClientes" onclick="mudarAbaHistorico('clientes')" style="flex: 1; text-align: center; min-width: 130px;">👥 Clientes</button>
+        <button type="button" class="history-tab-btn" id="tabBtnItens" onclick="mudarAbaHistorico('itens')" style="flex: 1; text-align: center; min-width: 130px;">📦 Itens</button>
       </div>
     </div>
     
@@ -556,7 +623,6 @@
         
         <div class="history-periods" id="historicoPeriodos"></div>
 
-        <!-- O BOTÃO FOI CORRIGIDO AQUI -->
         <div class="financial-toggle-container">
           <button type="button" class="btn-financial-toggle" id="btnFinancialToggle" onclick="abrirPainelContas()">
             <span>📊 Balanço Financeiro por Conta (Histórico Acumulado)</span>
@@ -620,6 +686,57 @@
         <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px;">Clique sobre o nome de qualquer cliente para ver o histórico detalhado de todas as compras dele:</p>
         <div id="tabelaHistoricoClientesCompleto"></div>
         <div id="clientesPagination" class="history-pagination-container"></div>
+      </div>
+    </div>
+
+    <!-- ABA DE ITENS COM OS SELECTS E O BOTÃO DE OCULTAR LUCRO ALINHADO -->
+    <div id="conteudoAbaItens" style="display: none;">
+      <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+          <h3 style="margin: 0; color: var(--accent-light);">📦 Histórico e Gestão de Itens</h3>
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <button type="button" id="eyeToggleLucroBtn" class="btn-gray" style="padding: 4px 10px; font-size: 13px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px; height: 32px;" onclick="toggleOcultarLucroItens()" title="Ocultar/Mostrar Lucro">👁️ Ocultar Lucro</button>
+            <div id="totalItensResumo" style="font-size: 13px; color: var(--muted); font-weight: 600;">0 itens cadastrados</div>
+          </div>
+        </div>
+        
+        <div class="history-search-bar-box" style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+          <div class="history-search-input-wrapper" style="flex: 2; min-width: 200px;">
+            <span class="search-icon">🔍</span>
+            <input id="itemSearchInput" type="text" placeholder="Buscar por Nome do Item..." oninput="filtrarItensInput(this.value)">
+            <button type="button" class="btn-clear-search" id="clearItemSearchBtn" style="display:none;" onclick="limparBuscaItens()">✕</button>
+          </div>
+          <div style="flex: 1; min-width: 150px;">
+            <select id="itemFiltroCategoriaSelect" onchange="filtrarItensPorCategoria(this.value)">
+              <option value="">📂 Todas as Categorias</option>
+              <option value="Traje">Traje</option>
+              <option value="Gesto">Gesto</option>
+              <option value="Picareta">Picareta</option>
+              <option value="Música">Música</option>
+              <option value="Pacote">Pacote</option>
+              <option value="Pacotão">Pacotão</option>
+              <option value="Asa-delta">Asa-delta</option>
+              <option value="Envelopamento">Envelopamento</option>
+              <option value="Calçado">Calçado</option>
+              <option value="Acessório">Acessório</option>
+              <option value="Carro">Carro</option>
+              <option value="Mascote">Mascote</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </div>
+          <div style="flex: 1; min-width: 170px;">
+            <select id="itemOrdenacaoSelect" onchange="ordenarItens(this.value)">
+              <option value="mais_vendidos">🔥 Mais Vendidos (Qtd)</option>
+              <option value="menos_vendidos">🧊 Menos Vendidos (Qtd)</option>
+              <option value="maior_vbucks">🪙 Maior V-Bucks / Faturamento</option>
+              <option value="alfabetica">🔤 Ordem Alfabética (A-Z)</option>
+            </select>
+          </div>
+        </div>
+
+        <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px;">Acompanhe o desempenho de vendas de cada item, quantidade comercializada e faturamento:</p>
+        <div id="tabelaHistoricoItensCompleto"></div>
+        <div id="itensPagination" class="history-pagination-container"></div>
       </div>
     </div>
   </section>
@@ -687,6 +804,7 @@
   <script src="js/clientes.js"></script>
   <script src="js/contas.js"></script>
   <script src="js/historico.js"></script>
+  <script src="js/itens.js"></script>
   <script src="js/mesclar.js"></script>
   
   <script src="js/ui.js"></script>

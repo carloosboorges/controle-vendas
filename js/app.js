@@ -2,12 +2,14 @@
 // MÓDULO DE VENDAS E INTERFACE PRINCIPAL
 // ==========================================
 
+let clienteOrigemEdicao = null; // Guarda o ID e Nome do cliente se a edição foi aberta a partir do perfil dele
+
 function adicionarVenda() {
   if (typeof limparReservasExpiradas === 'function') limparReservasExpiradas();
   
   const conta = document.getElementById("contaSelect")?.value;
   const valorInputEl = document.getElementById("valorInput");
-  const valor = parseFloat(valorInputEl ? valorInputEl.value : 0);
+  const valorDigitado = parseFloat(valorInputEl ? valorInputEl.value : 0);
   const cliente = document.getElementById("clienteInput")?.value.trim();
   const nickCliente = document.getElementById("nickClienteInput")?.value.trim();
   const whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
@@ -22,13 +24,9 @@ function adicionarVenda() {
   const primeiroItem = document.getElementById("itemNameInput_0")?.value?.trim();
   let clienteId = document.getElementById("clienteIdInput")?.value;
 
-  // ==========================================
-  // TRAVA ANTI-DUPLICAÇÃO INTELIGENTE
-  // ==========================================
   if (window.ignorarChecagemDuplicacao) {
     window.ignorarChecagemDuplicacao = false;
   } else {
-    // Agora passa a própria função adicionarVenda para o alerta disparar depois!
     if (typeof checarDuplicacaoAntesDeVender === 'function') {
       if (checarDuplicacaoAntesDeVender(cliente, clienteId, adicionarVenda)) return;
     }
@@ -37,7 +35,7 @@ function adicionarVenda() {
   if (!cliente) { mostrarNotificacao("⚠️ Preencha o Nome do Cliente!", "erro"); return; }
   if (!nickCliente) { mostrarNotificacao("⚠️ Preencha o Nick do Cliente!", "erro"); return; }
   if (!primeiroItem) { mostrarNotificacao("⚠️ Preencha o Item a ser vendido!", "erro"); return; }
-  if (!valor || isNaN(valor)) { mostrarNotificacao("⚠️ Informe o valor da venda!", "erro"); return; }
+  if (!valorDigitado || isNaN(valorDigitado)) { mostrarNotificacao("⚠️ Informe o valor da venda!", "erro"); return; }
   if (!conta) { mostrarNotificacao("⚠️ Selecione uma conta!", "erro"); return; }
   if (itens.length < quantidade) { mostrarNotificacao("⚠️ Preencha o nome de todos os itens extras!", "erro"); return; }
 
@@ -47,9 +45,10 @@ function adicionarVenda() {
     return;
   }
 
+  const somaVbucksItens = itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
+  const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : Math.round((valorDigitado / baseAtual) * 100);
+
   const contaObj = (state.contas || []).find(c => c.nome === conta);
-  const vbucksNecessarios = Math.round((valor / baseAtual) * 100);
-  
   if (Number(contaObj?.vbucks) < vbucksNecessarios) {
     mostrarNotificacao("Saldo de V-Bucks insuficiente.", "erro");
     return;
@@ -65,7 +64,7 @@ function adicionarVenda() {
   const novaVenda = {
     id: vendaId, 
     clienteId: clienteId, 
-    conta, valor: Number(valor), vbucks: vbucksNecessarios,
+    conta, valor: Number(valorDigitado), vbucks: vbucksNecessarios,
     valorBaseMomento: baseAtual, quantidade, cliente, nickCliente,
     observacao, item: itens[0] || "", itens, whatsapp, tiktok,
     data: d.toLocaleDateString("pt-BR"),
@@ -102,10 +101,14 @@ function adicionarVenda() {
   mostrarNotificacao("✅ Venda registrada com sucesso!", "sucesso");
 }
 
-function abrirModalEdicaoPorId(vendaId) {
+function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNome = null) {
   const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
   if (i < 0) return;
   const venda = state.historicoVendas[i];
+
+  if (origemClienteId) {
+    clienteOrigemEdicao = { id: origemClienteId, nome: origemClienteNome || venda.cliente };
+  }
 
   const tipoInput = document.getElementById("editTipoRegistro");
   if (tipoInput) tipoInput.value = "venda";
@@ -139,12 +142,12 @@ function abrirModalEdicaoPorId(vendaId) {
   const itens = Array.isArray(venda.itens) && venda.itens.length ? venda.itens : [venda.item || ""];
 
   container.innerHTML = itens.map((itemObj, idx) => {
-    let tipo = "Outro", nome = "", presente = "";
+    let tipo = "Outro", nome = "", presente = "", vbucks = "";
     if (typeof itemObj === "string") {
       const parsed = typeof parseItemString === 'function' ? parseItemString(itemObj) : {tipo: "Outro", nome: itemObj};
       tipo = parsed.tipo; nome = parsed.nome;
     } else if (itemObj) {
-      tipo = itemObj.tipo || "Outro"; nome = itemObj.nome || ""; presente = itemObj.presente || "";
+      tipo = itemObj.tipo || "Outro"; nome = itemObj.nome || ""; presente = itemObj.presente || ""; vbucks = itemObj.vbucks || "";
     }
     const cats = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
     const optionsHtml = cats.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join("");
@@ -156,8 +159,9 @@ function abrirModalEdicaoPorId(vendaId) {
         </div>
         <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
           <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
-          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 150px; padding: 10px;">
-          <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick (Opcional)" style="flex: 1.5; min-width: 120px; padding: 10px;">
+          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
+          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;">
+          <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="flex: 1.5; min-width: 110px; padding: 10px;">
         </div>
       </div>`;
   }).join("");
@@ -194,8 +198,9 @@ function salvarEdicaoVenda() {
   itemBoxes.forEach(box => {
     const tipo = box.querySelector(".edit-modal-item-type").value;
     const nome = box.querySelector(".edit-modal-item-name").value.trim();
+    const vbucks = parseInt(box.querySelector(".edit-modal-item-vbucks").value, 10) || 0;
     const presente = box.querySelector(".edit-modal-item-presente").value.trim();
-    if (nome) novosItens.push({ tipo, nome, presente });
+    if (nome) novosItens.push({ tipo, nome, vbucks, presente });
   });
 
   if (novosItens.length < itemBoxes.length) {
@@ -203,10 +208,11 @@ function salvarEdicaoVenda() {
     return;
   }
 
-  const novoVbucks = Math.round((valor / (venda.valorBaseMomento || state.valorBase100 || 2.5)) * 100);
+  const somaVbucksNovos = novosItens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
+  const novoVbucks = somaVbucksNovos > 0 ? somaVbucksNovos : Math.round((valor / (venda.valorBaseMomento || state.valorBase100 || 2.5)) * 100);
   const vbucksAntigo = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, venda.valorBaseMomento);
 
-  if (!isAgendamento && (venda.conta !== novaConta || venda.valor !== valor)) {
+  if (!isAgendamento && (venda.conta !== novaConta || venda.vbucks !== novoVbucks)) {
     const cAntiga = state.contas.find(c => c.nome === venda.conta);
     if (cAntiga) cAntiga.vbucks += vbucksAntigo;
     const cNova = state.contas.find(c => c.nome === novaConta);
@@ -256,13 +262,27 @@ function salvarEdicaoVenda() {
   const idDoCliente = venda.clienteId || venda.cliente;
   if (typeof sincronizarDadosCliente === 'function') sincronizarDadosCliente(idDoCliente, cliente, whatsapp, tiktok);
   if (typeof save === 'function') save();
-  if (typeof fecharModalEdicao === 'function') fecharModalEdicao();
+  fecharModalEdicao();
   
   if (isAgendamento && typeof renderizarAgendamentos === "function") {
     renderizarAgendamentos();
   }
   
   mostrarNotificacao(isAgendamento ? "Pré-venda atualizada!" : "Alterações salvas com sucesso!", "sucesso");
+}
+
+function fecharModalEdicao() {
+  if (document.getElementById("editSaleModal")) {
+    document.getElementById("editSaleModal").style.display = "none";
+  }
+  // Se veio do perfil de um cliente, reabre o modal de detalhes dele ao fechar ou cancelar
+  if (clienteOrigemEdicao) {
+    const ctx = clienteOrigemEdicao;
+    clienteOrigemEdicao = null;
+    if (typeof abrirModalDetalhesCliente === 'function') {
+      abrirModalDetalhesCliente(ctx.id, ctx.nome);
+    }
+  }
 }
 
 function excluirHistoricoPorId(vendaId) {
@@ -379,10 +399,6 @@ function fecharModalLixeira() {
   if (document.getElementById("trashModal")) document.getElementById("trashModal").style.display = "none";
 }
 
-function fecharModalEdicao() {
-  if (document.getElementById("editSaleModal")) document.getElementById("editSaleModal").style.display = "none";
-}
-
 function valorRapido(v) {
   const input = document.getElementById("valorInput");
   if (!input) return;
@@ -435,8 +451,9 @@ function obterItensDaVenda() {
   for (let i = 0; i < qtd; i++) {
     const tipo = document.getElementById(`itemTypeSelect_${i}`)?.value || "Outro";
     const nome = document.getElementById(`itemNameInput_${i}`)?.value.trim() || "";
+    const vbucks = parseInt(document.getElementById(`itemVbucksInput_${i}`)?.value, 10) || 0;
     const presente = document.getElementById(`itemPresenteInput_${i}`)?.value.trim() || "";
-    if (nome) lista.push({ tipo, nome, presente });
+    if (nome) lista.push({ tipo, nome, vbucks, presente });
   }
   return lista;
 }

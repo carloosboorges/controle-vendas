@@ -197,6 +197,15 @@ function renderizarListaHistorico() {
   } else {
     historicoContainer.innerHTML = itensPagina.map(v => {
       const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+      const baseMomento = Number(v.valorBaseMomento || state.valorBase100 || 2.5);
+      const valorIdealSemDesconto = (vb / 100) * baseMomento;
+      const diferencaDesconto = valorIdealSemDesconto - Number(v.valor || 0);
+
+      // Se o desconto for maior que 1 centavo, exibe a tag de aviso de desconto
+      const descontoHtml = diferencaDesconto > 0.01 
+        ? `<div style="margin-top: 4px; font-size: 11px; color: #ffb74d; font-weight: 700;">🏷️ Desconto aplicado: -${money(diferencaDesconto)}</div>` 
+        : "";
+
       const obsHtml = v.observacao ? `<div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 4px 8px; border-radius: 6px; border-left: 3px solid var(--accent);">💬 <b>Observação:</b> ${esc(v.observacao)}</div>` : "";
       
       return `
@@ -217,7 +226,10 @@ function renderizarListaHistorico() {
               <div class="history-date">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
               ${obsHtml}
             </div>
-            <div class="history-value">${money(v.valor)}</div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
+              <div class="history-value">${money(v.valor)}</div>
+              ${descontoHtml}
+            </div>
           </div>
           <div class="history-details">
             <span>🪙 ${formatVBucks(vb)} V-Bucks</span>
@@ -363,8 +375,8 @@ function renderizarBalancoFinanceiro() {
           <tr>
             <td style="padding: 12px 10px; text-align: left; font-weight: 900; color: #fff; text-transform: uppercase;">Total Geral</td>
             <td style="padding: 12px 10px; color: #ffb74d; font-weight: 900;">${pVbTabela(totaisGerais.vbucks)}</td>
-            <td style="padding: 12px 10px; color: #ff6b81; font-weight: 900;">${pMoeda(totaisGerais.custo)}</td>
-            <td style="padding: 12px 10px; color: var(--green); font-weight: 900;">${pMoeda(totaisGears = totaisGerais.lucro)}</td>
+            <td style="padding: 12px 10px; color: #ff6b81; font-weight: 900;">${pMoeda(totaisGears = totaisGerais.custo)}</td>
+            <td style="padding: 12px 10px; color: var(--green); font-weight: 900;">${pMoeda(totaisGerais.lucro)}</td>
             <td style="padding: 12px 10px; color: var(--accent-light); font-weight: 900;">${pMoeda(totaisGerais.bruto)}</td>
           </tr>
         </tfoot>

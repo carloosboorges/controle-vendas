@@ -1,13 +1,11 @@
 // ========================================================
-// MÓDULO DE AUTOCOMPLETE (Sugestões Inteligentes de Clientes)
+// MÓDULO DE AUTOCOMPLETE (Sugestões Inteligentes)
 // ========================================================
 
 function buscarSugestoesCliente(texto) {
   const dropdown = document.getElementById("clienteSuggestions");
   const idInput = document.getElementById("clienteIdInput");
   
-  // TRAVA DE SEGURANÇA: Se você está digitando, zeramos o ID invisível. 
-  // Ele só será preenchido se você clicar em uma sugestão abaixo!
   if (idInput) idInput.value = ""; 
 
   if (!dropdown) return;
@@ -17,10 +15,9 @@ function buscarSugestoesCliente(texto) {
   const clientesMap = {};
   const histReverso = [...(state.historicoVendas || [])].reverse();
   
-  // Agora agrupamos pelo ID (para separar homônimos perfeitamente)
   histReverso.forEach(v => {
     const nome = String(v.cliente || "").trim();
-    const id = v.clienteId || nome; // Usa o ID invisível se existir, senão usa o nome (clientes antigos)
+    const id = v.clienteId || nome;
     
     if (nome && !clientesMap[id]) {
       clientesMap[id] = { id: id, nome: nome, nick: v.nickCliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
@@ -30,13 +27,11 @@ function buscarSugestoesCliente(texto) {
     }
   });
   
-  // Filtra as sugestões pelo nome digitado
   const sugestoes = Object.values(clientesMap).filter(c => c.nome.toLowerCase().includes(termo));
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
     const obsIcon = (state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao) ? ' <span style="font-size:11px;" title="Possui observação">📌</span>' : '';
-    // Passamos o ID como o primeiro parâmetro no clique
     return `<div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(c.id).replace(/'/g, "\\'")}', '${esc(c.nome).replace(/'/g, "\\'")}', '${esc(c.nick).replace(/'/g, "\\'")}', '${esc(c.whatsapp).replace(/'/g, "\\'")}', '${esc(c.tiktok).replace(/'/g, "\\'")}')">👤 ${esc(c.nome)}${obsIcon} <span class="autocomplete-nick">🎮 ${esc(c.nick)}</span></div>`;
   }).join("");
   dropdown.style.display = "block";
@@ -160,10 +155,44 @@ function sugerirNickPresente(texto, index) {
   dropdown.style.display = "block";
 }
 
-// ATUALIZADO: Agora recebe o ID invisível no clique!
+function buscarSugestoesItem(texto, index) {
+  const dropdown = document.getElementById(`itemSuggestions_${index}`);
+  if (!dropdown) return;
+  const termo = String(texto).toLowerCase().trim();
+  if (!termo) { dropdown.style.display = "none"; return; }
+
+  const itensMap = {};
+  const histReverso = [...(state.historicoVendas || [])].reverse();
+
+  histReverso.forEach(v => {
+    if (Array.isArray(v.itens)) {
+      v.itens.forEach(itemObj => {
+        const nomeItem = typeof itemObj === "string" ? itemObj : (itemObj?.nome || "");
+        const nomeLimpo = String(nomeItem).trim();
+        if (nomeLimpo && !itensMap[nomeLimpo.toLowerCase()]) {
+          itensMap[nomeLimpo.toLowerCase()] = { nome: nomeLimpo, tipo: itemObj.tipo || "Outro" };
+        }
+      });
+    } else if (v.item) {
+      const nomeLimpo = String(v.item).trim();
+      if (nomeLimpo && !itensMap[nomeLimpo.toLowerCase()]) {
+        itensMap[nomeLimpo.toLowerCase()] = { nome: nomeLimpo, tipo: "Outro" };
+      }
+    }
+  });
+
+  const sugestoes = Object.values(itensMap).filter(i => i.nome.toLowerCase().includes(termo));
+  if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
+
+  dropdown.innerHTML = sugestoes.slice(0, 6).map(i => {
+    return `<div class="autocomplete-item" onclick="selecionarSugestaoItem('${esc(i.nome).replace(/'/g, "\\'")}', '${esc(i.tipo).replace(/'/g, "\\'")}', ${index})">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
+  }).join("");
+  dropdown.style.display = "block";
+}
+
 function selecionarSugestaoCliente(id, nome, nick, whatsapp, tiktok) {
   const idInput = document.getElementById("clienteIdInput");
-  if (idInput) idInput.value = id; // Injeta o ID fantasma no formulário!
+  if (idInput) idInput.value = id; 
   
   document.getElementById("clienteInput").value = nome;
   document.getElementById("nickClienteInput").value = nick;
@@ -174,7 +203,6 @@ function selecionarSugestaoCliente(id, nome, nick, whatsapp, tiktok) {
     if (document.getElementById(idEl)) document.getElementById(idEl).style.display = "none";
   });
   
-  // Checa a observação usando o ID para maior precisão
   if (typeof verificarObservacaoCliente === 'function') verificarObservacaoCliente(id); 
 }
 
@@ -182,4 +210,17 @@ function selecionarSugestaoNickPresente(nick, index) {
   const input = document.getElementById(`itemPresenteInput_${index}`);
   if (input) input.value = nick;
   document.getElementById(`nickPresenteSuggestions_${index}`).style.display = "none";
+}
+
+function selecionarSugestaoItem(nomeItem, tipoItem, index) {
+  const input = document.getElementById(`itemNameInput_${index}`);
+  if (input) input.value = nomeItem;
+
+  const selectTipo = document.getElementById(`itemTypeSelect_${index}`);
+  if (selectTipo && tipoItem) {
+    selectTipo.value = tipoItem;
+  }
+
+  const dropdown = document.getElementById(`itemSuggestions_${index}`);
+  if (dropdown) dropdown.style.display = "none";
 }
