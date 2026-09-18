@@ -56,7 +56,7 @@ function abrirModalDetalhesCliente(id, nome) {
     }
   }
   
-  const ultimoNick = clientePedidos.length > 0 ? clientePedidos[0].nickCliente : "";
+  const ultimoNick = clientePedidos.length > 0 ? clientePedidos[0].nickCliente : (info.nick || "");
   const modal = document.getElementById("clienteDetalhesModal");
   if (!modal) return;
 
@@ -80,7 +80,7 @@ function abrirModalDetalhesCliente(id, nome) {
           
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
             <button type="button" class="btn-green" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="document.getElementById('clienteIdInput').value='${esc(id).replace(/'/g, "\\'")}'; preencherNovaVendaModal('${esc(nome).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>
-            <button type="button" class="btn-gray" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="abrirModalEdicaoCliente('${esc(id).replace(/'/g, "\\'")}', '${esc(nome).replace(/'/g, "\\'")}')">✏️ Editar Perfil</button>
+            <button type="button" class="btn-gray" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="abrirModalEdicaoCliente('${esc(id).replace(/'/g, "\\'")}','${esc(nome).replace(/'/g, "\\'")}')">✏️ Editar Perfil</button>
             <button type="button" class="btn-gray" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="abrirModalMesclar('${esc(id).replace(/'/g, "\\'")}', '${esc(nome).replace(/'/g, "\\'")}')">🔗 Mesclar</button>
             <button type="button" class="btn-danger" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="excluirCliente('${esc(id).replace(/'/g, "\\'")}', '${esc(nome).replace(/'/g, "\\'")}'); fecharModalDetalhesCliente();">🗑️ Excluir</button>
           </div>
@@ -262,6 +262,14 @@ function renderizarHistoricoClientesCompleto() {
   const historico = state.historicoVendas || [];
   const clientesMap = {};
   
+  if (state.clientesInfo) {
+    Object.entries(state.clientesInfo).forEach(([id, info]) => {
+      if (info && info.nome && !clientesMap[id]) {
+        clientesMap[id] = { id: id, nome: info.nome, totalGasto: 0, totalVbucks: 0, totalPedidos: 0, searchString: info.nome.toLowerCase() };
+      }
+    });
+  }
+
   historico.forEach(v => {
     const nomeCliente = String(v.cliente || "").trim();
     const id = v.clienteId || nomeCliente; 
@@ -375,5 +383,120 @@ function excluirCliente(clienteId, nomeCliente) {
         mostrarNotificacao(`Cliente excluído com sucesso!`, "sucesso");
       }
     );
+  }
+}
+
+// --- NOVO CLIENTE SIMPLES (SEM VENDA ANTIGA) ---
+
+function abrirModalAdicionarClienteRetroativo() {
+  document.getElementById("retroClienteInput").value = "";
+  document.getElementById("retroNickInput").value = "";
+  document.getElementById("retroWhatsappInput").value = "";
+  document.getElementById("retroTiktokInput").value = "";
+  document.getElementById("retroObservacaoInput").value = "";
+
+  const modal = document.getElementById("modalAdicionarClienteRetroativo");
+  if (modal) modal.style.display = "flex";
+}
+
+function fecharModalAdicionarClienteRetroativo() {
+  const modal = document.getElementById("modalAdicionarClienteRetroativo");
+  if (modal) modal.style.display = "none";
+}
+
+function confirmarClienteExistenteCadastro(idEscolhido, nomeEscolhido) {
+  fecharModalAntiDuplicacao();
+  fecharModalAdicionarClienteRetroativo();
+  if (typeof abrirModalDetalhesCliente === 'function') {
+    abrirModalDetalhesCliente(idEscolhido, nomeEscolhido);
+  }
+  mostrarNotificacao(`Este cliente já está cadastrado no sistema!`, "info");
+}
+
+function salvarClienteSimples() {
+  const cliente = document.getElementById("retroClienteInput")?.value.trim();
+  const nickCliente = document.getElementById("retroNickInput")?.value.trim();
+  const whatsapp = document.getElementById("retroWhatsappInput")?.value.trim() || "";
+  const tiktok = document.getElementById("retroTiktokInput")?.value.trim() || "";
+  const observacao = document.getElementById("retroObservacaoInput")?.value.trim() || "";
+
+  if (!cliente) {
+    mostrarNotificacao("Preencha o nome do cliente.", "erro");
+    return;
+  }
+  if (!nickCliente) {
+    mostrarNotificacao("O Nick do cliente é obrigatório.", "erro");
+    return;
+  }
+
+  // Trava anti-duplicação
+  if (!window.ignorarChecagemDuplicacao) {
+    const nomeFormatado = cliente.toLowerCase();
+    const historico = state.historicoVendas || [];
+    const homonimosMap = {};
+
+    historico.forEach(v => {
+      if (String(v.cliente).trim().toLowerCase() === nomeFormatado) {
+        const vId = v.clienteId || String(v.cliente).trim();
+        if (!homonimosMap[vId]) {
+          homonimosMap[vId] = { id: vId, nome: v.cliente, nick: v.nickCliente };
+        }
+      }
+    });
+
+    if (state.clientesInfo) {
+      Object.entries(state.clientesInfo).forEach(([id, info]) => {
+        if (info && info.nome && info.nome.trim().toLowerCase() === nomeFormatado) {
+          if (!homonimosMap[id]) {
+            homonimosMap[id] = { id: id, nome: info.nome, nick: info.nick || "Cadastrado" };
+          }
+        }
+      });
+    }
+
+    const homonimos = Object.values(homonimosMap);
+    if (homonimos.length > 0) {
+      document.getElementById('antiDupNomeTexto').textContent = cliente;
+      const listaEl = document.getElementById('listaHomonimos');
+      
+      listaEl.innerHTML = homonimos.map(h => `
+        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer;" onclick="confirmarClienteExistenteCadastro('${esc(h.id).replace(/'/g, "\\'")}', '${esc(h.nome).replace(/'/g, "\\'")}')">
+           <div style="font-weight:bold; color:#fff; font-size:14px;">👤 ${esc(h.nome)}</div>
+           <div style="font-size:13px; color:var(--muted); margin-top:4px;">🎮 Nick: <strong style="color:#fff;">${esc(h.nick)}</strong> (Já cadastrado)</div>
+        </div>
+      `).join("");
+
+      document.getElementById('modalAntiDuplicacao').style.display = 'flex';
+      return;
+    }
+  }
+
+  if (window.ignorarChecagemDuplicacao) {
+    window.ignorarChecagemDuplicacao = false;
+  }
+
+  const agora = Date.now();
+  const clienteId = "cli-" + agora + "-" + Math.random().toString(36).substr(2, 4);
+
+  if (!state.clientesInfo) state.clientesInfo = {};
+  state.clientesInfo[clienteId] = {
+    nome: cliente,
+    nick: nickCliente,
+    whatsapp: whatsapp,
+    tiktok: tiktok,
+    observacao: observacao
+  };
+
+  if (typeof sincronizarDadosCliente === 'function') {
+    sincronizarDadosCliente(clienteId, cliente, whatsapp, tiktok);
+  }
+
+  if (typeof save === 'function') save();
+  fecharModalAdicionarClienteRetroativo();
+  mostrarNotificacao("✅ Novo cliente cadastrado com sucesso!", "sucesso");
+
+  if (typeof render === 'function') render();
+  if (abaHistoricoAtiva === 'clientes' && typeof renderizarHistoricoClientesCompleto === 'function') {
+    renderizarHistoricoClientesCompleto();
   }
 }

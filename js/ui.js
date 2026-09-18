@@ -53,6 +53,74 @@ function alterarQtdItens(delta) {
   if (typeof atualizarCamposItens === 'function') atualizarCamposItens();
 }
 
+// FECHAR MODAIS E POPOVERS COM A TECLA ESC (GLOBAL)
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    let fechouAlgumModal = false;
+
+    // Lista de IDs de modais no sistema
+    const modaisIds = [
+      "authModal",
+      "clienteDetalhesModal",
+      "editClienteModal",
+      "leituraObsModal",
+      "apoiadorModal",
+      "valorBaseModal",
+      "addContaModal",
+      "editContaModal",
+      "editSaleModal",
+      "editItemModal",
+      "itemDetalhesModal",
+      "trashModal",
+      "genericConfirmModal",
+      "modalAntiDuplicacao",
+      "modalMesclarClientes",
+      "modalAdicionarClienteRetroativo"
+    ];
+
+    modaisIds.forEach(id => {
+      const modal = document.getElementById(id);
+      if (modal && modal.style.display === "flex") {
+        modal.style.display = "none";
+        fechouAlgumModal = true;
+      }
+    });
+
+    // Fecha popovers de calendário e dropdowns de autocomplete abertos
+    if (typeof calPopoverAberto !== 'undefined') calPopoverAberto = false;
+    if (typeof mesPopoverAberto !== 'undefined') mesPopoverAberto = false;
+    if (typeof anoPopoverAberto !== 'undefined') anoPopoverAberto = false;
+    if (typeof apoiadorPopoverAberto !== 'undefined') apoiadorPopoverAberto = false;
+    if (typeof agendaPopoverAberto !== 'undefined') agendaPopoverAberto = false;
+    if (typeof editAgendaPopoverAberto !== 'undefined') editAgendaPopoverAberto = false;
+
+    ["clienteSuggestions", "nickSuggestions", "whatsappSuggestions", "tiktokSuggestions", "mesclarSuggestions"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.style.display === "block") {
+        el.style.display = "none";
+        fechouAlgumModal = true;
+      }
+    });
+
+    for (let j = 0; j < 20; j++) {
+      const dropP = document.getElementById("nickPresenteSuggestions_" + j);
+      if (dropP && dropP.style.display === "block") {
+        dropP.style.display = "none";
+        fechouAlgumModal = true;
+      }
+      const dropItem = document.getElementById("itemSuggestions_" + j);
+      if (dropItem && dropItem.style.display === "block") {
+        dropItem.style.display = "none";
+        fechouAlgumModal = true;
+      }
+    }
+
+    if (fechouAlgumModal && typeof render === 'function') {
+      render();
+    }
+  }
+});
+
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".period-card-calendar-container") &&
       !e.target.closest(".period-card-mes-container") &&
