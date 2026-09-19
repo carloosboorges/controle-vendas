@@ -34,7 +34,7 @@ function mudarPaginaClientes(p) {
 function abrirModalDetalhesCliente(id, nome) {
   const clientePedidos = (state.historicoVendas || []).filter(v => {
     const vId = v.clienteId || String(v.cliente || "").trim();
-    return vId === id;
+    return vId === id || String(v.cliente || "").trim().toLowerCase() === String(nome).trim().toLowerCase();
   }).reverse();
   
   const totalGasto = clientePedidos.reduce((acc, v) => acc + Number(v.valor || 0), 0);
@@ -42,19 +42,36 @@ function abrirModalDetalhesCliente(id, nome) {
   
   let wpp = "—";
   let tk = "—";
-  const info = (state.clientesInfo || {})[id] || (state.clientesInfo || {})[nome] || {};
-  
-  if (info.whatsapp) wpp = info.whatsapp;
-  if (info.tiktok) tk = info.tiktok;
-  
-  if (wpp === "—" || tk === "—") {
-    for (let i = 0; i < clientePedidos.length; i++) {
-      const v = clientePedidos[i];
-      if (wpp === "—" && v.whatsapp) wpp = v.whatsapp;
-      if (tk === "—" && v.tiktok) tk = v.tiktok;
-      if (wpp !== "—" && tk !== "—") break;
+
+  // 1. Tenta buscar das vendas do cliente (garantindo que se parecer nome no campo de wpp, a gente ignora)
+  for (let i = 0; i < clientePedidos.length; i++) {
+    const v = clientePedidos[i];
+    const wVal = String(v.whatsapp || "").trim();
+    const tVal = String(v.tiktok || "").trim();
+    
+    // Se o wpp tem cara de número/telefone e ainda não temos, pega
+    if (wpp === "—" && wVal && wVal.toLowerCase() !== nome.toLowerCase() && /\d/.test(wVal)) {
+      wpp = wVal;
     }
+    // Se o tiktok está preenchido e ainda não temos, pega
+    if (tk === "—" && tVal && tVal.toLowerCase() !== nome.toLowerCase()) {
+      tk = tVal;
+    }
+    if (wpp !== "—" && tk !== "—") break;
   }
+
+  // 2. Se ainda faltar, busca do state.clientesInfo
+  const info = (state.clientesInfo || {})[id] || (state.clientesInfo || {})[nome] || {};
+  if (wpp === "—" && info.whatsapp && String(info.whatsapp).toLowerCase() !== nome.toLowerCase()) {
+    wpp = info.whatsapp;
+  }
+  if (tk === "—" && info.tiktok && String(info.tiktok).toLowerCase() !== nome.toLowerCase()) {
+    tk = info.tiktok;
+  }
+
+  // Blindagem final para evitar que o nome apareça no lugar do telefone
+  if (wpp.toLowerCase() === nome.toLowerCase()) wpp = "—";
+  if (tk.toLowerCase() === nome.toLowerCase()) tk = "—";
   
   const ultimoNick = clientePedidos.length > 0 ? clientePedidos[0].nickCliente : (info.nick || "");
   const modal = document.getElementById("clienteDetalhesModal");
