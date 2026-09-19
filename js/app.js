@@ -12,8 +12,8 @@ function adicionarVenda() {
   const valorDigitado = parseFloat(valorInputEl ? valorInputEl.value : 0);
   const cliente = document.getElementById("clienteInput")?.value.trim();
   const nickCliente = document.getElementById("nickClienteInput")?.value.trim();
-  const whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
-  const tiktok = document.getElementById("tiktokInput")?.value.trim() || "";
+  let whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
+  let tiktok = document.getElementById("tiktokInput")?.value.trim() || "";
   const observacao = document.getElementById("observacaoInput")?.value.trim() || "";
   
   const inputQtd = document.getElementById("quantidadeInput");
@@ -59,6 +59,30 @@ function adicionarVenda() {
 
   if (!clienteId) {
     clienteId = "cli-" + agora + "-" + Math.random().toString(36).substr(2, 4);
+  }
+
+  // Correção definitiva: Busca rigorosa e correta do WhatsApp e TikTok salvos do cliente
+  if ((!whatsapp || !tiktok) && clienteId) {
+    const infoCli = (state.clientesInfo || {})[clienteId];
+    if (infoCli) {
+      if (!whatsapp) whatsapp = infoCli.whatsapp || "";
+      if (!tiktok) tiktok = infoCli.tiktok || "";
+    }
+  }
+  if ((!whatsapp || !tiktok) && cliente) {
+    const infoCliPorNome = Object.values(state.clientesInfo || {}).find(c => String(c.nome || "").trim().toLowerCase() === cliente.toLowerCase());
+    if (infoCliPorNome) {
+      if (!whatsapp) whatsapp = infoCliPorNome.whatsapp || "";
+      if (!tiktok) tiktok = infoCliPorNome.tiktok || "";
+    }
+  }
+  if (!whatsapp || !tiktok) {
+    const historicoReverso = [...(state.historicoVendas || [])].reverse();
+    const ultimaDoCliente = historicoReverso.find(v => (v.clienteId === clienteId || String(v.cliente || "").trim().toLowerCase() === cliente.toLowerCase()));
+    if (ultimaDoCliente) {
+      if (!whatsapp) whatsapp = ultimaDoCliente.whatsapp || "";
+      if (!tiktok) tiktok = ultimaDoCliente.tiktok || "";
+    }
   }
 
   const novaVenda = {
@@ -275,7 +299,6 @@ function fecharModalEdicao() {
   if (document.getElementById("editSaleModal")) {
     document.getElementById("editSaleModal").style.display = "none";
   }
-  // Se veio do perfil de um cliente, reabre o modal de detalhes dele ao fechar ou cancelar
   if (clienteOrigemEdicao) {
     const ctx = clienteOrigemEdicao;
     clienteOrigemEdicao = null;

@@ -405,12 +405,36 @@ function fecharModalAdicionarClienteRetroativo() {
 }
 
 function confirmarClienteExistenteCadastro(idEscolhido, nomeEscolhido) {
-  fecharModalAntiDuplicacao();
+  const modalAntiDup = document.getElementById('modalAntiDuplicacao');
+  if (modalAntiDup) modalAntiDup.style.display = 'none';
   fecharModalAdicionarClienteRetroativo();
-  if (typeof abrirModalDetalhesCliente === 'function') {
-    abrirModalDetalhesCliente(idEscolhido, nomeEscolhido);
+
+  let telefoneSalvo = "";
+  let tiktokSalvo = "";
+  let nickSalvo = "";
+
+  const infoCliente = (state.clientesInfo || {})[idEscolhido];
+  if (infoCliente) {
+    telefoneSalvo = infoCliente.whatsapp || "";
+    tiktokSalvo = infoCliente.tiktok || "";
+    nickSalvo = infoCliente.nick || "";
+  } else {
+    const historico = state.historicoVendas || [];
+    const ultimaVenda = historico.find(v => (v.clienteId || String(v.cliente).trim()) === idEscolhido);
+    if (ultimaVenda) {
+      telefoneSalvo = ultimaVenda.whatsapp || "";
+      tiktokSalvo = ultimaVenda.tiktok || "";
+      nickSalvo = ultimaVenda.nickCliente || "";
+    }
   }
-  mostrarNotificacao(`Este cliente já está cadastrado no sistema!`, "info");
+
+  if (document.getElementById("clienteInput")) document.getElementById("clienteInput").value = nomeEscolhido;
+  if (document.getElementById("clienteIdInput")) document.getElementById("clienteIdInput").value = idEscolhido;
+  if (document.getElementById("nickClienteInput") && nickSalvo) document.getElementById("nickClienteInput").value = nickSalvo;
+  if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = telefoneSalvo;
+  if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = tiktokSalvo;
+
+  mostrarNotificacao(`Cliente ${nomeEscolhido} selecionado com os dados salvos!`, "sucesso");
 }
 
 function salvarClienteSimples() {
