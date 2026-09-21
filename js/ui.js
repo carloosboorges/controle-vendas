@@ -193,7 +193,7 @@ document.addEventListener("click", (e) => {
       const dropP = document.getElementById("nickPresenteSuggestions_" + j);
       if (dropP && dropP.style.display === "block") {
         dropP.style.display = "none";
-        fechouAlgo = true;
+        fechouAlgumModal = true;
       }
       const dropItem = document.getElementById("itemSuggestions_" + j);
       if (dropItem && dropItem.style.display === "block") {
@@ -281,8 +281,7 @@ function renderizarListaItensHtml(itens, vObj = null) {
       <div style="margin-bottom: 6px; display: flex; align-items: center; flex-wrap: wrap; line-height: 1.4;">
         <span style="white-space: nowrap;">🎁 ${n + 1}. </span>
         <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" style="margin-left: 4px; white-space: nowrap; font-weight: 600;">${esc(itemText)}</span>
-        ${priceText}
-        ${presenteText}
+        ${priceText}${presenteText}
       </div>`;
   }).join("");
 }
@@ -445,6 +444,11 @@ function atualizarCamposItensComDados(valoresSalvos) {
     const saved = valoresSalvos[i] || { tipo: "Traje", nome: "", vbucks: "", presente: "" };
     const optionsHtml = categoriasArray.map(c => `<option value="${c}" ${c === saved.tipo ? "selected" : ""}>${c}</option>`).join("");
     
+    // O botão de exclusão só aparece se houver mais do que 1 item na tela no total
+    const botaoExcluirHtml = qtd > 1 
+      ? `<button type="button" class="btn-danger" style="padding: 0; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;" onclick="removerItemEspecifico(${i})" title="Remover este item">✕</button>`
+      : ``;
+    
     return `
     <div class="item-picker-box" style="margin-bottom: 8px; width: 100%;">
       <div class="item-picker-row" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
@@ -464,7 +468,7 @@ function atualizarCamposItensComDados(valoresSalvos) {
           <div id="nickPresenteSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
 
-        <button type="button" class="btn-danger" style="padding: 0; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;" onclick="removerItemEspecifico(${i})" title="Remover este item">✕</button>
+        ${botaoExcluirHtml}
       </div>
     </div>`;
   }).join("");
@@ -610,7 +614,7 @@ function render() {
     
     parent.insertBefore(wrapper, btnNovaSessao);
     
-    const eyeBtnSessao = document.createElement("button");
+    TheNode = document.createElement("button");
     eyeBtnSessao.id = "eyeToggleValoresSessao";
     eyeBtnSessao.className = "btn-gray";
     eyeBtnSessao.style.cssText = "padding: 0; font-size: 16px; width: 40px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 10px;";
