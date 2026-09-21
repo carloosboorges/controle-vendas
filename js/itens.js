@@ -14,7 +14,8 @@ let itemOrigemEdicao = null;
 let itemOrigemEdicaoTipo = null;
 
 function snapVBucksTier(val) {
-  const tiers = [200, 300, 400, 500, 600, 800, 1000, 1200, 1500, 1800, 2000, 2800, 3500, 5000, 8000];
+  // Adicionados patamares maiores para suportar valores altos como 12.500 VB sem travar
+  const tiers = [200, 300, 400, 500, 600, 800, 1000, 1200, 1500, 1800, 2000, 2800, 3500, 5000, 8000, 10000, 12500, 15000, 20000];
   if (!val || val <= 0) return 0;
   let closest = tiers[0];
   let minDiff = Math.abs(val - closest);
@@ -288,7 +289,6 @@ function abrirModalDetalhesItem(nomeItem, tipoItem = "Outro") {
       const vbTotal = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
       const valorTotal = Number(v.valor || 0);
 
-      // Limpando os "R$" de dentro da descrição do item para mandar pro Subtotal!
       const listaItensHtml = Array.isArray(v.itens) && v.itens.length > 0 
         ? v.itens.map((itemObj, n) => {
             let itemText = "", presenteText = "", priceText = "";
@@ -309,7 +309,6 @@ function abrirModalDetalhesItem(nomeItem, tipoItem = "Outro") {
           }).join("") 
         : `🎁 ${esc(v.item)}`;
 
-      // --- LOGICA DO RECIBO DE SUBTOTAL NO MODAL ---
       let breakdownHtmlModal = "";
       const listaItensBreakdown = Array.isArray(v.itens) && v.itens.length > 0 ? v.itens : (v.item ? [{ tipo: "Outro", nome: v.item }] : []);
       
