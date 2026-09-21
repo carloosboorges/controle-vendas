@@ -305,7 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
           <div class="field">
             <label>💬 Observação (opcional)</label>
-            <input id="editObservacaoInput" type="text" maxlength="150" placeholder="Ex.: Cliente pediu para enviar só amanhã" />
+            <input id="editObservacaoInput" type="text" maxlength="1000" placeholder="Ex.: Cliente pediu para enviar só amanhã" />
           </div>
         </div>
 
@@ -421,7 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
           <div class="field">
             <label>💬 Observação (opcional)</label>
-            <input id="retroObservacaoInput" type="text" maxlength="150" placeholder="Ex: Cliente VIP" />
+            <input id="retroObservacaoInput" type="text" maxlength="1000" placeholder="Ex: Cliente VIP" />
           </div>
         </div>
 

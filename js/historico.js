@@ -5,7 +5,6 @@
 let historicoPaginaAtual = 1;
 let historicoTermoBusca = "";
 
-// Verifica se o modo de privacidade global está ativo
 function estaPrivacidadeAtiva() {
   return document.body.classList.contains('privacidade-ativa') || 
          (document.getElementById('historicoTotal') && document.getElementById('historicoTotal').textContent.includes('*'));
@@ -35,7 +34,7 @@ function filtrarHistoricoInput(val) {
 function limparBuscaHistorico() {
   historicoTermoBusca = "";
   historicoPaginaAtual = 1;
-  if (document.getElementById("historySearchInput")) document.getElementById("historySearchInput").value = "";
+  if (document.getElementById("inputBuscaGeralHistorico")) document.getElementById("inputBuscaGeralHistorico").value = "";
   if (document.getElementById("clearSearchBtn")) document.getElementById("clearSearchBtn").style.display = "none";
   render();
 }
@@ -201,13 +200,45 @@ function renderizarListaHistorico() {
       const valorIdealSemDesconto = (vb / 100) * baseMomento;
       const diferencaDesconto = valorIdealSemDesconto - Number(v.valor || 0);
 
-      // Se o desconto for maior que 1 centavo, exibe a tag de aviso de desconto
       const descontoHtml = diferencaDesconto > 0.01 
         ? `<div style="margin-top: 4px; font-size: 11px; color: #ffb74d; font-weight: 700;">🏷️ Desconto aplicado: -${money(diferencaDesconto)}</div>` 
         : "";
 
-      const obsHtml = v.observacao ? `<div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 4px 8px; border-radius: 6px; border-left: 3px solid var(--accent);">💬 <b>Observação:</b> ${esc(v.observacao)}</div>` : "";
+      const obsHtml = v.observacao ? `<div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--accent); white-space: pre-wrap; word-break: break-word;">💬 <b>Observação:</b> ${esc(v.observacao)}</div>` : "";
       
+      const itensHtml = typeof renderizarListaItensHtml === 'function' ? renderizarListaItensHtml(v.itens || [v.item]) : esc(v.item);
+
+      // --- LOGICA DO RECIBO DE SUBTOTAL ---
+      let breakdownHtml = "";
+      const listaItensBreakdown = Array.isArray(v.itens) && v.itens.length > 0 ? v.itens : (v.item ? [{ tipo: "Outro", nome: v.item }] : []);
+      
+      if (listaItensBreakdown.length > 1) {
+          const vbTotal = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+          const valorTotal = Number(v.valor || 0);
+          let linhasSubtotais = "";
+          
+          listaItensBreakdown.forEach(it => {
+              let itName = typeof it === 'string' ? it : (it.nome || "");
+              let itVb = typeof it === 'string' ? 0 : (Number(it.vbucks) || 0);
+              
+              // O Rateio perfeito acontece aqui:
+              if (itVb > 0 && vbTotal > 0) {
+                  let calcRs = (itVb / vbTotal) * valorTotal;
+                  let nLimpo = itName.length > 18 ? itName.substring(0, 18) + "..." : itName;
+                  linhasSubtotais += `<div style="font-size: 11px; color: var(--muted); margin-bottom: 2px;">${esc(nLimpo)}: <span style="color:#fff; font-weight:600;">${money(calcRs)}</span></div>`;
+              }
+          });
+          
+          if (linhasSubtotais) {
+              breakdownHtml = `
+                  <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed rgba(255,255,255,0.15); width: 100%;">
+                      <div style="font-size: 10px; color: var(--accent-light); font-weight: 800; margin-bottom: 4px; text-transform: uppercase;">Subtotais</div>
+                      ${linhasSubtotais}
+                  </div>
+              `;
+          }
+      }
+
       return `
         <div class="history-card">
           <div class="history-main">
@@ -222,18 +253,25 @@ function renderizarListaHistorico() {
                   ${v.tiktok ? `<span>${typeof TIKTOK_SVG !== 'undefined' ? TIKTOK_SVG : '🎵'} <span class="copyable-text" onclick="copiarTexto('${esc(v.tiktok)}', 'TikTok', event)">${esc(v.tiktok)}</span></span>` : `<span>${typeof TIKTOK_SVG !== 'undefined' ? TIKTOK_SVG : '🎵'} —</span>`}
                 </div>
               </div>
-              <div class="history-item" style="margin-top: 8px;">${typeof renderizarListaItensHtml === 'function' ? renderizarListaItensHtml(v.itens || [v.item]) : esc(v.item)}</div>
+              <div class="history-item" style="margin-top: 8px;">${itensHtml}</div>
               <div class="history-date">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
               ${obsHtml}
             </div>
-            <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
-              <div class="history-value">${money(v.valor)}</div>
+            
+            <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; min-width: 130px;">
+              ${breakdownHtml}
+              <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                 ${breakdownHtml ? `<div style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 800; margin-bottom: 2px;">Total da Venda</div>` : ''}
+                 <div class="history-value">${money(v.valor)}</div>
+              </div>
               ${descontoHtml}
             </div>
+            
           </div>
           <div class="history-details">
             <span>🪙 ${formatVBucks(vb)} V-Bucks</span>
             <div class="history-actions">
+              <button type="button" class="btn-gray" style="padding:6px 12px;" onclick="abrirModalDetalhesCliente('${esc(v.clienteId || v.cliente)}', '${esc(v.cliente)}')">👤 Perfil</button>
               <button type="button" class="btn-green" style="padding:6px 12px;" onclick="preencherNovaVenda('${esc(v.cliente).replace(/'/g, "\\'")}', '${esc(v.nickCliente).replace(/'/g, "\\'")}')">♻️ Repetir</button>
               <button type="button" class="btn-gray" onclick="abrirModalEdicaoPorId('${esc(v.id)}')">✏️ Editar</button>
               <button type="button" class="btn-danger" onclick="excluirHistoricoPorId('${esc(v.id)}')">🗑️ Excluir</button>
@@ -271,10 +309,6 @@ function renderizarListaHistorico() {
     renderizarBalancoFinanceiro();
   }
 }
-
-// ========================================================
-// CONTROLE DO BALANÇO FINANCEIRO
-// ========================================================
 
 function abrirPainelContas() {
   const content = document.getElementById("financialBalanceContent");
@@ -375,7 +409,7 @@ function renderizarBalancoFinanceiro() {
           <tr>
             <td style="padding: 12px 10px; text-align: left; font-weight: 900; color: #fff; text-transform: uppercase;">Total Geral</td>
             <td style="padding: 12px 10px; color: #ffb74d; font-weight: 900;">${pVbTabela(totaisGerais.vbucks)}</td>
-            <td style="padding: 12px 10px; color: #ff6b81; font-weight: 900;">${pMoeda(totaisGears = totaisGerais.custo)}</td>
+            <td style="padding: 12px 10px; color: #ff6b81; font-weight: 900;">${pMoeda(totaisGerais.custo)}</td>
             <td style="padding: 12px 10px; color: var(--green); font-weight: 900;">${pMoeda(totaisGerais.lucro)}</td>
             <td style="padding: 12px 10px; color: var(--accent-light); font-weight: 900;">${pMoeda(totaisGerais.bruto)}</td>
           </tr>

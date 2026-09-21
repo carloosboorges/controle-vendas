@@ -7,8 +7,11 @@ let itensTermoBusca = "";
 let itemFiltroCategoria = "";
 let itemOrdenacaoAtual = "mais_vendidos";
 let ocultarLucroItens = false;
+
 let itemEmEdicaoNomeOriginal = null;
+let itemEmEdicaoTipoOriginal = null;
 let itemOrigemEdicao = null;
+let itemOrigemEdicaoTipo = null;
 
 function snapVBucksTier(val) {
   const tiers = [200, 300, 400, 500, 600, 800, 1000, 1200, 1500, 1800, 2000, 2800, 3500, 5000, 8000];
@@ -105,7 +108,8 @@ function renderizarHistoricoItensCompleto() {
       }
 
       if (!nome) return;
-      const chaveKey = nome.toLowerCase();
+      
+      const chaveKey = `${tipo.toLowerCase()}|||${nome.toLowerCase()}`;
 
       if (!itensMap[chaveKey]) {
         itensMap[chaveKey] = {
@@ -191,7 +195,7 @@ function renderizarHistoricoItensCompleto() {
             const lucroFormatado = ocultarLucroItens ? "R$ *****" : money(lucroItem);
 
             return `
-              <tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesItem(\`${item.nomeOriginal.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`)">
+              <tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesItem(\`${item.nomeOriginal.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`, \`${item.tipo.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`)">
                 <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">🎁 ${esc(item.nomeOriginal)} 🔍</td>
                 <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:#fff; font-weight:600;">
                   <span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;">${esc(item.tipo)}</span>
@@ -225,24 +229,14 @@ function renderizarHistoricoItensCompleto() {
   }
 }
 
-function abrirModalDetalhesItem(nomeItem) {
+function abrirModalDetalhesItem(nomeItem, tipoItem = "Outro") {
   const modal = document.getElementById("itemDetalhesModal");
   const modalHead = modal?.querySelector(".modal-head");
   const listaContainer = document.getElementById("detalhesItemListaCompradores");
   if (!modal || !listaContainer) return;
 
-  let tipoAtual = "Outro";
+  const tipoAtual = tipoItem;
   const historico = state.historicoVendas || [];
-  for (let v of historico) {
-    const lista = Array.isArray(v.itens) && v.itens.length ? v.itens : (v.item ? [v.item] : []);
-    for (let it of lista) {
-      let itName = typeof it === 'string' ? it : (it.nome || '');
-      if (itName.trim().toLowerCase() === nomeItem.toLowerCase() && typeof it === 'object' && it.tipo) {
-        tipoAtual = it.tipo;
-        break;
-      }
-    }
-  }
 
   if (modalHead) {
     modalHead.style.display = "block";
@@ -253,12 +247,12 @@ function abrirModalDetalhesItem(nomeItem) {
 
         <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; padding-right: 50px; gap: 10px; flex-wrap: wrap;">
           <div style="font-size: 12px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-top: 10px;">
-            📦 Detalhes do Item
+            📦 Detalhes do Item (${esc(tipoAtual)})
           </div>
           
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
             <button type="button" class="btn-gray" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="abrirModalEdicaoItem(\`${nomeItem.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`, \`${tipoAtual.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`)">✏️ Editar Item</button>
-            <button type="button" class="btn-danger" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="excluirItemDoHistorico(\`${nomeItem.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`); fecharModalDetalhesItem();">🗑️ Excluir Item</button>
+            <button type="button" class="btn-danger" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="excluirItemDoHistorico(\`${nomeItem.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`, \`${tipoAtual.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`); fecharModalDetalhesItem();">🗑️ Excluir Item</button>
           </div>
         </div>
         
@@ -277,7 +271,9 @@ function abrirModalDetalhesItem(nomeItem) {
     const listaItens = Array.isArray(v.itens) && v.itens.length > 0 ? v.itens : (v.item ? [{ tipo: "Outro", nome: v.item }] : []);
     const comprouEsteItem = listaItens.some(itemObj => {
       let nome = typeof itemObj === "string" ? itemObj : (itemObj?.nome || "");
-      return String(nome).trim().toLowerCase() === nomeItem.toLowerCase();
+      let tipo = typeof itemObj === "string" ? "Outro" : (itemObj?.tipo || "Outro");
+      
+      return String(nome).trim().toLowerCase() === nomeItem.toLowerCase() && String(tipo).trim().toLowerCase() === tipoAtual.toLowerCase();
     });
 
     if (comprouEsteItem) {
@@ -286,13 +282,16 @@ function abrirModalDetalhesItem(nomeItem) {
   });
 
   if (pedidosComItem.length === 0) {
-    listaContainer.innerHTML = `<div style="text-align:center; padding:20px; color:var(--muted); font-size:13px;">Nenhum pedido encontrado para este item.</div>`;
+    listaContainer.innerHTML = `<div style="text-align:center; padding:20px; color:var(--muted); font-size:13px;">Nenhum pedido encontrado para este item exato.</div>`;
   } else {
     listaContainer.innerHTML = pedidosComItem.reverse().map((v) => {
-      const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+      const vbTotal = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+      const valorTotal = Number(v.valor || 0);
+
+      // Limpando os "R$" de dentro da descrição do item para mandar pro Subtotal!
       const listaItensHtml = Array.isArray(v.itens) && v.itens.length > 0 
         ? v.itens.map((itemObj, n) => {
-            let itemText = "", presenteText = "";
+            let itemText = "", presenteText = "", priceText = "";
             if (typeof itemObj === "string") {
               itemText = itemObj;
             } else if (itemObj) {
@@ -300,10 +299,42 @@ function abrirModalDetalhesItem(nomeItem) {
               if (itemObj.presente) {
                 presenteText = `<span style="color:var(--accent-light); font-size:12px; margin-left:8px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-flex; align-items:center;">➡️ 🎁 Para: <b>${esc(itemObj.presente)}</b></span>`;
               }
+              
+              let itemVb = Number(itemObj.vbucks) || 0;
+              if (itemVb > 0) {
+                 priceText = `<span style="color:#ffb74d; font-size:11px; margin-left:6px; background: rgba(255, 183, 77, 0.15); padding: 2px 6px; border-radius: 6px; font-weight:700; white-space:nowrap;">🪙 ${formatVBucks(itemVb)} VB</span>`;
+              }
             }
-            return `<div style="margin-bottom: 4px;">🎁 ${n + 1}. <b>${esc(itemText)}</b> ${presenteText}</div>`;
+            return `<div style="margin-bottom: 6px; display:flex; align-items:center; flex-wrap:wrap; line-height: 1.4;"><span style="white-space:nowrap;">🎁 ${n + 1}. </span><b style="margin-left:4px; white-space:nowrap;">${esc(itemText)}</b> ${priceText} ${presenteText}</div>`;
           }).join("") 
         : `🎁 ${esc(v.item)}`;
+
+      // --- LOGICA DO RECIBO DE SUBTOTAL NO MODAL ---
+      let breakdownHtmlModal = "";
+      const listaItensBreakdown = Array.isArray(v.itens) && v.itens.length > 0 ? v.itens : (v.item ? [{ tipo: "Outro", nome: v.item }] : []);
+      
+      if (listaItensBreakdown.length > 1) {
+          let linhasSubtotais = "";
+          listaItensBreakdown.forEach(it => {
+              let itName = typeof it === 'string' ? it : (it.nome || "");
+              let itVb = typeof it === 'string' ? 0 : (Number(it.vbucks) || 0);
+              
+              if (itVb > 0 && vbTotal > 0) {
+                  let calcRs = (itVb / vbTotal) * valorTotal;
+                  let nLimpo = itName.length > 15 ? itName.substring(0, 15) + "..." : itName;
+                  linhasSubtotais += `<div style="font-size: 11px; color: var(--muted); margin-bottom: 2px;">${esc(nLimpo)}: <span style="color:#fff; font-weight:600;">${money(calcRs)}</span></div>`;
+              }
+          });
+          
+          if (linhasSubtotais) {
+              breakdownHtmlModal = `
+                  <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed rgba(255,255,255,0.15); width: 100%;">
+                      <div style="font-size: 10px; color: var(--accent-light); font-weight: 800; margin-bottom: 4px; text-transform: uppercase;">Subtotais</div>
+                      ${linhasSubtotais}
+                  </div>
+              `;
+          }
+      }
 
       return `
         <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); padding: 14px; border-radius: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
@@ -314,10 +345,16 @@ function abrirModalDetalhesItem(nomeItem) {
             <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.06);">${listaItensHtml}</div>
             <div style="color: var(--muted); font-size: 11px; margin-top: 2px;">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
           </div>
-          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-            <div style="color: var(--green); font-size: 17px; font-weight: 900; white-space: nowrap;">${money(v.valor)}</div>
-            <div style="color: #ffb74d; font-size: 12px; font-weight: 800; white-space: nowrap;">🪙 ${formatVBucks(vb)} VB</div>
+          
+          <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; min-width: 130px;">
+            ${breakdownHtmlModal}
+            <div style="display: flex; flex-direction: column; align-items: flex-end;">
+               ${breakdownHtmlModal ? `<div style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 800; margin-bottom: 2px;">Total da Venda</div>` : ''}
+               <div style="color: var(--green); font-size: 17px; font-weight: 900; white-space: nowrap;">${money(v.valor)}</div>
+            </div>
+            <div style="color: #ffb74d; font-size: 12px; font-weight: 800; white-space: nowrap;">🪙 ${formatVBucks(vbTotal)} VB</div>
           </div>
+          
         </div>
       `;
     }).join("");
@@ -334,7 +371,9 @@ function fecharModalDetalhesItem() {
 function abrirModalEdicaoItem(nome, tipo) {
   fecharModalDetalhesItem();
   itemOrigemEdicao = nome;
+  itemOrigemEdicaoTipo = tipo;
   itemEmEdicaoNomeOriginal = nome;
+  itemEmEdicaoTipoOriginal = tipo;
 
   const modal = document.getElementById("editItemModal");
   const inputNome = document.getElementById("editItemNomeInput");
@@ -354,7 +393,8 @@ function abrirModalEdicaoItem(nome, tipo) {
     const lista = Array.isArray(v.itens) && v.itens.length ? v.itens : (v.item ? [v.item] : []);
     for (let it of lista) {
       let itName = typeof it === 'string' ? it : (it.nome || '');
-      if (itName.trim().toLowerCase() === nome.toLowerCase()) {
+      let itTipo = typeof it === 'string' ? 'Outro' : (it.tipo || 'Outro');
+      if (itName.trim().toLowerCase() === nome.toLowerCase() && itTipo.trim().toLowerCase() === tipo.toLowerCase()) {
         if (it && typeof it === 'object' && it.vbucks) {
           encontradoVb = it.vbucks;
           break;
@@ -372,16 +412,22 @@ function fecharModalEdicaoItem() {
   if (modal) modal.style.display = "none";
   
   const nomeRetorno = itemOrigemEdicao;
+  const tipoRetorno = itemOrigemEdicaoTipo;
+  
   itemOrigemEdicao = null;
+  itemOrigemEdicaoTipo = null;
   itemEmEdicaoNomeOriginal = null;
+  itemEmEdicaoTipoOriginal = null;
   
   if (nomeRetorno) {
-    abrirModalDetalhesItem(nomeRetorno);
+    abrirModalDetalhesItem(nomeRetorno, tipoRetorno);
   }
 }
 
 function salvarEdicaoItem() {
   const nomeAntigo = String(itemEmEdicaoNomeOriginal || "").trim().toLowerCase();
+  const tipoAntigo = String(itemEmEdicaoTipoOriginal || "Outro").trim().toLowerCase();
+  
   const novoNome = document.getElementById("editItemNomeInput")?.value.trim();
   const novoTipo = document.getElementById("editItemTipoSelect")?.value;
   const novoVbucks = parseInt(document.getElementById("editItemVbucksInput")?.value, 10) || 0;
@@ -396,31 +442,38 @@ function salvarEdicaoItem() {
     lista.forEach(v => {
       let modificado = false;
       if (Array.isArray(v.itens)) {
-        v.itens.forEach(itemObj => {
+        v.itens.forEach((itemObj, idx) => {
+          let nomeAtual = "";
+          let tipoAtual = "Outro";
+          
           if (itemObj && typeof itemObj === "object") {
-            let nomeAtual = String(itemObj.nome || "").trim().toLowerCase();
-            if (nomeAtual === nomeAntigo || nomeAtual.includes(nomeAntigo) || nomeAntigo.includes(nomeAtual)) {
+            nomeAtual = String(itemObj.nome || "").trim().toLowerCase();
+            tipoAtual = String(itemObj.tipo || "Outro").trim().toLowerCase();
+          } else if (typeof itemObj === "string") {
+            nomeAtual = String(itemObj).trim().toLowerCase();
+            tipoAtual = "outro";
+          }
+
+          if (nomeAtual === nomeAntigo && tipoAtual === tipoAntigo) {
+            if (typeof itemObj === "string") {
+              v.itens[idx] = { tipo: novoTipo || "Outro", nome: novoNome, vbucks: novoVbucks, presente: "" };
+            } else {
               itemObj.nome = novoNome;
               if (novoTipo) itemObj.tipo = novoTipo;
               if (novoVbucks > 0) itemObj.vbucks = novoVbucks;
-              modificado = true;
             }
-          } else if (typeof itemObj === "string") {
-            let nomeAtual = itemObj.trim().toLowerCase();
-            if (nomeAtual === nomeAntigo || nomeAtual.includes(nomeAntigo) || nomeAtual.includes(nomeAtual)) {
-              const idx = v.itens.indexOf(itemObj);
-              if (idx !== -1) {
-                v.itens[idx] = { tipo: novoTipo || "Outro", nome: novoNome, vbucks: novoVbucks, presente: "" };
-                modificado = true;
-              }
-            }
+            modificado = true;
           }
         });
       }
+      
       if (v.item) {
         let nomeUnico = typeof v.item === "string" ? v.item : (v.item.nome || "");
+        let tipoUnico = typeof v.item === "string" ? "outro" : (v.item.tipo || "Outro");
         let nomeAtualUnico = String(nomeUnico).trim().toLowerCase();
-        if (nomeAtualUnico === nomeAntigo || nomeAtualUnico.includes(nomeAntigo) || nomeAtualUnico.includes(nomeAtualUnico)) {
+        let tipoAtualUnico = String(tipoUnico).trim().toLowerCase();
+        
+        if (nomeAtualUnico === nomeAntigo && tipoAtualUnico === tipoAntigo) {
           if (typeof v.item === "string") {
             v.item = { tipo: novoTipo || "Outro", nome: novoNome, vbucks: novoVbucks, presente: "" };
           } else if (v.item && typeof v.item === "object") {
@@ -452,21 +505,25 @@ function salvarEdicaoItem() {
   if (modalEdicao) modalEdicao.style.display = "none";
   
   const nomeParaReabrir = novoNome;
+  const tipoParaReabrir = novoTipo;
+  
   itemOrigemEdicao = null;
+  itemOrigemEdicaoTipo = null;
   itemEmEdicaoNomeOriginal = null;
+  itemEmEdicaoTipoOriginal = null;
   
   mostrarNotificacao("Item e V-Bucks atualizados em todo o histórico!", "sucesso");
   if (abaHistoricoAtiva === 'itens') renderizarHistoricoItensCompleto();
   if (typeof render === 'function') render();
   
-  abrirModalDetalhesItem(nomeParaReabrir);
+  abrirModalDetalhesItem(nomeParaReabrir, tipoParaReabrir);
 }
 
-function excluirItemDoHistorico(nomeItem) {
+function excluirItemDoHistorico(nomeItem, tipoItem) {
   if (typeof abrirModalConfirmacao === 'function') {
     abrirModalConfirmacao(
       "🗑️ Excluir Item do Histórico",
-      `Tem certeza que deseja remover o item "${nomeItem}" de todas as vendas registradas?`,
+      `Tem certeza que deseja remover o item "${tipoItem} – ${nomeItem}" de todas as vendas registradas?`,
       () => {
         const limparItensLista = (lista) => {
           if (!lista) return;
@@ -474,7 +531,12 @@ function excluirItemDoHistorico(nomeItem) {
             if (Array.isArray(v.itens)) {
               v.itens = v.itens.filter(itemObj => {
                 let nomeAtual = typeof itemObj === "string" ? itemObj : (itemObj?.nome || "");
-                return String(nomeAtual).trim().toLowerCase() !== String(nomeItem).trim().toLowerCase();
+                let tipoAtual = typeof itemObj === "string" ? "Outro" : (itemObj?.tipo || "Outro");
+                
+                const isMatch = String(nomeAtual).trim().toLowerCase() === String(nomeItem).trim().toLowerCase() &&
+                                String(tipoAtual).trim().toLowerCase() === String(tipoItem).trim().toLowerCase();
+                                
+                return !isMatch; 
               });
             }
           });

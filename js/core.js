@@ -1,8 +1,24 @@
+// ==========================================
+// MÓDULO DE CORE (Estado Global e Utilitários)
+// ==========================================
+
 const SUPABASE_URL = "https://oyitmutmtvuoynwhiymy.supabase.co";
 const SUPABASE_KEY = "sb_publishable_6e1fQtQfhVa8LjWUbdPrJw_IwhhxLRF";
 const CATEGORIAS_ITENS = ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
 const MARGEM_LUCRO = 100 / 310;
 const MARGEM_CUSTO = 210 / 310;
+
+// Tabela Oficial de Preços Especiais (A partir de 2.000 V-Bucks) - Mapeada da arte oficial
+const TABELA_PRECOS_ESPECIAIS = {
+  2000: 48.00,  2200: 52.50,  2400: 57.00,  2500: 59.00,  2600: 61.00,
+  2800: 65.50,  3000: 70.00,  3200: 75.00,  3400: 80.00,  3500: 82.50,
+  3600: 85.00,  3800: 90.00,  4000: 95.00,  4200: 100.00, 4400: 105.00,
+  4500: 107.50, 4600: 110.00, 4800: 115.00, 5000: 120.00, 5500: 130.00,
+  6000: 140.00, 6500: 150.00, 7000: 160.00, 7500: 170.00, 8000: 180.00,
+  8500: 190.00, 9000: 200.00, 9500: 210.00, 10000: 220.00, 10500: 230.00,
+  11000: 240.00, 11500: 250.00, 12000: 260.00, 12500: 270.00
+};
+
 const DADOS_DEMO = {
   contas: [
     { nome: "Putz0101", ativa: true, usadas: 0, vbucks: 10000 },
@@ -10,7 +26,10 @@ const DADOS_DEMO = {
   ],
   vendas: [],
   reservas: [],
-  valorBase100: 2.5,
+  valorBase100: 2.5,        // Valor base normal padrão (ex: R$ 2,50)
+  valorBasePromo: 2.00,     // Valor base promocional de volume (ex: R$ 2,00)
+  modoPrecificacao: "padrao", // "padrao", "global_promo", "volume_promo"
+  limiteVolumePromo: 1500,   // Limite mínimo em V-Bucks para ativar a promoção por volume
   historicoVendas: [],
   lixeiraVendas: [],
   apoiadorRegistros: {},
@@ -150,9 +169,11 @@ function sanitizarDados() {
   if (!state.clientesInfo) state.clientesInfo = {};
   if (!Array.isArray(state.agendamentos)) state.agendamentos = [];
   if (!state.sessaoIniciadaEm) state.sessaoIniciadaEm = Date.now();
+  if (!state.modoPrecificacao) state.modoPrecificacao = "padrao";
+  if (!state.limiteVolumePromo) state.limiteVolumePromo = 1500;
+  if (!state.valorBasePromo) state.valorBasePromo = 2.00;
 }
 
-// Essa função estava faltando e quebrava o Adicionar Venda!
 function sincronizarDadosCliente(nome, whatsapp, tiktok) {
   if (!nome) return;
   const nomeTrim = String(nome).trim();
@@ -376,9 +397,100 @@ function criarTimerReserva(conta, vendaId) {
   };
 }
 
+// -------------------------------------------------------------
+// MOTOR DE CÁLCULO INTELIGENTE DE PREÇOS E V-BUCKS
+// -------------------------------------------------------------
+function calcularPrecoInteligente(vbucks) {
+  const vb = Number(vbucks) || 0;
+  if (vb <= 0) return 0;
+
+  const modo = state?.modoPrecificacao || 'padrao';
+  const baseNormal = Number(state?.valorBase100 || 2.5); // Valor padrão (ex: R$ 2,50)
+  const basePromo = Number(state?.valorBasePromo || 2.00); // Valor promocional de volume (ex: R$ 2,00)
+  const limiteVolume = Number(state?.limiteVolumePromo || 1500); // Limite de V-Bucks
+
+  // MODO 2: Valor Base Global (Usa a base geral para TUDO)
+  if (modo === 'global_promo') {
+    return (vb / 100) * baseNormal;
+  }
+
+  // MODO 3: Promoção por Volume (Independente)
+  if (modo === 'volume_promo') {
+    if (vb >= limiteVolume) {
+      // Atingiu ou passou do limite: aplica o valor base promocional configurado (ex: R$ 2,00)
+      return (vb / 100) * basePromo;
+    } else {
+      // Abaixo do limite: aplica a regra padrão (abaixo de 2000 usa base normal R$ 2,50)
+      if (vb < 2000) {
+        return (vb / 100) * baseNormal;
+      }
+      if (TABELA_PRECOS_ESPECIAIS[vb]) return TABELA_PRECOS_ESPECIAIS[vb];
+    }
+  }
+
+  // MODO 1: Padrão (Abaixo de 2.000 usa base normal R$ 2,50; acima de 2.000 usa a Tabela Especial)
+  if (vb < 2000) {
+    return (vb / 100) * baseNormal; 
+  }
+
+  if (TABELA_PRECOS_ESPECIAIS[vb]) {
+    return TABELA_PRECOS_ESPECIAIS[vb];
+  }
+
+  const chaves = Object.keys(TABELA_PRECOS_ESPECIAIS).map(Number).sort((a, b) => a - b);
+  if (vb > chaves[chaves.length - 1]) {
+    const ultimoVb = chaves[chaves.length - 1];
+    const ultimoPreco = TABELA_PRECOS_ESPECIAIS[ultimoVb];
+    return (vb / ultimoVb) * ultimoPreco;
+  }
+
+  let menor = chaves[0];
+  let maior = chaves[chaves.length - 1];
+
+  for (let i = 0; i < chaves.length - 1; i++) {
+    if (vb > chaves[i] && vb < chaves[i + 1]) {
+      menor = chaves[i];
+      maior = chaves[i + 1];
+      break;
+    }
+  }
+
+  const precoMenor = TABELA_PRECOS_ESPECIAIS[menor];
+  const precoMaior = TABELA_PRECOS_ESPECIAIS[maior];
+  
+  const proporcao = (vb - menor) / (maior - menor);
+  const precoCalculado = precoMenor + (proporcao * (precoMaior - precoMenor));
+
+  return Number(precoCalculado.toFixed(2));
+}
+
 function valorParaVBucks(valor, baseCustom) {
-  const base = Number(baseCustom || state?.valorBase100 || 2.5);
-  return Math.round((Number(valor) / base) * 100);
+  const val = Number(valor) || 0;
+  if (val <= 0) return 0;
+  
+  const modo = state?.modoPrecificacao || 'padrao';
+  const baseNormal = Number(baseCustom || state?.valorBase100 || 2.5);
+  const basePromo = Number(state?.valorBasePromo || 2.00);
+
+  for (let [vb, preco] of Object.entries(TABELA_PRECOS_ESPECIAIS)) {
+    if (Math.abs(Number(preco) - val) <= 0.20) {
+      return Number(vb);
+    }
+  }
+
+  if (modo === 'global_promo') {
+    return Math.round((val / baseNormal) * 100);
+  }
+
+  if (modo === 'volume_promo') {
+    const limiteVolume = Number(state?.limiteVolumePromo || 1500);
+    const precoLimite = (limiteVolume / 100) * basePromo;
+    if (val >= precoLimite) {
+      return Math.round((val / basePromo) * 100);
+    }
+  }
+
+  return Math.round((val / baseNormal) * 100);
 }
 
 function totais() {
@@ -394,8 +506,8 @@ function parseItemString(str) {
   
   if (!sep) return { tipo: "Outro", nome: s };
   
-  const partes = s.split(sep);
-  const match = CATEGORIAS_ITENS.find(c => c.toLowerCase() === partes[0].trim().toLowerCase());
+  let partes = s.split(sep);
+  let match = CATEGORIAS_ITENS.find(c => c.toLowerCase() === partes[0].trim().toLowerCase());
   
   return match
     ? { tipo: match, nome: partes.slice(1).join(sep).trim() }
@@ -411,6 +523,6 @@ function formatItemString(tipo, nome) {
 function extrairApenasNomeItem(itemStr) {
   if (!itemStr) return "";
   if (typeof itemStr === 'object') return itemStr.nome || "";
-  const { nome } = parseItemString(itemStr);
+  let { nome } = parseItemString(itemStr);
   return nome || itemStr;
 }

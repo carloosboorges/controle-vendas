@@ -46,7 +46,7 @@ function adicionarVenda() {
   }
 
   const somaVbucksItens = itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
-  const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : Math.round((valorDigitado / baseAtual) * 100);
+  const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : (typeof valorParaVBucks === 'function' ? valorParaVBucks(valorDigitado) : Math.round((valorDigitado / baseAtual) * 100));
 
   const contaObj = (state.contas || []).find(c => c.nome === conta);
   if (Number(contaObj?.vbucks) < vbucksNecessarios) {
@@ -61,7 +61,6 @@ function adicionarVenda() {
     clienteId = "cli-" + agora + "-" + Math.random().toString(36).substr(2, 4);
   }
 
-  // Correção definitiva: Busca rigorosa e correta do WhatsApp e TikTok salvos do cliente
   if ((!whatsapp || !tiktok) && clienteId) {
     const infoCli = (state.clientesInfo || {})[clienteId];
     if (infoCli) {
@@ -181,7 +180,7 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
           <label style="font-size:12px;">Item ${idx + 1}</label>
           ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove()">✕</button>` : ""}
         </div>
-        <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
           <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
           <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;">
@@ -233,8 +232,8 @@ function salvarEdicaoVenda() {
   }
 
   const somaVbucksNovos = novosItens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
-  const novoVbucks = somaVbucksNovos > 0 ? somaVbucksNovos : Math.round((valor / (venda.valorBaseMomento || state.valorBase100 || 2.5)) * 100);
-  const vbucksAntigo = venda.vbucks !== undefined ? Number(venda.vbucks) : valorParaVBucks(venda.valor, venda.valorBaseMomento);
+  const novoVbucks = somaVbucksNovos > 0 ? somaVbucksNovos : (typeof valorParaVBucks === 'function' ? valorParaVBucks(valor) : Math.round((valor / (venda.valorBaseMomento || state.valorBase100 || 2.5)) * 100));
+  const vbucksAntigo = venda.vbucks !== undefined ? Number(venda.vbucks) : (typeof valorParaVBucks === 'function' ? valorParaVBucks(venda.valor, venda.valorBaseMomento) : 0);
 
   if (!isAgendamento && (venda.conta !== novaConta || venda.vbucks !== novoVbucks)) {
     const cAntiga = state.contas.find(c => c.nome === venda.conta);
@@ -517,6 +516,20 @@ function adicionarTimerManual(nomeConta) {
       mostrarNotificacao(`Envio manual ativado na conta ${nomeConta}!`, "sucesso");
     });
   }
+}
+
+function alterarModoPrecificacao(novoModo) {
+  if (!state) return;
+  state.modoPrecificacao = novoModo;
+  if (typeof save === 'function') save();
+  if (typeof render === 'function') render();
+  
+  const nomesModos = {
+    'padrao': 'Modo Padrão (Tabela + Base)',
+    'global_promo': 'Valor Base Global',
+    'volume_promo': 'Promoção por Volume'
+  };
+  mostrarNotificacao(`🔄 Modo alterado para: ${nomesModos[novoModo] || novoModo}`, "sucesso");
 }
 
 const elLimparTudo = document.getElementById("limparTudoBtn");

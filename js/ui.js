@@ -42,7 +42,6 @@ function mudarAbaHistorico(aba) {
   else if (aba === 'itens' && typeof renderizarHistoricoItensCompleto === 'function') renderizarHistoricoItensCompleto();
 }
 
-// Função para incrementar ou decrementar a quantidade de itens com os botões customizados
 function alterarQtdItens(delta) {
   const input = document.getElementById("quantidadeInput");
   if (!input) return;
@@ -53,12 +52,10 @@ function alterarQtdItens(delta) {
   if (typeof atualizarCamposItens === 'function') atualizarCamposItens();
 }
 
-// FECHAR MODAIS E POPOVERS COM A TECLA ESC (GLOBAL)
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     let fechouAlgumModal = false;
 
-    // Lista de IDs de modais no sistema
     const modaisIds = [
       "authModal",
       "clienteDetalhesModal",
@@ -86,7 +83,6 @@ document.addEventListener("keydown", (e) => {
       }
     });
 
-    // Fecha popovers de calendário e dropdowns de autocomplete abertos
     if (typeof calPopoverAberto !== 'undefined') calPopoverAberto = false;
     if (typeof mesPopoverAberto !== 'undefined') mesPopoverAberto = false;
     if (typeof anoPopoverAberto !== 'undefined') anoPopoverAberto = false;
@@ -232,20 +228,35 @@ function preencherNovaVendaModal(nome, nick) {
   preencherNovaVenda(nome, nick);
 }
 
-function renderizarListaItensHtml(itens) {
+function renderizarListaItensHtml(itens, vObj = null) {
   if (!Array.isArray(itens) || itens.length === 0) return "🎁 —";
+  
   return itens.map((itemObj, n) => {
-    let itemText = "", presenteText = "", copyText = "";
+    let itemText = "", presenteText = "", copyText = "", priceText = "";
+    
     if (typeof itemObj === "string") {
       itemText = itemObj; copyText = typeof extrairApenasNomeItem === 'function' ? extrairApenasNomeItem(itemObj) : itemObj;
     } else if (itemObj) {
       itemText = typeof formatItemString === 'function' ? formatItemString(itemObj.tipo, itemObj.nome) : itemObj.nome;
       copyText = itemObj.nome;
+      
       if (itemObj.presente) {
         presenteText = `<span style="color:var(--accent-light); font-size:12px; margin-left:8px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-flex; align-items:center; white-space:nowrap;">➡️ 🎁 Para: <span class="copyable-text" onclick="copiarTexto('${esc(itemObj.presente)}', 'Nick Presente', event)" style="margin:0 0 0 4px; padding:0; white-space:nowrap;">${esc(itemObj.presente)}</span></span>`;
       }
+      
+      let itemVb = Number(itemObj.vbucks) || 0;
+      if (itemVb > 0) {
+         priceText = `<span style="color:#ffb74d; font-size:11px; margin-left:6px; background: rgba(255, 183, 77, 0.15); padding: 2px 6px; border-radius: 6px; font-weight:700; white-space:nowrap;">🪙 ${formatVBucks(itemVb)} VB</span>`;
+      }
     }
-    return `<div style="margin-bottom: 6px; display: flex; align-items: center; flex-wrap: nowrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">🎁 ${n + 1}. <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" style="margin-left: 4px; white-space: nowrap;">${esc(itemText)}</span>${presenteText}</div>`;
+    
+    return `
+      <div style="margin-bottom: 6px; display: flex; align-items: center; flex-wrap: wrap; line-height: 1.4;">
+        <span style="white-space: nowrap;">🎁 ${n + 1}. </span>
+        <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" style="margin-left: 4px; white-space: nowrap; font-weight: 600;">${esc(itemText)}</span>
+        ${priceText}
+        ${presenteText}
+      </div>`;
   }).join("");
 }
 
@@ -263,12 +274,29 @@ function toggleBalancoFinanceiro() {
 }
 
 function atualizarPreviewVBucks() {
-  const input = document.getElementById("valorInput");
   const badge = document.getElementById("valorVbucksPreview");
   if (!badge) return;
+
+  const inputQtd = document.getElementById("quantidadeInput");
+  const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
+  
+  let somaVb = 0;
+  // Soma os V-Bucks de TODOS os itens da tela!
+  for (let i = 0; i < qtd; i++) {
+    const itemVbInput = document.getElementById(`itemVbucksInput_${i}`);
+    if (itemVbInput && itemVbInput.value) {
+      somaVb += parseInt(itemVbInput.value, 10) || 0;
+    }
+  }
+
+  if (somaVb > 0) {
+    badge.textContent = `🪙 ${somaVb.toLocaleString("pt-BR")} V-Bucks`;
+    return;
+  }
+
+  const input = document.getElementById("valorInput");
   const val = parseFloat(input?.value) || 0;
-  const base = Number(state?.valorBase100 || 2.5);
-  const vb = val > 0 ? Math.round((val / base) * 100) : 0;
+  const vb = val > 0 && typeof valorParaVBucks === 'function' ? valorParaVBucks(val) : 0;
   badge.textContent = `🪙 ${vb.toLocaleString("pt-BR")} V-Bucks`;
 }
 
@@ -277,8 +305,7 @@ function atualizarPreviewVBucksEdicao() {
   const badge = document.getElementById("editVbucksPreview");
   if (!badge) return;
   const val = parseFloat(input?.value) || 0;
-  const base = Number(state?.valorBase100 || 2.5);
-  const vb = val > 0 ? Math.round((val / base) * 100) : 0;
+  const vb = val > 0 && typeof valorParaVBucks === 'function' ? valorParaVBucks(val) : 0;
   badge.textContent = `🪙 ${vb.toLocaleString("pt-BR")} V-Bucks`;
 }
 
@@ -343,8 +370,7 @@ function recalcularValorSugeridoPorItem() {
     }
   }
   if (somaVb > 0) {
-    const base = Number(state?.valorBase100 || 2.5);
-    const valorSugerido = (somaVb / 100) * base;
+    const valorSugerido = typeof calcularPrecoInteligente === 'function' ? calcularPrecoInteligente(somaVb) : (somaVb / 100) * Number(state?.valorBase100 || 2.5);
     const valorInput = document.getElementById("valorInput");
     if (valorInput) {
       valorInput.value = valorSugerido.toFixed(2);
@@ -359,29 +385,45 @@ function atualizarCamposItens() {
   const container = document.getElementById("itensGroupContainer");
   if (!container) return;
   
-  const categoriasArray = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
-  const optionsHtml = categoriasArray.map(c => `<option value="${c}">${c}</option>`).join("");
+  // Salva o que já estava digitado na tela!
+  const valoresSalvos = [];
+  for (let i = 0; i < container.children.length; i++) {
+    valoresSalvos.push({
+      tipo: document.getElementById(`itemTypeSelect_${i}`)?.value || "Traje",
+      nome: document.getElementById(`itemNameInput_${i}`)?.value || "",
+      vbucks: document.getElementById(`itemVbucksInput_${i}`)?.value || "",
+      presente: document.getElementById(`itemPresenteInput_${i}`)?.value || ""
+    });
+  }
   
-  container.innerHTML = Array.from({ length: qtd }, (_, i) => `
+  const categoriasArray = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
+  
+  container.innerHTML = Array.from({ length: qtd }, (_, i) => {
+    // Resgata o valor se ele existir, ou põe vazio se for um item novinho
+    const saved = valoresSalvos[i] || { tipo: "Traje", nome: "", vbucks: "", presente: "" };
+    const optionsHtml = categoriasArray.map(c => `<option value="${c}" ${c === saved.tipo ? "selected" : ""}>${c}</option>`).join("");
+    
+    return `
     <div class="item-picker-box" style="margin-bottom: 8px; width: 100%;">
       <div class="item-picker-row" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
         <select class="item-type-select" id="itemTypeSelect_${i}" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
         
         <div style="position: relative; flex: 2; min-width: 140px;">
-          <input class="item-name-input" id="itemNameInput_${i}" type="text" maxlength="120" placeholder="Item Vendido" style="width: 100%; padding: 10px;" oninput="typeof buscarSugestoesItem === 'function' ? buscarSugestoesItem(this.value, ${i}) : null" autocomplete="off">
+          <input class="item-name-input" id="itemNameInput_${i}" type="text" maxlength="120" placeholder="Item Vendido" style="width: 100%; padding: 10px;" oninput="typeof buscarSugestoesItem === 'function' ? buscarSugestoesItem(this.value, ${i}) : null" autocomplete="off" value="${saved.nome.replace(/"/g, '&quot;')}">
           <div id="itemSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
 
         <div style="flex: 0.8; min-width: 85px;">
-          <input class="item-vbucks-input" id="itemVbucksInput_${i}" type="number" step="50" min="0" placeholder="V-Bucks" value="" style="width: 100%; padding: 10px; text-align: center;" oninput="recalcularValorSugeridoPorItem()" title="Digite o V-Bucks oficial deste item se houver desconto ou pacotes">
+          <input class="item-vbucks-input" id="itemVbucksInput_${i}" type="number" step="50" min="0" placeholder="V-Bucks" style="width: 100%; padding: 10px; text-align: center;" oninput="recalcularValorSugeridoPorItem(); atualizarPreviewVBucks();" title="Digite o V-Bucks oficial deste item se houver desconto ou pacotes" value="${saved.vbucks.replace(/"/g, '&quot;')}">
         </div>
 
         <div style="position: relative; flex: 1.5; min-width: 120px;">
-          <input class="item-name-input" id="itemPresenteInput_${i}" type="text" maxlength="80" placeholder="🎁 P/ Nick" style="width: 100%; padding: 10px;" oninput="typeof sugerirNickPresente === 'function' ? sugerirNickPresente(this.value, ${i}) : null" autocomplete="off">
+          <input class="item-name-input" id="itemPresenteInput_${i}" type="text" maxlength="80" placeholder="🎁 P/ Nick" style="width: 100%; padding: 10px;" oninput="typeof sugerirNickPresente === 'function' ? sugerirNickPresente(this.value, ${i}) : null" autocomplete="off" value="${saved.presente.replace(/"/g, '&quot;')}">
           <div id="nickPresenteSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 }
 
 function render() {
@@ -389,6 +431,44 @@ function render() {
   const baseEl = document.getElementById("valorBaseDisplay");
   if (baseEl) baseEl.textContent = money(state.valorBase100 || 2.5);
   if (typeof limparReservasExpiradas === 'function') limparReservasExpiradas();
+
+  const modoAtual = state?.modoPrecificacao || 'padrao';
+  const btnPadrao = document.getElementById("btnModoPadrao");
+  const btnGlobal = document.getElementById("btnModoGlobal");
+  const btnVolume = document.getElementById("btnModoVolume");
+
+  if (btnPadrao && btnGlobal && btnVolume) {
+    [btnPadrao, btnGlobal, btnVolume].forEach(b => {
+      b.className = "btn-gray";
+    });
+
+    if (modoAtual === 'padrao') {
+      btnPadrao.className = "btn-green";
+    } else if (modoAtual === 'global_promo') {
+      btnGlobal.className = "btn-green";
+    } else if (modoAtual === 'volume_promo') {
+      btnVolume.className = "btn-green";
+    }
+  }
+
+  const configVolumeWrapper = document.getElementById("configVolumeWrapper");
+  const inputValorPromoVolume = document.getElementById("inputValorPromoVolume");
+  const inputLimiteVolume = document.getElementById("inputLimiteVolume");
+  
+  if (configVolumeWrapper) {
+    if (modoAtual === 'volume_promo') {
+      configVolumeWrapper.style.display = "block";
+      if (inputValorPromoVolume && state) inputValorPromoVolume.value = Number(state.valorBasePromo || 2.00).toFixed(2);
+      if (inputLimiteVolume && state) inputLimiteVolume.value = state.limiteVolumePromo || 1500;
+    } else {
+      configVolumeWrapper.style.display = "none";
+      const content = document.getElementById("configVolumeContent");
+      const arrow = document.getElementById("volumeToggleArrow");
+      if (content) content.style.display = "none";
+      if (arrow) arrow.textContent = "▾";
+      if (typeof painelVolumeAberto !== 'undefined') painelVolumeAberto = false;
+    }
+  }
   
   const tSessao = typeof totais === 'function' ? totais() : {};
   if (document.getElementById("totalGeral")) document.getElementById("totalGeral").textContent = maskMoney(money((state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0)));

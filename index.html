@@ -20,7 +20,6 @@
     />
 
     <style>
-      /* Remove as setinhas padrão do input number para aplicar botões customizados */
       input[type="number"]::-webkit-inner-spin-button,
       input[type="number"]::-webkit-outer-spin-button {
         -webkit-appearance: none;
@@ -30,9 +29,22 @@
         -moz-appearance: textfield;
         appearance: textfield;
       }
+      /* Remove o "X" padrão de campos de busca no Chrome/Opera */
+      input[type="search"]::-webkit-search-decoration,
+      input[type="search"]::-webkit-search-cancel-button,
+      input[type="search"]::-webkit-search-results-button,
+      input[type="search"]::-webkit-search-results-decoration {
+        display: none;
+      }
     </style>
   </head>
   <body>
+    <!-- ARMADILHA GLOBAL PARA O OPERA: Campos invisíveis para o navegador preencher e deixar o resto em paz -->
+    <div style="position: absolute; top: -9999px; left: -9999px; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none;">
+      <input type="text" name="fake_username_opera" autocomplete="username" tabindex="-1" />
+      <input type="password" name="fake_password_opera" autocomplete="current-password" tabindex="-1" />
+    </div>
+
     <div class="container">
       <header class="main-header">
         <div class="header-actions-bar">
@@ -58,21 +70,73 @@
         </div>
       </header>
 
+      <!-- PAINEL DE VALOR BASE & MODOS DE PREÇO -->
       <section class="panel pricing-panel">
-        <div class="pricing-box">
-          <div>
-            <div class="label">⚙️ Valor Base</div>
-            <div class="pricing-help">Valor cobrado a cada 100 V-Bucks.</div>
+        <div class="pricing-box" style="flex-direction: column; align-items: stretch; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <div class="label">⚙️ Valor Base & Modos de Preço</div>
+              <div class="pricing-help">Gerencie o valor base e altere o modo de cálculo do site para promoções.</div>
+            </div>
+            <div class="pricing-controls" style="display: flex; align-items: center; gap: 10px;">
+              <strong id="valorBaseDisplay">R$ 2,50</strong>
+              <button
+                type="button"
+                class="btn-gray"
+                onclick="abrirModalValorBase()"
+              >
+                ✏️ Alterar Base
+              </button>
+            </div>
           </div>
-          <div class="pricing-controls">
-            <strong id="valorBaseDisplay">R$ 2,50</strong>
+
+          <!-- SELETOR DOS 3 MODOS -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+            <button type="button" class="btn-gray" id="btnModoPadrao" style="flex: 1; min-width: 130px; font-size: 11px; padding: 8px;" onclick="alterarModoPrecificacao('padrao')">🏷️ Padrão (Tabela + Base)</button>
+            <button type="button" class="btn-gray" id="btnModoGlobal" style="flex: 1; min-width: 130px; font-size: 11px; padding: 8px;" onclick="alterarModoPrecificacao('global_promo')">🌐 Valor Base Global</button>
+            <button type="button" class="btn-gray" id="btnModoVolume" style="flex: 1; min-width: 130px; font-size: 11px; padding: 8px;" onclick="alterarModoPrecificacao('volume_promo')">📦 Promoção por Volume</button>
+          </div>
+
+          <!-- PAINEL RETRÁTIL DE CONFIGURAÇÃO DA PROMOÇÃO POR VOLUME -->
+          <div id="configVolumeWrapper" style="display: none; border-top: 1px dashed rgba(142,68,255,0.3); margin-top: 4px; padding-top: 8px;">
             <button
               type="button"
-              class="btn-gray"
-              onclick="abrirModalValorBase()"
+              class="btn-financial-toggle"
+              onclick="togglePainelVolumeRetratil()"
+              style="width: 100%; display: flex; justify-content: space-between; align-items: center; background: rgba(142,68,255,0.1); border: 1px solid rgba(142,68,255,0.3); color: var(--accent-light); font-weight: 700; font-size: 12px; cursor: pointer; padding: 8px 12px; border-radius: 8px;"
             >
-              ✏️ Alterar
+              <span>⚙️ Configurar Regras da Promoção por Volume</span>
+              <span id="volumeToggleArrow" class="toggle-arrow">▾</span>
             </button>
+
+            <div
+              id="configVolumeContent"
+              style="display: none; flex-direction: column; gap: 10px; background: transparent; border: none; padding: 12px 4px 4px 4px;"
+            >
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <span style="font-size: 12px; color: #fff;">Valor Base Normal (Abaixo do limite):</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="number" id="inputValorBaseNormal" step="0.05" min="0.50" value="2.50" style="width: 90px; padding: 6px; text-align: center; font-weight: bold; background: #090412; border: 1px solid var(--border); color: #fff; border-radius: 6px;" oninput="salvarValorBaseNormal(this.value)" />
+                  <span style="font-size: 12px; color: var(--muted);">R$</span>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <span style="font-size: 12px; color: #fff;">Valor Base Promocional (A partir da meta):</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="number" id="inputValorPromoVolume" step="0.05" min="0.50" value="2.00" style="width: 90px; padding: 6px; text-align: center; font-weight: bold; background: #090412; border: 1px solid var(--border); color: #fff; border-radius: 6px;" oninput="salvarValorPromoVolume(this.value)" />
+                  <span style="font-size: 12px; color: var(--muted);">R$</span>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <span style="font-size: 12px; color: #fff;">Aplicar preço promocional a partir de:</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="number" id="inputLimiteVolume" step="100" min="100" value="1500" style="width: 90px; padding: 6px; text-align: center; font-weight: bold; background: #090412; border: 1px solid var(--border); color: #fff; border-radius: 6px;" oninput="salvarLimiteVolume(this.value)" />
+                  <span style="font-size: 12px; color: var(--muted);">VB</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -121,7 +185,6 @@
             />
           </div>
 
-          <!-- CAMPO DE QUANTIDADE COM BOTÕES CUSTOMIZADOS - / + -->
           <div class="field" style="max-width: 180px; min-width: 140px">
             <label>Quantidade de itens</label>
             <div
@@ -334,12 +397,13 @@
           "
         ></div>
 
+        <!-- CAMPO DE OBSERVAÇÃO AMPLIADO PARA 1000 CARACTERES -->
         <div class="field" style="margin-top: 14px">
           <label>💬 Observação (opcional)</label>
           <input
             id="observacaoInput"
             type="text"
-            maxlength="150"
+            maxlength="1000"
             placeholder="Ex.: Cliente pediu para enviar só amanhã"
           />
         </div>
@@ -591,13 +655,23 @@
               display: flex;
               gap: 10px;
               align-items: center;
+              position: relative;
             "
           >
+            <!-- ARMADILHA EXTRA PARA O OPERA -->
+            <div style="position: absolute; top: -9999px; width: 0; height: 0; overflow: hidden; opacity: 0;">
+               <input type="text" name="fake_search_username" autocomplete="username" />
+               <input type="password" name="fake_search_password" autocomplete="current-password" />
+            </div>
+
             <div class="history-search-input-wrapper" style="flex: 1">
               <span class="search-icon">🔍</span>
+              <!-- CAMPO DE BUSCA BLINDADO -->
               <input
-                id="historySearchInput"
-                type="text"
+                id="inputBuscaGeralHistorico"
+                type="search"
+                autocomplete="off"
+                data-lpignore="true"
                 placeholder="Buscar por ID (#46), Nick, Cliente, TikTok, Item, Conta..."
                 oninput="filtrarHistoricoInput(this.value)"
               />
@@ -745,6 +819,8 @@
                 <input
                   id="clienteSearchInput"
                   type="text"
+                  autocomplete="off"
+                  data-lpignore="true"
                   placeholder="Buscar por Nome, Nick, WhatsApp ou TikTok..."
                   oninput="filtrarClientesInput(this.value)"
                 />
@@ -774,7 +850,6 @@
           </div>
         </div>
 
-        <!-- ABA DE ITENS COM OS SELECTS E O BOTÃO DE OCULTAR LUCRO ALINHADO -->
         <div id="conteudoAbaItens" style="display: none">
           <div
             style="
@@ -850,6 +925,8 @@
                 <input
                   id="itemSearchInput"
                   type="text"
+                  autocomplete="off"
+                  data-lpignore="true"
                   placeholder="Buscar por Nome do Item..."
                   oninput="filtrarItensInput(this.value)"
                 />
@@ -934,5 +1011,33 @@
 
     <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
+    <script>
+      let painelVolumeAberto = false;
+      window.togglePainelVolumeRetratil = function() {
+        painelVolumeAberto = !painelVolumeAberto;
+        const content = document.getElementById("configVolumeContent");
+        const arrow = document.getElementById("volumeToggleArrow");
+        if (content && arrow) {
+          content.style.display = painelVolumeAberto ? "flex" : "none";
+          arrow.textContent = painelVolumeAberto ? "▴" : "▾";
+        }
+      };
+      window.salvarValorBaseNormal = function(val) {
+        if (!state) return;
+        state.valorBase100 = parseFloat(val) || 2.50;
+        if (typeof save === 'function') save();
+        if (typeof render === 'function') render();
+      };
+      window.salvarValorPromoVolume = function(val) {
+        if (!state) return;
+        state.valorBasePromo = parseFloat(val) || 2.00;
+        if (typeof save === 'function') save();
+      };
+      window.salvarLimiteVolume = function(val) {
+        if (!state) return;
+        state.limiteVolumePromo = parseInt(val, 10) || 1500;
+        if (typeof save === 'function') save();
+      };
+    </script>
   </body>
 </html>
