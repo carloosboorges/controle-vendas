@@ -444,7 +444,6 @@ function atualizarCamposItensComDados(valoresSalvos) {
     const saved = valoresSalvos[i] || { tipo: "Traje", nome: "", vbucks: "", presente: "" };
     const optionsHtml = categoriasArray.map(c => `<option value="${c}" ${c === saved.tipo ? "selected" : ""}>${c}</option>`).join("");
     
-    // O botão de exclusão só aparece se houver mais do que 1 item na tela no total
     const botaoExcluirHtml = qtd > 1 
       ? `<button type="button" class="btn-danger" style="padding: 0; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;" onclick="removerItemEspecifico(${i})" title="Remover este item">✕</button>`
       : ``;
@@ -614,7 +613,7 @@ function render() {
     
     parent.insertBefore(wrapper, btnNovaSessao);
     
-    TheNode = document.createElement("button");
+    const eyeBtnSessao = document.createElement("button");
     eyeBtnSessao.id = "eyeToggleValoresSessao";
     eyeBtnSessao.className = "btn-gray";
     eyeBtnSessao.style.cssText = "padding: 0; font-size: 16px; width: 40px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 10px;";
