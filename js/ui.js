@@ -52,6 +52,28 @@ function alterarQtdItens(delta) {
   if (typeof atualizarCamposItens === 'function') atualizarCamposItens();
 }
 
+// Função para remover um item específico pelo botão "X" da linha
+function removerItemEspecifico(indexParaRemover) {
+  const container = document.getElementById("itensGroupContainer");
+  const inputQtd = document.getElementById("quantidadeInput");
+  if (!container || !inputQtd) return;
+
+  const valoresSalvos = [];
+  for (let i = 0; i < container.children.length; i++) {
+    if (i !== indexParaRemover) {
+      valoresSalvos.push({
+        tipo: document.getElementById(`itemTypeSelect_${i}`)?.value || "Traje",
+        nome: document.getElementById(`itemNameInput_${i}`)?.value || "",
+        vbucks: document.getElementById(`itemVbucksInput_${i}`)?.value || "",
+        presente: document.getElementById(`itemPresenteInput_${i}`)?.value || ""
+      });
+    }
+  }
+
+  inputQtd.value = Math.max(1, valoresSalvos.length);
+  atualizarCamposItensComDados(valoresSalvos);
+}
+
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     let fechouAlgumModal = false;
@@ -171,7 +193,7 @@ document.addEventListener("click", (e) => {
       const dropItem = document.getElementById("itemSuggestions_" + j);
       if (dropItem && dropItem.style.display === "block") {
         dropItem.style.display = "none";
-        fechouAlgo = true;
+        fechouAlgumModal = true;
       }
     }
     
@@ -394,6 +416,26 @@ function atualizarCamposItens() {
     });
   }
   
+  // Se aumentou a quantidade no botão +, preenche o novo com vazio
+  while (valoresSalvos.length < qtd) {
+    valoresSalvos.push({ tipo: "Traje", nome: "", vbucks: "", presente: "" });
+  }
+  // Se diminuiu, corta os excedentes
+  if (valoresSalvos.length > qtd) {
+    valoresSalvos.length = qtd;
+  }
+  
+  atualizarCamposItensComDados(valoresSalvos);
+}
+
+function atualizarCamposItensComDados(valoresSalvos) {
+  const container = document.getElementById("itensGroupContainer");
+  const inputQtd = document.getElementById("quantidadeInput");
+  if (!container || !inputQtd) return;
+  
+  const qtd = valoresSalvos.length;
+  inputQtd.value = qtd;
+  
   const categoriasArray = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
   
   container.innerHTML = Array.from({ length: qtd }, (_, i) => {
@@ -418,6 +460,8 @@ function atualizarCamposItens() {
           <input class="item-name-input" id="itemPresenteInput_${i}" type="text" maxlength="80" placeholder="🎁 P/ Nick" style="width: 100%; padding: 10px;" oninput="typeof sugerirNickPresente === 'function' ? sugerirNickPresente(this.value, ${i}) : null" autocomplete="off" value="${saved.presente.replace(/"/g, '&quot;')}">
           <div id="nickPresenteSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
+
+        <button type="button" class="btn-danger" style="padding: 10px 14px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;" onclick="removerItemEspecifico(${i})" title="Remover este item">✕</button>
       </div>
     </div>`;
   }).join("");
