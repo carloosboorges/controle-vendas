@@ -171,7 +171,7 @@ document.addEventListener("click", (e) => {
       const dropItem = document.getElementById("itemSuggestions_" + j);
       if (dropItem && dropItem.style.display === "block") {
         dropItem.style.display = "none";
-        fechouAlgo = true;
+        fechouAlgumModal = true;
       }
     }
     
@@ -281,7 +281,6 @@ function atualizarPreviewVBucks() {
   const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
   
   let somaVb = 0;
-  // Soma os V-Bucks de TODOS os itens da tela!
   for (let i = 0; i < qtd; i++) {
     const itemVbInput = document.getElementById(`itemVbucksInput_${i}`);
     if (itemVbInput && itemVbInput.value) {
@@ -385,7 +384,6 @@ function atualizarCamposItens() {
   const container = document.getElementById("itensGroupContainer");
   if (!container) return;
   
-  // Salva o que já estava digitado na tela!
   const valoresSalvos = [];
   for (let i = 0; i < container.children.length; i++) {
     valoresSalvos.push({
@@ -399,7 +397,6 @@ function atualizarCamposItens() {
   const categoriasArray = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
   
   container.innerHTML = Array.from({ length: qtd }, (_, i) => {
-    // Resgata o valor se ele existir, ou põe vazio se for um item novinho
     const saved = valoresSalvos[i] || { tipo: "Traje", nome: "", vbucks: "", presente: "" };
     const optionsHtml = categoriasArray.map(c => `<option value="${c}" ${c === saved.tipo ? "selected" : ""}>${c}</option>`).join("");
     
@@ -424,6 +421,10 @@ function atualizarCamposItens() {
       </div>
     </div>`;
   }).join("");
+
+  // FORÇA O RECALCULO AUTOMÁTICO DO VALOR NA TELA QUANDO A QUANTIDADE DE ITENS MUDA!
+  recalcularValorSugeridoPorItem();
+  atualizarPreviewVBucks();
 }
 
 function render() {
