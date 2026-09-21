@@ -52,7 +52,7 @@ function alterarQtdItens(delta) {
   if (typeof atualizarCamposItens === 'function') atualizarCamposItens();
 }
 
-// Função para remover um item específico, garantindo que nunca apaga se sobrar apenas 1
+// Permite remover qualquer item, desde que sobre pelo menos 1 no formulário
 function removerItemEspecifico(indexParaRemover) {
   const container = document.getElementById("itensGroupContainer");
   const inputQtd = document.getElementById("quantidadeInput");
@@ -193,7 +193,7 @@ document.addEventListener("click", (e) => {
       const dropP = document.getElementById("nickPresenteSuggestions_" + j);
       if (dropP && dropP.style.display === "block") {
         dropP.style.display = "none";
-        fechouAlgumModal = true;
+        fechouAlgo = true;
       }
       const dropItem = document.getElementById("itemSuggestions_" + j);
       if (dropItem && dropItem.style.display === "block") {
@@ -281,7 +281,8 @@ function renderizarListaItensHtml(itens, vObj = null) {
       <div style="margin-bottom: 6px; display: flex; align-items: center; flex-wrap: wrap; line-height: 1.4;">
         <span style="white-space: nowrap;">🎁 ${n + 1}. </span>
         <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" style="margin-left: 4px; white-space: nowrap; font-weight: 600;">${esc(itemText)}</span>
-        ${priceText}${presenteText}
+        ${priceText}
+        ${presenteText}
       </div>`;
   }).join("");
 }
@@ -444,33 +445,28 @@ function atualizarCamposItensComDados(valoresSalvos) {
     const saved = valoresSalvos[i] || { tipo: "Traje", nome: "", vbucks: "", presente: "" };
     const optionsHtml = categoriasArray.map(c => `<option value="${c}" ${c === saved.tipo ? "selected" : ""}>${c}</option>`).join("");
     
-    // O botão de exclusão só aparece se houver mais do que 1 item na tela (protegendo a última linha)
-    const botaoExcluirHtml = qtd > 1 
-      ? `<button type="button" class="btn-danger" style="padding: 10px 14px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;" onclick="removerItemEspecifico(${i})" title="Remover este item">✕</button>`
-      : ``;
-    
     return `
     <div class="item-picker-box" style="margin-bottom: 8px; width: 100%;">
-      <div class="item-picker-row" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <select class="item-type-select" id="itemTypeSelect_${i}" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
+      <div class="item-picker-row" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
+        <select class="item-type-select" id="itemTypeSelect_${i}" style="flex: 1.2; min-width: 100px; padding: 10px;">${optionsHtml}</select>
         
-        <div style="position: relative; flex: 2; min-width: 140px;">
+        <div style="position: relative; flex: 2.5; min-width: 140px;">
           <input class="item-name-input" id="itemNameInput_${i}" type="text" maxlength="120" placeholder="Item Vendido" style="width: 100%; padding: 10px;" oninput="typeof buscarSugestoesItem === 'function' ? buscarSugestoesItem(this.value, ${i}) : null" autocomplete="off" value="${saved.nome.replace(/"/g, '&quot;')}">
           <div id="itemSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
 
-        <div style="flex: 0.8; min-width: 85px;">
-          <input class="item-vbucks-input" id="itemVbucksInput_${i}" type="number" step="50" min="0" placeholder="V-Bucks" style="width: 100%; padding: 10px; text-align: center;" oninput="recalcularValorSugeridoPorItem(); atualizarPreviewVBucks();" title="Digite o V-Bucks oficial deste item se houver desconto ou pacotes" value="${saved.vbucks.replace(/"/g, '&quot;')}">
+        <div style="flex: 1; min-width: 90px;">
+          <input class="item-vbucks-input" id="itemVbucksInput_${i}" type="number" step="50" min="0" placeholder="V-Bucks" style="width: 100%; padding: 10px; text-align: center;" oninput="recalcularValorSugeridoPorItem(); atualizarPreviewVBucks();" title="Digite o V-Bucks oficial deste item" value="${saved.vbucks.replace(/"/g, '&quot;')}">
         </div>
 
-        <div style="position: relative; flex: 1.5; min-width: 120px;">
+        <div style="position: relative; flex: 2; min-width: 120px;">
           <input class="item-name-input" id="itemPresenteInput_${i}" type="text" maxlength="80" placeholder="🎁 P/ Nick" style="width: 100%; padding: 10px;" oninput="typeof sugerirNickPresente === 'function' ? sugerirNickPresente(this.value, ${i}) : null" autocomplete="off" value="${saved.presente.replace(/"/g, '&quot;')}">
           <div id="nickPresenteSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
 
-        ${botaoExcluirHtml}
+        <button type="button" class="btn-danger" style="padding: 0; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;" onclick="removerItemEspecifico(${i})" title="Remover este item">✕</button>
       </div>
-    `;
+    </div>`;
   }).join("");
 
   recalcularValorSugeridoPorItem();
