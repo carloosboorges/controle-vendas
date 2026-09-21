@@ -52,11 +52,16 @@ function alterarQtdItens(delta) {
   if (typeof atualizarCamposItens === 'function') atualizarCamposItens();
 }
 
-// Função para remover um item específico pelo botão "X" da linha
+// Função para remover um item específico, garantindo que nunca apaga se sobrar apenas 1
 function removerItemEspecifico(indexParaRemover) {
   const container = document.getElementById("itensGroupContainer");
   const inputQtd = document.getElementById("quantidadeInput");
   if (!container || !inputQtd) return;
+
+  if (container.children.length <= 1) {
+    mostrarNotificacao("A venda precisa ter pelo menos um item.", "erro");
+    return;
+  }
 
   const valoresSalvos = [];
   for (let i = 0; i < container.children.length; i++) {
@@ -188,7 +193,7 @@ document.addEventListener("click", (e) => {
       const dropP = document.getElementById("nickPresenteSuggestions_" + j);
       if (dropP && dropP.style.display === "block") {
         dropP.style.display = "none";
-        fechouAlgo = true;
+        fechouAlgumModal = true;
       }
       const dropItem = document.getElementById("itemSuggestions_" + j);
       if (dropItem && dropItem.style.display === "block") {
@@ -276,8 +281,7 @@ function renderizarListaItensHtml(itens, vObj = null) {
       <div style="margin-bottom: 6px; display: flex; align-items: center; flex-wrap: wrap; line-height: 1.4;">
         <span style="white-space: nowrap;">🎁 ${n + 1}. </span>
         <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" style="margin-left: 4px; white-space: nowrap; font-weight: 600;">${esc(itemText)}</span>
-        ${priceText}
-        ${presenteText}
+        ${priceText}${presenteText}
       </div>`;
   }).join("");
 }
@@ -416,11 +420,9 @@ function atualizarCamposItens() {
     });
   }
   
-  // Se aumentou a quantidade no botão +, preenche o novo com vazio
   while (valoresSalvos.length < qtd) {
     valoresSalvos.push({ tipo: "Traje", nome: "", vbucks: "", presente: "" });
   }
-  // Se diminuiu, corta os excedentes
   if (valoresSalvos.length > qtd) {
     valoresSalvos.length = qtd;
   }
@@ -442,6 +444,11 @@ function atualizarCamposItensComDados(valoresSalvos) {
     const saved = valoresSalvos[i] || { tipo: "Traje", nome: "", vbucks: "", presente: "" };
     const optionsHtml = categoriasArray.map(c => `<option value="${c}" ${c === saved.tipo ? "selected" : ""}>${c}</option>`).join("");
     
+    // O botão de exclusão só aparece se houver mais do que 1 item na tela (protegendo a última linha)
+    const botaoExcluirHtml = qtd > 1 
+      ? `<button type="button" class="btn-danger" style="padding: 10px 14px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;" onclick="removerItemEspecifico(${i})" title="Remover este item">✕</button>`
+      : ``;
+    
     return `
     <div class="item-picker-box" style="margin-bottom: 8px; width: 100%;">
       <div class="item-picker-row" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
@@ -461,9 +468,9 @@ function atualizarCamposItensComDados(valoresSalvos) {
           <div id="nickPresenteSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
 
-        <button type="button" class="btn-danger" style="padding: 10px 14px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;" onclick="removerItemEspecifico(${i})" title="Remover este item">✕</button>
+        ${botaoExcluirHtml}
       </div>
-    </div>`;
+    `;
   }).join("");
 
   recalcularValorSugeridoPorItem();
