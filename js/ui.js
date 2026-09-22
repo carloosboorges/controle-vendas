@@ -403,9 +403,17 @@ function recalcularValorSugeridoPorItem() {
   }
 }
 
-function atualizarCamposItens() {
+function atualizarCamposItens(forcarLimpeza = false) {
   const inputQtd = document.getElementById("quantidadeInput");
-  const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
+  if (!inputQtd) return;
+
+  if (forcarLimpeza) {
+    inputQtd.value = 1;
+    atualizarCamposItensComDados([], true);
+    return;
+  }
+
+  const qtd = parseInt(inputQtd.value, 10) || 1;
   const container = document.getElementById("itensGroupContainer");
   if (!container) return;
   
@@ -426,7 +434,7 @@ function atualizarCamposItens() {
     valoresSalvos.length = qtd;
   }
   
-  atualizarCamposItensComDados(valoresSalvos);
+  atualizarCamposItensComDados(valoresSalvos, false);
 }
 
 function atualizarCamposItensComDados(valoresSalvos, forcarLimpeza = false) {
