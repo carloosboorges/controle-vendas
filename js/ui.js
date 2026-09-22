@@ -192,7 +192,7 @@ document.addEventListener("click", (e) => {
       const dropP = document.getElementById("nickPresenteSuggestions_" + j);
       if (dropP && dropP.style.display === "block") {
         dropP.style.display = "none";
-        fechouAlgumModal = true;
+        fechouAlgo = true;
       }
       const dropItem = document.getElementById("itemSuggestions_" + j);
       if (dropItem && dropItem.style.display === "block") {
@@ -407,24 +407,30 @@ function atualizarCamposItens(forcarLimpeza = false) {
   const inputQtd = document.getElementById("quantidadeInput");
   if (!inputQtd) return;
 
-  if (forcarLimpeza) {
-    inputQtd.value = 1;
-    atualizarCamposItensComDados([], true);
-    return;
+  // Se a quantidade foi resetada para 1 ou se veio o pedido de limpeza, limpa o texto obrigatoriamente
+  if (forcarLimpeza || parseInt(inputQtd.value, 10) === 1) {
+    const primeiroInput = document.getElementById("itemNameInput_0");
+    if (primeiroInput && !primeiroInput.value && inputQtd.value == 1) {
+      // Já está limpo, apenas garante a estrutura
+    }
   }
 
-  const qtd = parseInt(inputQtd.value, 10) || 1;
+  const qtd = forcarLimpeza ? 1 : (parseInt(inputQtd.value, 10) || 1);
+  if (forcarLimpeza) inputQtd.value = 1;
+
   const container = document.getElementById("itensGroupContainer");
   if (!container) return;
   
   const valoresSalvos = [];
-  for (let i = 0; i < container.children.length; i++) {
-    valoresSalvos.push({
-      tipo: document.getElementById(`itemTypeSelect_${i}`)?.value || "Traje",
-      nome: document.getElementById(`itemNameInput_${i}`)?.value || "",
-      vbucks: document.getElementById(`itemVbucksInput_${i}`)?.value || "",
-      presente: document.getElementById(`itemPresenteInput_${i}`)?.value || ""
-    });
+  if (!forcarLimpeza) {
+    for (let i = 0; i < container.children.length; i++) {
+      valoresSalvos.push({
+        tipo: document.getElementById(`itemTypeSelect_${i}`)?.value || "Traje",
+        nome: document.getElementById(`itemNameInput_${i}`)?.value || "",
+        vbucks: document.getElementById(`itemVbucksInput_${i}`)?.value || "",
+        presente: document.getElementById(`itemPresenteInput_${i}`)?.value || ""
+      });
+    }
   }
   
   while (valoresSalvos.length < qtd) {
@@ -434,7 +440,7 @@ function atualizarCamposItens(forcarLimpeza = false) {
     valoresSalvos.length = qtd;
   }
   
-  atualizarCamposItensComDados(valoresSalvos, false);
+  atualizarCamposItensComDados(valoresSalvos, forcarLimpeza);
 }
 
 function atualizarCamposItensComDados(valoresSalvos, forcarLimpeza = false) {
@@ -465,16 +471,16 @@ function atualizarCamposItensComDados(valoresSalvos, forcarLimpeza = false) {
         <select class="item-type-select" id="itemTypeSelect_${i}" style="flex: 1.2; min-width: 100px; padding: 10px;">${optionsHtml}</select>
         
         <div style="position: relative; flex: 2.5; min-width: 140px;">
-          <input class="item-name-input" id="itemNameInput_${i}" type="text" maxlength="120" placeholder="Item Vendido" style="width: 100%; padding: 10px;" oninput="typeof buscarSugestoesItem === 'function' ? buscarSugestoesItem(this.value, ${i}) : null" autocomplete="off" value="${saved.nome.replace(/"/g, '&quot;')}">
+          <input class="item-name-input" id="itemNameInput_${i}" type="text" maxlength="120" placeholder="Item Vendido" style="width: 100%; padding: 10px;" oninput="typeof buscarSugestoesItem === 'function' ? buscarSugestoesItem(this.value, ${i}) : null" autocomplete="off" value="${forcarLimpeza ? '' : saved.nome.replace(/"/g, '&quot;')}">
           <div id="itemSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
 
         <div style="flex: 1; min-width: 90px;">
-          <input class="item-vbucks-input" id="itemVbucksInput_${i}" type="number" step="50" min="0" placeholder="V-Bucks" style="width: 100%; padding: 10px; text-align: center;" oninput="recalcularValorSugeridoPorItem(); atualizarPreviewVBucks();" title="Digite o V-Bucks oficial deste item" value="${saved.vbucks.replace(/"/g, '&quot;')}">
+          <input class="item-vbucks-input" id="itemVbucksInput_${i}" type="number" step="50" min="0" placeholder="V-Bucks" style="width: 100%; padding: 10px; text-align: center;" oninput="recalcularValorSugeridoPorItem(); atualizarPreviewVBucks();" title="Digite o V-Bucks oficial deste item" value="${forcarLimpeza ? '' : saved.vbucks.replace(/"/g, '&quot;')}">
         </div>
 
         <div style="position: relative; flex: 2; min-width: 120px;">
-          <input class="item-name-input" id="itemPresenteInput_${i}" type="text" maxlength="80" placeholder="🎁 P/ Nick" style="width: 100%; padding: 10px;" oninput="typeof sugerirNickPresente === 'function' ? sugerirNickPresente(this.value, ${i}) : null" autocomplete="off" value="${saved.presente.replace(/"/g, '&quot;')}">
+          <input class="item-name-input" id="itemPresenteInput_${i}" type="text" maxlength="80" placeholder="🎁 P/ Nick" style="width: 100%; padding: 10px;" oninput="typeof sugerirNickPresente === 'function' ? sugerirNickPresente(this.value, ${i}) : null" autocomplete="off" value="${forcarLimpeza ? '' : saved.presente.replace(/"/g, '&quot;')}">
           <div id="nickPresenteSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
 
