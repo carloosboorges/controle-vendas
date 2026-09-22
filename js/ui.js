@@ -52,7 +52,6 @@ function alterarQtdItens(delta) {
   if (typeof atualizarCamposItens === 'function') atualizarCamposItens();
 }
 
-// Permite remover qualquer item, desde que sobre pelo menos 1 no formulário
 function removerItemEspecifico(indexParaRemover) {
   const container = document.getElementById("itensGroupContainer");
   const inputQtd = document.getElementById("quantidadeInput");
@@ -430,18 +429,22 @@ function atualizarCamposItens() {
   atualizarCamposItensComDados(valoresSalvos);
 }
 
-function atualizarCamposItensComDados(valoresSalvos) {
+function atualizarCamposItensComDados(valoresSalvos, forcarLimpeza = false) {
   const container = document.getElementById("itensGroupContainer");
   const inputQtd = document.getElementById("quantidadeInput");
   if (!container || !inputQtd) return;
   
-  const qtd = valoresSalvos.length;
+  const qtd = forcarLimpeza ? 1 : valoresSalvos.length;
   inputQtd.value = qtd;
   
+  const dadosFinais = forcarLimpeza 
+    ? [{ tipo: "Traje", nome: "", vbucks: "", presente: "" }]
+    : valoresSalvos;
+
   const categoriasArray = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
   
   container.innerHTML = Array.from({ length: qtd }, (_, i) => {
-    const saved = valoresSalvos[i] || { tipo: "Traje", nome: "", vbucks: "", presente: "" };
+    const saved = dadosFinais[i] || { tipo: "Traje", nome: "", vbucks: "", presente: "" };
     const optionsHtml = categoriasArray.map(c => `<option value="${c}" ${c === saved.tipo ? "selected" : ""}>${c}</option>`).join("");
     
     const botaoExcluirHtml = qtd > 1 
