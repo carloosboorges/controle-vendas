@@ -114,7 +114,13 @@ function adicionarVenda() {
   if (document.getElementById("dataEnvioInput")) document.getElementById("dataEnvioInput").value = "";
   if (document.getElementById("labelAgendaData")) document.getElementById("labelAgendaData").textContent = "Hoje";
   
-  if (typeof atualizarCamposItens === 'function') atualizarCamposItens();
+  // CORREÇÃO CIRÚRGICA: Força a limpeza total dos inputs de itens após a venda
+  if (typeof atualizarCamposItensComDados === 'function') {
+    atualizarCamposItensComDados([{ tipo: "Traje", nome: "", vbucks: "", presente: "" }]);
+  } else if (typeof atualizarCamposItens === 'function') {
+    atualizarCamposItens(true);
+  }
+
   if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
   if (typeof verificarObservacaoCliente === 'function') verificarObservacaoCliente("");
 
@@ -542,7 +548,7 @@ if (elLimparTudo) {
     if (document.getElementById("quantidadeInput")) document.getElementById("quantidadeInput").value = "1";
     if (document.getElementById("dataEnvioInput")) document.getElementById("dataEnvioInput").value = "";
     if (document.getElementById("labelAgendaData")) document.getElementById("labelAgendaData").textContent = "Hoje";
-    if (typeof atualizarCamposItens === 'function') atualizarCamposItens();
+    if (typeof atualizarCamposItens === 'function') atualizarCamposItens(true);
     if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
     if (typeof verificarObservacaoCliente === 'function') verificarObservacaoCliente("");
   });

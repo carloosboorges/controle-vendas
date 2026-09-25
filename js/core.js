@@ -8,6 +8,8 @@ const CATEGORIAS_ITENS = ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pa
 const MARGEM_LUCRO = 100 / 310;
 const MARGEM_CUSTO = 210 / 310;
 
+let ultimoValorSugeridoAuto = 0; // Escudo protetor de descontos manuais
+
 // Tabela Oficial de Preços Especiais (A partir de 2.000 V-Bucks) - Mapeada da arte oficial
 const TABELA_PRECOS_ESPECIAIS = {
   2000: 48.00,  2200: 52.50,  2400: 57.00,  2500: 59.00,  2600: 61.00,
@@ -398,70 +400,76 @@ function criarTimerReserva(conta, vendaId) {
 }
 
 // -------------------------------------------------------------
-// MOTOR DE CÁLCULO INTELIGENTE DE PREÇOS E V-BUCKS
+// MOTOR DE CÁLCULO INTELIGENTE DE PREÇOS E V-BUCKS (COM ESCUDO DE DESCONTO)
 // -------------------------------------------------------------
 function calcularPrecoInteligente(vbucks) {
   const vb = Number(vbucks) || 0;
   if (vb <= 0) return 0;
 
   const modo = state?.modoPrecificacao || 'padrao';
-  const baseNormal = Number(state?.valorBase100 || 2.5); // Valor padrão (ex: R$ 2,50)
-  const basePromo = Number(state?.valorBasePromo || 2.00); // Valor promocional de volume (ex: R$ 2,00)
-  const limiteVolume = Number(state?.limiteVolumePromo || 1500); // Limite de V-Bucks
+  const baseNormal = Number(state?.valorBase100 || 2.5); 
+  const basePromo = Number(state?.valorBasePromo || 2.00); 
+  const limiteVolume = Number(state?.limiteVolumePromo || 1500); 
 
-  // MODO 2: Valor Base Global (Usa a base geral para TUDO)
+  let precoCalculado = 0;
+
   if (modo === 'global_promo') {
-    return (vb / 100) * baseNormal;
-  }
-
-  // MODO 3: Promoção por Volume (Independente)
-  if (modo === 'volume_promo') {
+    precoCalculado = (vb / 100) * baseNormal;
+  } else if (modo === 'volume_promo') {
     if (vb >= limiteVolume) {
-      // Atingiu ou passou do limite: aplica o valor base promocional configurado (ex: R$ 2,00)
-      return (vb / 100) * basePromo;
+      precoCalculado = (vb / 100) * basePromo;
     } else {
-      // Abaixo do limite: aplica a regra padrão (abaixo de 2000 usa base normal R$ 2,50)
       if (vb < 2000) {
-        return (vb / 100) * baseNormal;
+        precoCalculado = (vb / 100) * baseNormal;
+      } else if (TABELA_PRECOS_ESPECIAIS[vb]) {
+        precoCalculado = TABELA_PRECOS_ESPECIAIS[vb];
       }
-      if (TABELA_PRECOS_ESPECIAIS[vb]) return TABELA_PRECOS_ESPECIAIS[vb];
+    }
+  } else {
+    if (vb < 2000) {
+      precoCalculado = (vb / 100) * baseNormal; 
+    } else if (TABELA_PRECOS_ESPECIAIS[vb]) {
+      precoCalculado = TABELA_PRECOS_ESPECIAIS[vb];
+    } else {
+      const chaves = Object.keys(TABELA_PRECOS_ESPECIAIS).map(Number).sort((a, b) => a - b);
+      if (vb > chaves[chaves.length - 1]) {
+        const ultimoVb = chaves[chaves.length - 1];
+        const ultimoPreco = TABELA_PRECOS_ESPECIAIS[ultimoVb];
+        precoCalculado = (vb / ultimoVb) * ultimoPreco;
+      } else {
+        let menor = chaves[0];
+        let maior = chaves[chaves.length - 1];
+        for (let i = 0; i < chaves.length - 1; i++) {
+          if (vb > chaves[i] && vb < chaves[i + 1]) {
+            menor = chaves[i];
+            maior = chaves[i + 1];
+            break;
+          }
+        }
+        const precoMenor = TABELA_PRECOS_ESPECIAIS[menor];
+        const precoMaior = TABELA_PRECOS_ESPECIAIS[maior];
+        const proporcao = (vb - menor) / (maior - menor);
+        precoCalculado = precoMenor + (proporcao * (precoMaior - precoMenor));
+      }
     }
   }
 
-  // MODO 1: Padrão (Abaixo de 2.000 usa base normal R$ 2,50; acima de 2.000 usa a Tabela Especial)
-  if (vb < 2000) {
-    return (vb / 100) * baseNormal; 
-  }
+  const finalValor = Number(precoCalculado.toFixed(2));
+  const valorInput = document.getElementById("valorInput");
 
-  if (TABELA_PRECOS_ESPECIAIS[vb]) {
-    return TABELA_PRECOS_ESPECIAIS[vb];
-  }
+  if (valorInput) {
+    const stringAtual = String(valorInput.value).replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+    const valorAtual = parseFloat(stringAtual) || 0;
 
-  const chaves = Object.keys(TABELA_PRECOS_ESPECIAIS).map(Number).sort((a, b) => a - b);
-  if (vb > chaves[chaves.length - 1]) {
-    const ultimoVb = chaves[chaves.length - 1];
-    const ultimoPreco = TABELA_PRECOS_ESPECIAIS[ultimoVb];
-    return (vb / ultimoVb) * ultimoPreco;
-  }
-
-  let menor = chaves[0];
-  let maior = chaves[chaves.length - 1];
-
-  for (let i = 0; i < chaves.length - 1; i++) {
-    if (vb > chaves[i] && vb < chaves[i + 1]) {
-      menor = chaves[i];
-      maior = chaves[i + 1];
-      break;
+    // ESCUDO PROTETOR: Só altera o preço se o campo estiver vazio ou se corresponder à última sugestão automática.
+    // Se você digitou um desconto à mão, o sistema NÃO sobrescreve!
+    if (valorAtual === 0 || Math.abs(valorAtual - ultimoValorSugeridoAuto) < 0.02) {
+      valorInput.value = finalValor.toFixed(2);
+      ultimoValorSugeridoAuto = finalValor;
     }
   }
 
-  const precoMenor = TABELA_PRECOS_ESPECIAIS[menor];
-  const precoMaior = TABELA_PRECOS_ESPECIAIS[maior];
-  
-  const proporcao = (vb - menor) / (maior - menor);
-  const precoCalculado = precoMenor + (proporcao * (precoMaior - precoMenor));
-
-  return Number(precoCalculado.toFixed(2));
+  return finalValor;
 }
 
 function valorParaVBucks(valor, baseCustom) {
