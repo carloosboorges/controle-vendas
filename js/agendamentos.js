@@ -157,7 +157,6 @@ function renderEditAgendaCalendario() {
   placeholder.innerHTML = `<div class="custom-calendar-popover" style="top: calc(100% + 6px); left: 0; transform: none; width: 250px;" onclick="event.stopPropagation()"><div class="calendar-header-nav"><button type="button" class="calendar-nav-btn" onclick="navegarEditAgendaMes(-1, event)">‹</button><strong>${nomesMeses[editAgendaViewMes]} ${editAgendaViewAno}</strong><button type="button" class="calendar-nav-btn" onclick="navegarEditAgendaMes(1, event)">›</button></div><div class="calendar-weekdays-grid">${diasSemana.map(d => `<span>${d}</span>`).join("")}</div><div class="calendar-days-grid">${diasHtml}</div></div>`;
 }
 
-// ATUALIZADO: Agendamento de Venda agora possui a trava anti-duplicação!
 function agendarVenda() {
   limparReservasExpiradas();
   const conta = document.getElementById("contaSelect").value;
@@ -173,7 +172,6 @@ function agendarVenda() {
 
   let clienteId = document.getElementById("clienteIdInput")?.value;
 
-  // TRAVA ANTI-DUPLICAÇÃO AQUI TAMBÉM!
   if (window.ignorarChecagemDuplicacao) {
     window.ignorarChecagemDuplicacao = false;
   } else {
@@ -208,7 +206,6 @@ function agendarVenda() {
     mostrarNotificacao("Aviso: Saldo insuficiente, mas agendamento salvo.", "info"); 
   }
 
-  // Gera o ID se for novo
   if (!clienteId) {
     clienteId = "cli-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4);
   }
@@ -216,7 +213,7 @@ function agendarVenda() {
   const d = new Date();
   const novoAgendamento = { 
     id: `agenda-${Date.now()}`, 
-    clienteId: clienteId, // Salva o ID fantasma no agendamento!
+    clienteId: clienteId, 
     conta, valor: Number(valor), 
     vbucks: vbucksNecessarios, 
     valorBaseMomento: baseAtual, 
@@ -271,8 +268,9 @@ function renderizarAgendamentos() {
       ? "background: rgba(255, 152, 0, 0.2); border: 1px solid rgba(255, 152, 0, 0.6); color: #ffb74d;" 
       : "background: rgba(142,68,255,0.15); border: 1px solid var(--accent); color: var(--accent-light);";
       
-    // Usando o TIKTOK_SVG global caso exista, senao usa o ícone original por garantia
     const TIKTOK_ICON = typeof TIKTOK_SVG !== "undefined" ? TIKTOK_SVG : '<svg width="14" height="14" viewBox="0 0 448 512" fill="currentColor" style="vertical-align: middle; margin-top: -2px;"><path d="M448 209.9a210.1 210.1 0 0 1 -122.8-39.3V349.4A162.6 162.6 0 1 1 185 188.3V278.2a74.6 74.6 0 1 0 52.2 71.2V0l88 0a121.2 121.2 0 0 0 1.9 22.2h0A122.2 122.2 0 0 0 381 102.4a121.4 121.4 0 0 0 67 20.1z"/></svg>';
+
+    const obsHtml = a.observacao ? `<div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--accent); white-space: pre-wrap; word-break: break-word;">💬 <b>Observação:</b> ${esc(a.observacao)}</div>` : "";
 
     return `
       <div class="history-card" style="border-left: 4px solid var(--accent-light);">
@@ -289,6 +287,7 @@ function renderizarAgendamentos() {
             </div>
             <div class="history-item" style="margin-top: 8px;">${renderizarListaItensHtml(a.itens || [a.item])}</div>
             <div class="history-date">📅 Criado em: ${esc(a.dataRegistro)} às ${esc(a.horaRegistro)}</div>
+            ${obsHtml}
             <div style="font-size: 12px; font-weight: bold; margin-top: 8px; padding: 4px 8px; border-radius: 6px; display: inline-block; ${badgeEnvioEstilo}">🚀 Enviar no dia: ${esc(a.dataEnvio || "Imediato")}</div>
           </div>
           <div class="history-value">${money(a.valor)}</div>
@@ -409,7 +408,6 @@ function efetivarAgendamento(id) {
     contaObj.vbucks = Math.max(0, Number(contaObj.vbucks) - agendamento.vbucks);
     const vendaId = `venda-${Date.now()}`;
     
-    // Na efetivação, ele herda o ID Fantasma que foi salvo no Agendamento!
     const novaVenda = { 
       ...agendamento, 
       id: vendaId, 
