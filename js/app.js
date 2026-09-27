@@ -114,7 +114,6 @@ function adicionarVenda() {
   if (document.getElementById("dataEnvioInput")) document.getElementById("dataEnvioInput").value = "";
   if (document.getElementById("labelAgendaData")) document.getElementById("labelAgendaData").textContent = "Hoje";
   
-  // CORREÇÃO CIRÚRGICA: Força a limpeza total dos inputs de itens após a venda
   if (typeof atualizarCamposItensComDados === 'function') {
     atualizarCamposItensComDados([{ tipo: "Traje", nome: "", vbucks: "", presente: "" }]);
   } else if (typeof atualizarCamposItens === 'function') {
@@ -202,20 +201,25 @@ function salvarEdicaoVenda() {
   const vendaId = document.getElementById("editVendaId").value;
   const tipoRegistro = document.getElementById("editTipoRegistro")?.value || "venda";
   const isAgendamento = tipoRegistro === "agendamento";
+  
+  // CORREÇÃO: Identifica corretamente se está a editar agendamento ou histórico de vendas
   const listaOriginal = isAgendamento ? state.agendamentos : state.historicoVendas;
   const i = (listaOriginal || []).findIndex(v => v.id === vendaId);
-  if (i < 0) return;
+  if (i < 0) {
+    mostrarNotificacao("Erro: Registro não encontrado para salvamento.", "erro");
+    return;
+  }
   const venda = listaOriginal[i];
 
-  const novaConta = document.getElementById("editContaSelect").value;
-  const cliente = document.getElementById("editClientInput").value.trim();
-  const nick = document.getElementById("editNickInput").value.trim();
+  const novaConta = document.getElementById("editContaSelect")?.value || venda.conta;
+  const cliente = document.getElementById("editClientInput")?.value.trim() || "";
+  const nick = document.getElementById("editNickInput")?.value.trim() || "";
   const whatsapp = document.getElementById("editWhatsappInput")?.value.trim() || "";
   const tiktok = document.getElementById("editTiktokInput")?.value.trim() || "";
-  const observacao = document.getElementById("editObservacaoInput").value.trim();
-  const novaData = document.getElementById("editDataInput").value.trim();
-  const novaHora = document.getElementById("editHoraInput").value.trim();
-  const valor = parseFloat(document.getElementById("editValorInput").value);
+  const observacao = document.getElementById("editObservacaoInput")?.value.trim() || "";
+  const novaData = document.getElementById("editDataInput")?.value.trim() || venda.data || venda.dataRegistro;
+  const novaHora = document.getElementById("editHoraInput")?.value.trim() || venda.hora || venda.horaRegistro || "—";
+  const valor = parseFloat(document.getElementById("editValorInput")?.value) || 0;
 
   if (!novaConta || !valor || !novaData || !cliente || !nick) {
     mostrarNotificacao("Preencha todos os campos corretamente.", "erro");
@@ -225,10 +229,10 @@ function salvarEdicaoVenda() {
   const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
   const novosItens = [];
   itemBoxes.forEach(box => {
-    const tipo = box.querySelector(".edit-modal-item-type").value;
-    const nome = box.querySelector(".edit-modal-item-name").value.trim();
-    const vbucks = parseInt(box.querySelector(".edit-modal-item-vbucks").value, 10) || 0;
-    const presente = box.querySelector(".edit-modal-item-presente").value.trim();
+    const tipo = box.querySelector(".edit-modal-item-type")?.value || "Outro";
+    const nome = box.querySelector(".edit-modal-item-name")?.value.trim() || "";
+    const vbucks = parseInt(box.querySelector(".edit-modal-item-vbucks")?.value, 10) || 0;
+    const presente = box.querySelector(".edit-modal-item-presente")?.value.trim() || "";
     if (nome) novosItens.push({ tipo, nome, vbucks, presente });
   });
 
@@ -265,7 +269,7 @@ function salvarEdicaoVenda() {
 
   if (isAgendamento) {
     venda.dataRegistro = novaData;
-    venda.horaRegistro = novaHora || venda.horaRegistro || "—";
+    venda.horaRegistro = novaHora;
     const dataEnvioCrua = document.getElementById("editDataEnvioInput")?.value.trim();
     if (dataEnvioCrua) {
       const p = dataEnvioCrua.split("-");
@@ -273,7 +277,7 @@ function salvarEdicaoVenda() {
     }
   } else {
     venda.data = novaData;
-    venda.hora = novaHora || venda.hora || "—";
+    venda.hora = novaHora;
     const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
     if (sessaoVenda) {
       Object.assign(sessaoVenda, {
@@ -295,9 +299,11 @@ function salvarEdicaoVenda() {
   
   if (isAgendamento && typeof renderizarAgendamentos === "function") {
     renderizarAgendamentos();
+  } else if (typeof render === 'function') {
+    render();
   }
   
-  mostrarNotificacao(isAgendamento ? "Pré-venda atualizada!" : "Alterações salvas com sucesso!", "sucesso");
+  mostrarNotificacao(isAgendamento ? "Pré-venda atualizada com sucesso!" : "Alterações salvas com sucesso!", "sucesso");
 }
 
 function fecharModalEdicao() {
