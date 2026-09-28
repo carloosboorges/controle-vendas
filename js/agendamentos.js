@@ -1,3 +1,7 @@
+// ==========================================
+// MÓDULO DE AGENDAMENTOS E PRÉ-VENDAS
+// ==========================================
+
 let agendaViewMes = new Date().getMonth(); 
 let agendaViewAno = new Date().getFullYear(); 
 let agendaPopoverAberto = false;
@@ -324,10 +328,23 @@ function abrirModalEdicaoAgendamento(id) {
   document.getElementById("editWhatsappInput").value = agendamento.whatsapp || ""; 
   document.getElementById("editTiktokInput").value = agendamento.tiktok || ""; 
   document.getElementById("editObservacaoInput").value = agendamento.observacao || ""; 
-  document.getElementById("editDataInput").value = agendamento.dataRegistro || ""; 
-  document.getElementById("editHoraInput").value = agendamento.horaRegistro || ""; 
   document.getElementById("editValorInput").value = Number(agendamento.valor || 0).toFixed(2);
   
+  // TRAVA A DATA DE CRIAÇÃO PARA NÃO SER ALTERADA
+  const inputDataCriacao = document.getElementById("editDataInput");
+  const inputHoraCriacao = document.getElementById("editHoraInput");
+  if (inputDataCriacao) {
+    inputDataCriacao.value = agendamento.dataRegistro || "";
+    inputDataCriacao.readOnly = true;
+    inputDataCriacao.style.opacity = "0.6";
+  }
+  if (inputHoraCriacao) {
+    inputHoraCriacao.value = agendamento.horaRegistro || "";
+    inputHoraCriacao.readOnly = true;
+    inputHoraCriacao.style.opacity = "0.6";
+  }
+  
+  // EXIBE O CALENDÁRIO DA DATA DE ENVIO PARA PODER EDITAR LIVREMENTE
   const elDataEnvioContainer = document.getElementById("editDataEnvioContainer"); 
   if (elDataEnvioContainer) { 
     elDataEnvioContainer.style.display = "block"; 
@@ -356,7 +373,7 @@ function abrirModalEdicaoAgendamento(id) {
   const itens = Array.isArray(agendamento.itens) && agendamento.itens.length ? agendamento.itens : [agendamento.item || ""];
   
   container.innerHTML = itens.map((itemObj, idx) => { 
-    let tipo = "Outro", nome = "", presente = ""; 
+    let tipo = "Outro", nome = "", presente = "", vbucks = ""; 
     
     if (typeof itemObj === "string") { 
       const parsed = parseItemString(itemObj); 
@@ -365,6 +382,7 @@ function abrirModalEdicaoAgendamento(id) {
       tipo = itemObj.tipo || "Outro"; 
       nome = itemObj.nome || ""; 
       presente = itemObj.presente || ""; 
+      vbucks = itemObj.vbucks || "";
     } 
     
     const optionsHtml = CATEGORIAS_ITENS.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join(""); 
@@ -377,8 +395,9 @@ function abrirModalEdicaoAgendamento(id) {
         </div>
         <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
           <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
-          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 150px; padding: 10px;">
-          <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick (Opcional)" style="flex: 1.5; min-width: 120px; padding: 10px;">
+          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
+          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;">
+          <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="flex: 1.5; min-width: 110px; padding: 10px;">
         </div>
       </div>`; 
   }).join("");
