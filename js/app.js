@@ -202,7 +202,6 @@ function salvarEdicaoVenda() {
   const tipoRegistro = document.getElementById("editTipoRegistro")?.value || "venda";
   const isAgendamento = tipoRegistro === "agendamento";
   
-  // CORREÇÃO: Identifica corretamente se está a editar agendamento ou histórico de vendas
   const listaOriginal = isAgendamento ? state.agendamentos : state.historicoVendas;
   const i = (listaOriginal || []).findIndex(v => v.id === vendaId);
   if (i < 0) {
@@ -217,12 +216,10 @@ function salvarEdicaoVenda() {
   const whatsapp = document.getElementById("editWhatsappInput")?.value.trim() || "";
   const tiktok = document.getElementById("editTiktokInput")?.value.trim() || "";
   const observacao = document.getElementById("editObservacaoInput")?.value.trim() || "";
-  const novaData = document.getElementById("editDataInput")?.value.trim() || venda.data || venda.dataRegistro;
-  const novaHora = document.getElementById("editHoraInput")?.value.trim() || venda.hora || venda.horaRegistro || "—";
   const valor = parseFloat(document.getElementById("editValorInput")?.value) || 0;
 
-  if (!novaConta || !valor || !novaData || !cliente || !nick) {
-    mostrarNotificacao("Preencha todos os campos corretamente.", "erro");
+  if (!novaConta || !valor || !cliente || !nick) {
+    mostrarNotificacao("Preencha todos os campos obrigatórios.", "erro");
     return;
   }
 
@@ -268,14 +265,16 @@ function salvarEdicaoVenda() {
   }
 
   if (isAgendamento) {
-    venda.dataRegistro = novaData;
-    venda.horaRegistro = novaHora;
     const dataEnvioCrua = document.getElementById("editDataEnvioInput")?.value.trim();
     if (dataEnvioCrua) {
       const p = dataEnvioCrua.split("-");
-      if (p.length === 3) venda.dataEnvio = `${p[2]}/${p[1]}/${p[0]}`;
+      if (p.length === 3) {
+        venda.dataEnvio = `${p[2]}/${p[1]}/${p[0]}`;
+      }
     }
   } else {
+    const novaData = document.getElementById("editDataInput")?.value.trim() || venda.data;
+    const novaHora = document.getElementById("editHoraInput")?.value.trim() || venda.hora || "—";
     venda.data = novaData;
     venda.hora = novaHora;
     const sessaoVenda = (state.vendas || []).find(v => v.id === venda.id);
