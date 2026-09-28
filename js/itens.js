@@ -14,8 +14,7 @@ let itemOrigemEdicao = null;
 let itemOrigemEdicaoTipo = null;
 
 function snapVBucksTier(val) {
-  // Adicionados patamares maiores para suportar valores altos como 12.500 VB sem travar
-  const tiers = [200, 300, 400, 500, 600, 800, 1000, 1200, 1500, 1800, 2000, 2800, 3500, 5000, 8000, 10000, 12500, 15000, 20000];
+  const tiers = [200, 300, 400, 500, 600, 800, 1000, 1200, 1500, 1600, 1800, 2000, 2200, 2400, 2500, 2600, 2800, 3000, 3200, 3400, 3500, 3600, 3800, 4000, 4200, 4400, 4500, 4600, 4800, 5000, 5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 9500, 10000, 10500, 11000, 11500, 12000, 12500, 15000, 20000];
   if (!val || val <= 0) return 0;
   let closest = tiers[0];
   let minDiff = Math.abs(val - closest);
@@ -124,6 +123,7 @@ function renderizarHistoricoItensCompleto() {
 
       itensMap[chaveKey].totalVendidos += 1;
       
+      // CORREÇÃO: Prioriza rigorosamente o V-Bucks específico digitado no item. Se não houver, usa o rateio proporcional.
       const vbAtribuido = vbEspecifico > 0 ? vbEspecifico : (vbucksPedido / qtdItensNoPedido);
       itensMap[chaveKey].somaVbucksBrutos += vbAtribuido;
 
@@ -143,7 +143,8 @@ function renderizarHistoricoItensCompleto() {
 
   listaItensArr.forEach(item => {
     const mediaBruta = item.totalVendidos > 0 ? (item.somaVbucksBrutos / item.totalVendidos) : 0;
-    item.vbucksUnitario = snapVBucksTier(mediaBruta);
+    // CORREÇÃO: Mantém o valor exato se ele já for um número redondo de V-Bucks, evitando alterações indesejadas
+    item.vbucksUnitario = mediaBruta % 50 === 0 ? mediaBruta : snapVBucksTier(mediaBruta);
     item.vbucksAcumuladoReal = item.vbucksUnitario * item.totalVendidos;
     item.faturamentoReal = (item.vbucksAcumuladoReal / 100) * baseAtual;
   });
@@ -459,7 +460,8 @@ function salvarEdicaoItem() {
             } else {
               itemObj.nome = novoNome;
               if (novoTipo) itemObj.tipo = novoTipo;
-              if (novoVbucks > 0) itemObj.vbucks = novoVbucks;
+              // CORREÇÃO: Garante que o novo V-Bucks da edição substitui o valor antigo imediatamente
+              itemObj.vbucks = novoVbucks;
             }
             modificado = true;
           }
@@ -478,7 +480,7 @@ function salvarEdicaoItem() {
           } else if (v.item && typeof v.item === "object") {
             v.item.nome = novoNome;
             if (novoTipo) v.item.tipo = novoTipo;
-            if (novoVbucks > 0) v.item.vbucks = novoVbucks;
+            v.item.vbucks = novoVbucks;
           }
           modificado = true;
         }
@@ -533,8 +535,8 @@ function excluirItemDoHistorico(nomeItem, tipoItem) {
                 let tipoAtual = typeof itemObj === "string" ? "Outro" : (itemObj?.tipo || "Outro");
                 
                 const isMatch = String(nomeAtual).trim().toLowerCase() === String(nomeItem).trim().toLowerCase() &&
-                                String(tipoAtual).trim().toLowerCase() === String(tipoItem).trim().toLowerCase();
-                                
+                              String(tipoAtual).trim().toLowerCase() === String(tipoItem).trim().toLowerCase();
+                              
                 return !isMatch; 
               });
             }
