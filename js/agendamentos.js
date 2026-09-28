@@ -344,27 +344,30 @@ function abrirModalEdicaoAgendamento(id) {
     inputHoraCriacao.style.opacity = "0.6";
   }
   
-  // EXIBE O CALENDÁRIO DA DATA DE ENVIO PARA PODER EDITAR LIVREMENTE
-  const elDataEnvioContainer = document.getElementById("editDataEnvioContainer"); 
-  if (elDataEnvioContainer) { 
-    elDataEnvioContainer.style.display = "block"; 
+  // INJEÇÃO AUTOMÁTICA DO CAMPO DE DATA DE ENVIO NO MODAL
+  let envioContainer = document.getElementById("editDataEnvioContainer");
+  const obsGroup = document.getElementById("editObservacaoInput")?.closest("div");
+  
+  if (!envioContainer && obsGroup) {
+    envioContainer = document.createElement("div");
+    envioContainer.id = "editDataEnvioContainer";
+    envioContainer.style.cssText = "margin-top: 12px;";
+    envioContainer.innerHTML = `
+      <label style="font-size: 12px; font-weight: 700; color: var(--muted); display: block; margin-bottom: 6px;">🚀 Data de Envio Programada (DD/MM/AAAA)</label>
+      <input type="date" id="editDataEnvioInput" style="width: 100%; padding: 10px; background: var(--bg); border: 1px solid var(--border); color: #fff; border-radius: 8px;">
+    `;
+    obsGroup.insertAdjacentElement("afterend", envioContainer);
+  }
+  
+  if (envioContainer) {
+    envioContainer.style.display = "block";
     const inputDataEnvio = document.getElementById("editDataEnvioInput");
-    const labelDataEnvio = document.getElementById("labelEditAgendaData"); 
-    
-    if (inputDataEnvio && agendamento.dataEnvio) { 
-      const p = agendamento.dataEnvio.split("/"); 
-      if (p.length === 3) { 
-        inputDataEnvio.value = `${p[2]}-${p[1]}-${p[0]}`; 
-        if (labelDataEnvio) labelDataEnvio.textContent = agendamento.dataEnvio; 
-        editAgendaViewMes = Number(p[1]) - 1; 
-        editAgendaViewAno = Number(p[2]); 
-      } 
-    } else { 
-      if (inputDataEnvio) inputDataEnvio.value = ""; 
-      if (labelDataEnvio) labelDataEnvio.textContent = "Hoje"; 
-      editAgendaViewMes = new Date().getMonth(); 
-      editAgendaViewAno = new Date().getFullYear(); 
-    } 
+    if (inputDataEnvio && agendamento.dataEnvio) {
+      const p = agendamento.dataEnvio.split("/");
+      if (p.length === 3) {
+        inputDataEnvio.value = `${p[2]}-${p[1]}-${p[0]}`;
+      }
+    }
   }
   
   atualizarPreviewVBucksEdicao();
@@ -374,7 +377,6 @@ function abrirModalEdicaoAgendamento(id) {
   
   container.innerHTML = itens.map((itemObj, idx) => { 
     let tipo = "Outro", nome = "", presente = "", vbucks = ""; 
-    
     if (typeof itemObj === "string") { 
       const parsed = parseItemString(itemObj); 
       tipo = parsed.tipo; nome = parsed.nome; 
@@ -384,9 +386,7 @@ function abrirModalEdicaoAgendamento(id) {
       presente = itemObj.presente || ""; 
       vbucks = itemObj.vbucks || "";
     } 
-    
     const optionsHtml = CATEGORIAS_ITENS.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join(""); 
-    
     return `
       <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
