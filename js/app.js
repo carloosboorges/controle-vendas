@@ -158,8 +158,20 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
   if (document.getElementById("editWhatsappInput")) document.getElementById("editWhatsappInput").value = venda.whatsapp || "";
   if (document.getElementById("editTiktokInput")) document.getElementById("editTiktokInput").value = venda.tiktok || "";
   document.getElementById("editObservacaoInput").value = venda.observacao || "";
-  document.getElementById("editDataInput").value = venda.data || "";
-  document.getElementById("editHoraInput").value = venda.hora || "";
+  
+  const inputDataCriacao = document.getElementById("editDataInput");
+  const inputHoraCriacao = document.getElementById("editHoraInput");
+  if (inputDataCriacao) {
+    inputDataCriacao.value = venda.data || "";
+    inputDataCriacao.readOnly = false;
+    inputDataCriacao.style.opacity = "1";
+  }
+  if (inputHoraCriacao) {
+    inputHoraCriacao.value = venda.hora || "";
+    inputHoraCriacao.readOnly = false;
+    inputHoraCriacao.style.opacity = "1";
+  }
+
   document.getElementById("editValorInput").value = Number(venda.valor || 0).toFixed(2);
   
   const elDataEnvioContainer = document.getElementById("editDataEnvioContainer");
@@ -194,6 +206,101 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
       </div>`;
   }).join("");
 
+  document.getElementById("editSaleModal").style.display = "flex";
+}
+
+function abrirModalEdicaoAgendamento(id) {
+  const idx = (state.agendamentos || []).findIndex(a => a.id === id); 
+  if (idx < 0) return; 
+  const agendamento = state.agendamentos[idx];
+  
+  document.getElementById("editTipoRegistro").value = "agendamento"; 
+  document.getElementById("editVendaId").value = id; 
+  document.getElementById("editSaleTitle").innerHTML = "✏️ Editar Pré-venda Agendada";
+  
+  const selectConta = document.getElementById("editContaSelect"); 
+  if (selectConta) { 
+    selectConta.innerHTML = (state.contas || []).map(c => `<option value="${esc(c.nome)}" ${c.nome === agendamento.conta ? "selected" : ""}>${esc(c.nome)} (${formatVBucks(c.vbucks)} VB)</option>`).join(""); 
+    selectConta.value = agendamento.conta; 
+  }
+  
+  document.getElementById("editClientInput").value = agendamento.cliente || ""; 
+  document.getElementById("editNickInput").value = agendamento.nickCliente || ""; 
+  document.getElementById("editWhatsappInput").value = agendamento.whatsapp || ""; 
+  document.getElementById("editTiktokInput").value = agendamento.tiktok || ""; 
+  document.getElementById("editObservacaoInput").value = agendamento.observacao || ""; 
+  document.getElementById("editValorInput").value = Number(agendamento.valor || 0).toFixed(2);
+  
+  const inputDataCriacao = document.getElementById("editDataInput");
+  const inputHoraCriacao = document.getElementById("editHoraInput");
+  if (inputDataCriacao) {
+    inputDataCriacao.value = agendamento.dataRegistro || "";
+    inputDataCriacao.readOnly = true;
+    inputDataCriacao.style.opacity = "0.6";
+  }
+  if (inputHoraCriacao) {
+    inputHoraCriacao.value = agendamento.horaRegistro || "";
+    inputHoraCriacao.readOnly = true;
+    inputHoraCriacao.style.opacity = "0.6";
+  }
+  
+  const elDataEnvioContainer = document.getElementById("editDataEnvioContainer"); 
+  if (elDataEnvioContainer) { 
+    elDataEnvioContainer.style.display = "block"; 
+    const inputDataEnvio = document.getElementById("editDataEnvioInput");
+    const labelDataEnvio = document.getElementById("labelEditAgendaData"); 
+    
+    if (inputDataEnvio && agendamento.dataEnvio) { 
+      const p = agendamento.dataEnvio.split("/"); 
+      if (p.length === 3) { 
+        inputDataEnvio.value = `${p[2]}-${p[1]}-${p[0]}`; 
+        if (labelDataEnvio) labelDataEnvio.textContent = agendamento.dataEnvio; 
+        editAgendaViewMes = Number(p[1]) - 1; 
+        editAgendaViewAno = Number(p[2]); 
+      } 
+    } else { 
+      if (inputDataEnvio) inputDataEnvio.value = ""; 
+      if (labelDataEnvio) labelDataEnvio.textContent = "Hoje"; 
+      editAgendaViewMes = new Date().getMonth(); 
+      editAgendaViewAno = new Date().getFullYear(); 
+    } 
+  }
+  
+  atualizarPreviewVBucksEdicao();
+  
+  const container = document.getElementById("editItensListContainer");
+  const itens = Array.isArray(agendamento.itens) && agendamento.itens.length ? agendamento.itens : [agendamento.item || ""];
+  
+  container.innerHTML = itens.map((itemObj, idx) => { 
+    let tipo = "Outro", nome = "", presente = "", vbucks = ""; 
+    
+    if (typeof itemObj === "string") { 
+      const parsed = parseItemString(itemObj); 
+      tipo = parsed.tipo; nome = parsed.nome; 
+    } else if (itemObj) { 
+      tipo = itemObj.tipo || "Outro"; 
+      nome = itemObj.nome || ""; 
+      presente = itemObj.presente || ""; 
+      vbucks = itemObj.vbucks || "";
+    } 
+    
+    const optionsHtml = CATEGORIAS_ITENS.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join(""); 
+    
+    return `
+      <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+          <label style="font-size:12px;">Item ${idx + 1}</label>
+          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove()">✕</button>` : ""}
+        </div>
+        <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
+          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
+          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;">
+          <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="flex: 1.5; min-width: 110px; padding: 10px;">
+        </div>
+      </div>`; 
+  }).join("");
+  
   document.getElementById("editSaleModal").style.display = "flex";
 }
 
