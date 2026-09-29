@@ -45,6 +45,90 @@ function adicionarVenda() {
     return;
   }
 
+  // =========================================================
+  // ALERTA 1: PREVISÃO DE VAGAS PARA RESERVAS DE HOJE
+  // =========================================================
+  if (!window.ignorarAvisoReserva) {
+    const hojeObj = new Date(); 
+    hojeObj.setHours(0,0,0,0);
+    const hojeTime = hojeObj.getTime();
+    
+    const agendamentosPendentes = (state.agendamentos || []).filter(a => {
+        if (a.conta !== conta) return false;
+        if (!a.dataEnvio || a.dataEnvio === "Imediato") return true;
+        const p = a.dataEnvio.split("/");
+        if (p.length === 3) {
+            const dataAg = new Date(p[2], p[1] - 1, p[0]);
+            return dataAg.getTime() <= hojeTime;
+        }
+        return true;
+    });
+    
+    const qtdReservadaHoje = agendamentosPendentes.reduce((acc, a) => acc + (Number(a.quantidade) || 1), 0);
+    
+    if (qtdReservadaHoje > 0) {
+        const vagasLivresAgora = Math.max(0, 5 - usadas);
+        
+        let timersExpiraHoje = 0;
+        let proximoTimer = null;
+        const fimDoDia = new Date();
+        fimDoDia.setHours(23, 59, 59, 999);
+        
+        const timersConta = (state.reservas || []).filter(r => r.conta === conta);
+        timersConta.forEach(t => {
+            const timeFim = t.expiresAt || t.expiraEm || t.fim || t.tempoFim || (t.criadoEmMs ? t.criadoEmMs + 86400000 : null);
+            if (timeFim) {
+                if (timeFim <= fimDoDia.getTime()) {
+                    timersExpiraHoje++;
+                }
+                if (!proximoTimer || timeFim < proximoTimer) {
+                    proximoTimer = timeFim;
+                }
+            }
+        });
+
+        const vagasProjetadasHoje = vagasLivresAgora - quantidade + timersExpiraHoje;
+
+        if (vagasProjetadasHoje < qtdReservadaHoje) {
+            const displayVagas = Math.max(0, vagasProjetadasHoje);
+            const txtPreVenda = qtdReservadaHoje === 1 ? "<b>1 pré-venda</b>" : `<b>${qtdReservadaHoje} pré-vendas</b>`;
+            
+            // Tratamento inteligente para 0 vagas
+            let txtVagaLivre = "";
+            if (displayVagas === 0) {
+                txtVagaLivre = "você ficará <b>sem nenhuma vaga livre</b> até as 23:59.";
+            } else if (displayVagas === 1) {
+                txtVagaLivre = "sobrará apenas <b>1 vaga livre</b> até as 23:59.";
+            } else {
+                txtVagaLivre = `sobrarão apenas <b>${displayVagas} vagas livres</b> até as 23:59.`;
+            }
+            
+            let txtProximoTimer = "";
+            if (proximoTimer) {
+                const proximoObj = new Date(proximoTimer);
+                const hh = String(proximoObj.getHours()).padStart(2, '0');
+                const mm = String(proximoObj.getMinutes()).padStart(2, '0');
+                const isAmanha = proximoObj.getTime() > fimDoDia.getTime();
+                txtProximoTimer = `A próxima vaga só será liberada às <b>${hh}:${mm}${isAmanha ? ' (de amanhã)' : ''}</b>.`;
+            } else {
+                txtProximoTimer = `<b>Nenhuma vaga será liberada hoje.</b>`;
+            }
+
+            if (typeof abrirModalConfirmacao === 'function') {
+                const mensagemModal = `A conta <b>${conta}</b> possui ${txtPreVenda} para enviar HOJE.<br><br>Se registrar essa venda agora, ${txtVagaLivre}<br>${txtProximoTimer}<br><br>Deseja confirmar a venda e ocupar o timer mesmo assim?`;
+                
+                abrirModalConfirmacao("⚠️ Atenção com as Reservas", mensagemModal, () => {
+                    window.ignorarAvisoReserva = true;
+                    adicionarVenda(); 
+                });
+                return; 
+            }
+        }
+    }
+  }
+  window.ignorarAvisoReserva = false; 
+  // =========================================================
+
   const somaVbucksItens = itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
   const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : (typeof valorParaVBucks === 'function' ? valorParaVBucks(valorDigitado) : Math.round((valorDigitado / baseAtual) * 100));
 

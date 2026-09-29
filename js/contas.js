@@ -118,19 +118,31 @@ function renderContasCards(t) {
   if (!t) t = totais();
   const container = document.getElementById("totaisPorConta");
   if (!container || !state) return;
-  const hojeTime = new Date().setHours(0, 0, 0, 0);
+  
+  const hojeObj = new Date();
+  hojeObj.setHours(0, 0, 0, 0);
+  const hojeTime = hojeObj.getTime();
   
   container.innerHTML = (state.contas || []).filter(c => c.ativa).map(c => {
     const quantidade = usadasDaConta(c.nome);
     const disponiveis = Math.max(0, 5 - quantidade);
     const reservasAtivas = (state.reservas || []).filter(r => r.conta === c.nome && r.expiresAt > Date.now());
+    
+    // Calcula apenas os agendamentos que são para HOJE ou atrasados
     const agendamentosPendentes = (state.agendamentos || []).filter(a => {
       if (a.conta !== c.nome) return false;
-      if (!a.dataEnvio) return true;
-      return parseDataBR(a.dataEnvio) <= hojeTime;
-    }).reduce((sum, a) => sum + (a.quantidade || 1), 0);
+      if (!a.dataEnvio || a.dataEnvio === "Imediato") return true;
+      const p = a.dataEnvio.split("/");
+      if (p.length === 3) {
+          const dataAg = new Date(p[2], p[1] - 1, p[0]);
+          return dataAg.getTime() <= hojeTime;
+      }
+      return true;
+    }).reduce((sum, a) => sum + (Number(a.quantidade) || 1), 0);
     
-    const avisoAgenda = agendamentosPendentes > 0 ? `<div style="font-size: 11px; color: #ffb74d; margin-top: 4px; font-weight: bold; background: rgba(255, 152, 0, 0.1); padding: 4px 6px; border-radius: 4px;">⚠️ ${agendamentosPendentes} vagas reservadas</div>` : '';
+    // Corrige a gramática Singular vs Plural
+    const textoVaga = agendamentosPendentes === 1 ? "vaga reservada" : "vagas reservadas";
+    const avisoAgenda = agendamentosPendentes > 0 ? `<div style="font-size: 11px; color: #ffb74d; margin-top: 4px; font-weight: bold; background: rgba(255, 152, 0, 0.1); padding: 4px 6px; border-radius: 4px;">⚠️ ${agendamentosPendentes} ${textoVaga}</div>` : '';
     
     const tempos = reservasAtivas.map((r, n) => `<div class="timer-line"><span>Venda ${n + 1}: ${tempoRestante(r.expiresAt - Date.now())}</span><button type="button" class="btn-danger timer-remove-btn" onclick="confirmarRemoverTimerEspecifico(${state.reservas.indexOf(r)}, ${n + 1}, '${esc(c.nome).replace(/'/g, "\\'")}')">✕</button></div>`);
     

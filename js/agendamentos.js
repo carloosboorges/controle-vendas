@@ -115,7 +115,7 @@ function selecionarEditAgendaDia(diaStr, e) {
   
   if (inputHidden && label) { 
     inputHidden.value = `${a}-${m}-${d}`; 
-    if (dataEscolhida.getTime() === hoje.getTime()) label.textContent = "Hoje"; 
+    if (dataEscolhida.getTime() === hoje.getTime()) label.textContent = `${diaStr} (Hoje)`; 
     else label.textContent = diaStr; 
   } 
   
@@ -158,7 +158,7 @@ function renderEditAgendaCalendario() {
     diasHtml += `<button type="button" class="cal-day-btn ${isToday ? "is-today" : ""} ${isSelected ? "is-selected" : ""}" ${isPassado ? "disabled style='opacity:0.25; cursor:not-allowed; border:none;'" : ""} onclick="selecionarEditAgendaDia('${dataStr}', event)">${dia}</button>`; 
   }
   
-  placeholder.innerHTML = `<div class="custom-calendar-popover" style="top: calc(100% + 6px); left: 0; transform: none; width: 250px;" onclick="event.stopPropagation()"><div class="calendar-header-nav"><button type="button" class="calendar-nav-btn" onclick="navegarEditAgendaMes(-1, event)">‹</button><strong>${nomesMeses[editAgendaViewMes]} ${editAgendaViewAno}</strong><button type="button" class="calendar-nav-btn" onclick="navegarEditAgendaMes(1, event)">›</button></div><div class="calendar-weekdays-grid">${diasSemana.map(d => `<span>${d}</span>`).join("")}</div><div class="calendar-days-grid">${diasHtml}</div></div>`;
+  placeholder.innerHTML = `<div class="custom-calendar-popover" style="bottom: calc(100% + 6px); top: auto; left: 0; transform: none; width: 250px; z-index: 9999;" onclick="event.stopPropagation()"><div class="calendar-header-nav"><button type="button" class="calendar-nav-btn" onclick="navegarEditAgendaMes(-1, event)">‹</button><strong>${nomesMeses[editAgendaViewMes]} ${editAgendaViewAno}</strong><button type="button" class="calendar-nav-btn" onclick="navegarEditAgendaMes(1, event)">›</button></div><div class="calendar-weekdays-grid">${diasSemana.map(d => `<span>${d}</span>`).join("")}</div><div class="calendar-days-grid">${diasHtml}</div></div>`;
 }
 
 function agendarVenda() {
@@ -197,6 +197,56 @@ function agendarVenda() {
     } 
     dataEnvioFormatada = `${dia}/${mes}/${ano}`; 
   }
+
+  // =========================================================
+  // ALERTA: RADAR INTELIGENTE DE LOTAÇÃO (Passado, Presente e Futuro)
+  // =========================================================
+  if (!window.ignorarAvisoLimiteAgendamento) {
+    let vagasOcupadas = 0;
+    const dataVerificar = dataEnvioFormatada === "Imediato" ? obterDataHojeFormatada() : dataEnvioFormatada;
+    const isAgendamentoParaHoje = dataVerificar === obterDataHojeFormatada();
+
+    // 1. Conta agendamentos daquela data
+    (state.agendamentos || []).forEach(a => {
+        if (a.conta === conta) {
+            const dEnvio = (a.dataEnvio && a.dataEnvio !== "Imediato") ? a.dataEnvio : obterDataHojeFormatada();
+            if (dEnvio === dataVerificar) {
+                vagasOcupadas += (Number(a.quantidade) || 1);
+            }
+        }
+    });
+
+    // 2. Se for para HOJE, conta os timers que cruzam a meia noite (que só acabam amanhã)
+    if (isAgendamentoParaHoje) {
+        const fimDoDia = new Date();
+        fimDoDia.setHours(23, 59, 59, 999);
+        const timersConta = (state.reservas || []).filter(r => r.conta === conta);
+        timersConta.forEach(t => {
+            const timeFim = t.expiresAt || t.expiraEm || t.fim || t.tempoFim || (t.criadoEmMs ? t.criadoEmMs + 86400000 : null);
+            if (timeFim && timeFim > fimDoDia.getTime()) {
+                vagasOcupadas++;
+            }
+        });
+    }
+
+    const vagasDisponiveis = Math.max(0, 5 - vagasOcupadas);
+
+    if (quantidade > vagasDisponiveis) {
+        if (typeof abrirModalConfirmacao === 'function') {
+            abrirModalConfirmacao(
+                "⚠️ Cuidado com a Lotação",
+                `Vagas disponíveis para ${dataVerificar}: apenas ${vagasDisponiveis}.\nQuantidade deste agendamento: ${quantidade}.\n\nA conta não terá espaço suficiente para enviar tudo no mesmo dia. Tem certeza que deseja agendar?`,
+                () => {
+                    window.ignorarAvisoLimiteAgendamento = true;
+                    agendarVenda();
+                }
+            );
+            return; 
+        }
+    }
+  }
+  window.ignorarAvisoLimiteAgendamento = false;
+  // =========================================================
 
   if (!conta || !valor || !cliente || !nickCliente || itens.length < quantidade) { 
     mostrarNotificacao("Preencha todos os campos obrigatórios.", "erro"); 
@@ -267,6 +317,9 @@ function renderizarAgendamentos() {
   const hojeTime = new Date().setHours(0,0,0,0);
   
   container.innerHTML = headerTotalHtml + agendamentos.map(a => {
+    if (a.dataRegistro === "28/09/2026" && a.horaRegistro === "23:18") {
+      a.dataRegistro = "27/09/2026";
+    }
     const vb = a.vbucks !== undefined ? Number(a.vbucks) : valorParaVBucks(a.valor, a.valorBaseMomento);
     const badgeEnvioEstilo = (a.dataEnvio !== "Imediato" && parseDataBR(a.dataEnvio) <= hojeTime) 
       ? "background: rgba(255, 152, 0, 0.2); border: 1px solid rgba(255, 152, 0, 0.6); color: #ffb74d;" 
@@ -312,6 +365,10 @@ function abrirModalEdicaoAgendamento(id) {
   const idx = (state.agendamentos || []).findIndex(a => a.id === id); 
   if (idx < 0) return; 
   const agendamento = state.agendamentos[idx];
+
+  if (agendamento.dataRegistro === "28/09/2026" && agendamento.horaRegistro === "23:18") {
+    agendamento.dataRegistro = "27/09/2026";
+  }
   
   document.getElementById("editTipoRegistro").value = "agendamento"; 
   document.getElementById("editVendaId").value = id; 
@@ -330,44 +387,61 @@ function abrirModalEdicaoAgendamento(id) {
   document.getElementById("editObservacaoInput").value = agendamento.observacao || ""; 
   document.getElementById("editValorInput").value = Number(agendamento.valor || 0).toFixed(2);
   
-  // TRAVA A DATA DE CRIAÇÃO PARA NÃO SER ALTERADA
   const inputDataCriacao = document.getElementById("editDataInput");
   const inputHoraCriacao = document.getElementById("editHoraInput");
   if (inputDataCriacao) {
     inputDataCriacao.value = agendamento.dataRegistro || "";
     inputDataCriacao.readOnly = true;
     inputDataCriacao.style.opacity = "0.6";
+    inputDataCriacao.style.cursor = "not-allowed";
   }
   if (inputHoraCriacao) {
     inputHoraCriacao.value = agendamento.horaRegistro || "";
     inputHoraCriacao.readOnly = true;
     inputHoraCriacao.style.opacity = "0.6";
+    inputHoraCriacao.style.cursor = "not-allowed";
   }
   
-  // INJEÇÃO AUTOMÁTICA DO CAMPO DE DATA DE ENVIO NO MODAL
-  let envioContainer = document.getElementById("editDataEnvioContainer");
-  const obsGroup = document.getElementById("editObservacaoInput")?.closest("div");
-  
-  if (!envioContainer && obsGroup) {
-    envioContainer = document.createElement("div");
-    envioContainer.id = "editDataEnvioContainer";
-    envioContainer.style.cssText = "margin-top: 12px;";
-    envioContainer.innerHTML = `
-      <label style="font-size: 12px; font-weight: 700; color: var(--muted); display: block; margin-bottom: 6px;">🚀 Data de Envio Programada (DD/MM/AAAA)</label>
-      <input type="date" id="editDataEnvioInput" style="width: 100%; padding: 10px; background: var(--bg); border: 1px solid var(--border); color: #fff; border-radius: 8px;">
+  let elDataEnvioContainer = document.getElementById("editDataEnvioContainer"); 
+  const obsInput = document.getElementById("editObservacaoInput");
+
+  if (!elDataEnvioContainer && obsInput) {
+    elDataEnvioContainer = document.createElement("div");
+    elDataEnvioContainer.id = "editDataEnvioContainer";
+    elDataEnvioContainer.style.cssText = "margin-top: 14px; position: relative; width: 100%;";
+    elDataEnvioContainer.innerHTML = `
+      <label style="font-size: 12px; font-weight: 700; color: var(--muted); display: block; margin-bottom: 6px;">🚀 Data de Envio Programada (Alterar dia do envio)</label>
+      <input type="hidden" id="editDataEnvioInput" value="">
+      <button type="button" onclick="toggleEditAgendaCalendario(event)" style="width: 100%; padding: 11px 14px; background: rgba(142, 68, 255, 0.12); border: 1px solid var(--accent); color: #fff; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-weight: 700; font-size: 13px;">
+        <span>📅 Enviar em: <strong id="labelEditAgendaData" style="color: var(--accent-light);">Hoje</strong></span>
+        <span style="color: var(--accent-light);">✏️ Alterar Data ▾</span>
+      </button>
+      <div id="editAgendaPopoverPlaceholder"></div>
     `;
-    obsGroup.insertAdjacentElement("afterend", envioContainer);
+    obsInput.insertAdjacentElement("afterend", elDataEnvioContainer);
   }
-  
-  if (envioContainer) {
-    envioContainer.style.display = "block";
+
+  if (elDataEnvioContainer) { 
+    elDataEnvioContainer.style.display = "block"; 
     const inputDataEnvio = document.getElementById("editDataEnvioInput");
-    if (inputDataEnvio && agendamento.dataEnvio) {
-      const p = agendamento.dataEnvio.split("/");
-      if (p.length === 3) {
-        inputDataEnvio.value = `${p[2]}-${p[1]}-${p[0]}`;
-      }
-    }
+    const labelDataEnvio = document.getElementById("labelEditAgendaData"); 
+    editAgendaPopoverAberto = false;
+    renderEditAgendaCalendario();
+    
+    if (inputDataEnvio && agendamento.dataEnvio) { 
+      const p = agendamento.dataEnvio.split("/"); 
+      if (p.length === 3) { 
+        inputDataEnvio.value = `${p[2]}-${p[1]}-${p[0]}`; 
+        if (labelDataEnvio) labelDataEnvio.textContent = agendamento.dataEnvio; 
+        editAgendaViewMes = Number(p[1]) - 1; 
+        editAgendaViewAno = Number(p[2]); 
+      } 
+    } else { 
+      if (inputDataEnvio) inputDataEnvio.value = ""; 
+      if (labelDataEnvio) labelDataEnvio.textContent = "Hoje"; 
+      editAgendaViewMes = new Date().getMonth(); 
+      editAgendaViewAno = new Date().getFullYear(); 
+    } 
   }
   
   atualizarPreviewVBucksEdicao();
@@ -377,6 +451,7 @@ function abrirModalEdicaoAgendamento(id) {
   
   container.innerHTML = itens.map((itemObj, idx) => { 
     let tipo = "Outro", nome = "", presente = "", vbucks = ""; 
+    
     if (typeof itemObj === "string") { 
       const parsed = parseItemString(itemObj); 
       tipo = parsed.tipo; nome = parsed.nome; 
@@ -386,7 +461,9 @@ function abrirModalEdicaoAgendamento(id) {
       presente = itemObj.presente || ""; 
       vbucks = itemObj.vbucks || "";
     } 
+    
     const optionsHtml = CATEGORIAS_ITENS.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join(""); 
+    
     return `
       <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">

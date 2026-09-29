@@ -49,7 +49,6 @@ function alterarQtdItens(delta) {
   let novo = atual + delta;
   if (novo < 1) novo = 1;
   input.value = novo;
-  // Quando clica no + ou -, avisa a função para PRESERVAR os valores digitados
   atualizarCamposItens(true); 
 }
 
@@ -342,8 +341,12 @@ function abrirModalConfirmacao(titulo, descricao, onConfirm) {
   const descEl = document.getElementById("genericConfirmDesc");
   const okBtn = document.getElementById("genericConfirmOkBtn");
   
-  if (titleEl) titleEl.textContent = titulo;
-  if (descEl) descEl.textContent = descricao;
+  if (titleEl) titleEl.innerHTML = titulo;
+  if (descEl) {
+      descEl.innerHTML = descricao; 
+      descEl.style.whiteSpace = "pre-wrap"; // ⬅️ ISSO AQUI FORÇA PULAR A LINHA SEMPRE
+  }
+  
   pendingConfirmCallback = onConfirm;
   
   okBtn.onclick = () => {
@@ -404,8 +407,6 @@ function recalcularValorSugeridoPorItem() {
   }
 }
 
-// O parâmetro preserveValues agora por padrão é falso. 
-// Isso significa que se a ordem vier do final da venda (app.js), a função vai LIMPAR TUDO sem questionar.
 function atualizarCamposItens(preserveValues = false) {
   const inputQtd = document.getElementById("quantidadeInput");
   const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
@@ -414,7 +415,6 @@ function atualizarCamposItens(preserveValues = false) {
   
   const valoresSalvos = [];
   
-  // Só verifica e salva o que está escrito se pedirmos explicitamente para preservar (via botão + ou -)
   if (preserveValues) {
     for (let i = 0; i < container.children.length; i++) {
       valoresSalvos.push({
@@ -426,7 +426,6 @@ function atualizarCamposItens(preserveValues = false) {
     }
   }
   
-  // Preenche a lista com campos limpos até atingir a quantidade necessária
   while (valoresSalvos.length < qtd) {
     valoresSalvos.push({ tipo: "Traje", nome: "", vbucks: "", presente: "" });
   }
