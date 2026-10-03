@@ -105,16 +105,55 @@ function mostrarNotificacao(msg, tipo = "info") {
   }, 3500);
 }
 
-function copiarTexto(texto, tipo = "Texto", event = null) {
-  if (event) event.stopPropagation();
-  if (!texto || texto === "—") return;
-  if (window.getSelection) window.getSelection().removeAllRanges();
-  
-  navigator.clipboard.writeText(texto).then(() => {
-    if (tipo === 'E-mail') mostrarNotificacao("📋 E-mail copiado!", "sucesso");
-    else if (tipo === 'Senha') mostrarNotificacao("📋 Senha copiada!", "sucesso");
-    else mostrarNotificacao(`📋 ${tipo} copiado: "${texto}"`, "sucesso");
-  }).catch(() => mostrarNotificacao("Não foi possível copiar.", "erro"));
+// ==========================================
+// FUNÇÃO DE CÓPIA BLINDADA (Anti-falhas)
+// ==========================================
+async function copiarTexto(texto, tipoLabel = "Texto", evento = null) {
+  // Evita propagação do clique para painéis indesejados
+  if (evento) {
+      evento.preventDefault();
+      evento.stopPropagation();
+  }
+
+  if (!texto || texto === "—") {
+      mostrarNotificacao(`Não há ${tipoLabel} para copiar!`, "erro");
+      return;
+  }
+
+  const msgSucesso = () => {
+      if (tipoLabel === 'E-mail') mostrarNotificacao("📋 E-mail copiado!", "sucesso");
+      else if (tipoLabel === 'Senha') mostrarNotificacao("📋 Senha copiada!", "sucesso");
+      else mostrarNotificacao(`📋 ${tipoLabel} copiado: "${texto}"`, "sucesso");
+  };
+
+  const forceCopy = () => {
+      try {
+          const t = document.createElement("textarea");
+          t.value = texto;
+          t.style.position = "fixed";
+          t.style.opacity = "0";
+          document.body.appendChild(t);
+          t.focus();
+          t.select();
+          const worked = document.execCommand("copy");
+          document.body.removeChild(t);
+          if (worked) msgSucesso();
+          else mostrarNotificacao("Não foi possível copiar.", "erro");
+      } catch (err) {
+          mostrarNotificacao("Não foi possível copiar.", "erro");
+      }
+  };
+
+  if (navigator.clipboard && window.isSecureContext) {
+      try {
+          await navigator.clipboard.writeText(texto);
+          msgSucesso();
+      } catch (e) {
+          forceCopy();
+      }
+  } else {
+      forceCopy();
+  }
 }
 
 function mascaraTelefone(e) {
