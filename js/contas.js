@@ -114,6 +114,38 @@ function confirmarRemoverTimerEspecifico(index, numeroVenda, nomeConta) {
   );
 }
 
+// -------------------------------------------------------------
+// NOVA FUNÇÃO: Atualiza SÓ o texto dos relógios, sem recriar os botões!
+// -------------------------------------------------------------
+function atualizarRelogios() {
+  if (!state || !state.contas) return;
+  
+  let precisaAtualizarTudo = false;
+  if (typeof limparReservasExpiradas === 'function') {
+      if (limparReservasExpiradas()) {
+          precisaAtualizarTudo = true;
+      }
+  }
+  
+  // Se algum timer acabou, recria a tela para mostrar que liberou a vaga
+  if (precisaAtualizarTudo) {
+      if (typeof renderContasCards === 'function') renderContasCards();
+      if (typeof render === 'function') render();
+      return;
+  }
+
+  // Se nada acabou, apenas injeta o novo texto do relógio na surdina
+  (state.contas || []).filter(c => c.ativa).forEach(c => {
+    const idLimpo = c.nome.replace(/\s+/g, '-');
+    const container = document.getElementById(`timers-conta-${idLimpo}`);
+    if (container) {
+      const reservasAtivas = (state.reservas || []).filter(r => r.conta === c.nome && r.expiresAt > Date.now());
+      const tempos = reservasAtivas.map((r, n) => `<div class="timer-line"><span>Venda ${n + 1}: ${tempoRestante(r.expiresAt - Date.now())}</span><button type="button" class="btn-danger timer-remove-btn" onclick="confirmarRemoverTimerEspecifico(${state.reservas.indexOf(r)}, ${n + 1}, '${esc(c.nome).replace(/'/g, "\\'")}')">✕</button></div>`);
+      container.innerHTML = tempos.length ? tempos.join("") : "";
+    }
+  });
+}
+
 function renderContasCards(t) {
   if (!t) t = totais();
   const container = document.getElementById("totaisPorConta");
@@ -166,7 +198,7 @@ function renderContasCards(t) {
           <div class="sales-count">🛒 ${quantidade === 1 ? "1 venda nessa conta" : quantidade + " vendas nessa conta"}</div>
           <div class="sales-count">📦 ${disponiveis === 1 ? "1 venda disponível" : disponiveis + " vendas disponíveis"}</div>
           ${avisoAgenda}
-          <div class="timer">${tempos.length ? tempos.join("") : ""}</div>
+          <div class="timer" id="timers-conta-${esc(c.nome).replace(/\s+/g, '-')}">${tempos.length ? tempos.join("") : ""}</div>
         </div>
         ${painelCreds}
       </div>`;

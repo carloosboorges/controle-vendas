@@ -344,7 +344,7 @@ function abrirModalConfirmacao(titulo, descricao, onConfirm) {
   if (titleEl) titleEl.innerHTML = titulo;
   if (descEl) {
       descEl.innerHTML = descricao; 
-      descEl.style.whiteSpace = "pre-wrap"; // ⬅️ ISSO AQUI FORÇA PULAR A LINHA SEMPRE
+      descEl.style.whiteSpace = "pre-wrap"; 
   }
   
   pendingConfirmCallback = onConfirm;
@@ -643,3 +643,23 @@ function render() {
   if (typeof renderizarListaHistorico === 'function') renderizarListaHistorico();
   if (abaHistoricoAtiva === 'agendamentos' && typeof renderizarAgendamentos === 'function') renderizarAgendamentos();
 }
+
+// -------------------------------------------------------------
+// O "CORAÇÃO" DO SISTEMA - RODA A CADA 1 SEGUNDO
+// -------------------------------------------------------------
+setInterval(() => {
+  if (typeof state !== 'undefined' && state) {
+      if (typeof atualizarRelogios === 'function') {
+          atualizarRelogios(); // Atualiza SÓ o texto dos relógios! Não pisca os botões.
+      } else if (typeof renderContasCards === 'function') {
+          renderContasCards(); // Sistema antigo de emergência
+      }
+  }
+  
+  const dataAtual = typeof obterDataHojeFormatada === 'function' ? obterDataHojeFormatada() : new Date().toLocaleDateString('pt-BR');
+  if (ultimaDataHojeConhecida !== dataAtual) {
+    ultimaDataHojeConhecida = dataAtual;
+    if (typeof render === 'function') render();
+    if (typeof mostrarNotificacao === 'function') mostrarNotificacao("📅 Novo dia iniciado! Painel atualizado.", "info");
+  }
+}, 1000);
