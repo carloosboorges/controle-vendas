@@ -33,7 +33,7 @@ function adicionarVenda() {
   }
 
   if (!cliente) { mostrarNotificacao("⚠️ Preencha o Nome do Cliente!", "erro"); return; }
-  if (!nickCliente) { mostrarNotificacao("⚠️ Preencha o Nick do Cliente!", "erro"); return; }
+  if (!nickCliente) { mostrarNotificacao("⚠️️ Preencha o Nick do Cliente!", "erro"); return; }
   if (!primeiroItem) { mostrarNotificacao("⚠️ Preencha o Item a ser vendido!", "erro"); return; }
   if (!valorDigitado || isNaN(valorDigitado)) { mostrarNotificacao("⚠️ Informe o valor da venda!", "erro"); return; }
   if (!conta) { mostrarNotificacao("⚠️ Selecione uma conta!", "erro"); return; }
@@ -727,10 +727,20 @@ async function inicializar() {
 let ultimaDataHojeConhecida = typeof obterDataHojeFormatada === 'function' ? obterDataHojeFormatada() : new Date().toLocaleDateString('pt-BR');
 inicializar();
 
+// =============================================================
+// O "CORAÇÃO" DO SISTEMA - RODA A CADA 1 SEGUNDO (ATUALIZADO)
+// =============================================================
 setInterval(() => {
-  if (typeof state !== 'undefined' && state && typeof renderContasCards === 'function') renderContasCards();
+  if (typeof state !== 'undefined' && state) {
+      if (typeof atualizarRelogios === 'function') {
+          atualizarRelogios(); 
+      } else if (typeof renderContasCards === 'function') {
+          renderContasCards(); 
+      }
+  }
+  
   const dataAtual = typeof obterDataHojeFormatada === 'function' ? obterDataHojeFormatada() : new Date().toLocaleDateString('pt-BR');
-  if (ultimaDataHojeConhecida !== dataAtual) {
+  if (typeof ultimaDataHojeConhecida !== 'undefined' && ultimaDataHojeConhecida !== dataAtual) {
     ultimaDataHojeConhecida = dataAtual;
     if (typeof render === 'function') render();
     if (typeof mostrarNotificacao === 'function') mostrarNotificacao("📅 Novo dia iniciado! Painel atualizado.", "info");
