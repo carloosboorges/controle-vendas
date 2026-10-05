@@ -188,7 +188,7 @@ function buscarSugestoesItem(texto, index) {
     const nomeSeguro = esc(i.nome).replace(/'/g, "&#39;");
     const tipoSeguro = esc(i.tipo).replace(/'/g, "&#39;");
     
-    return `<div class="autocomplete-item" onclick="selecionarSugestaoItem('${nomeSeguro}', '${tipoSeguro}', ${index})">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
+    return `<div class="autocomplete-item" onmousedown="selecionarSugestaoItem('${nomeSeguro}', '${tipoSeguro}', ${index})">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
   }).join("");
   dropdown.style.display = "block";
 }
