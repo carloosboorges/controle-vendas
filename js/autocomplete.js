@@ -175,15 +175,26 @@ function buscarSugestoesItem(texto, index) {
     if (Array.isArray(v.itens)) {
       v.itens.forEach(itemObj => {
         const nomeItem = typeof itemObj === "string" ? itemObj : (itemObj?.nome || "");
+        const tipoItem = typeof itemObj === "string" ? "Outro" : (itemObj?.tipo || "Outro");
         const nomeLimpo = String(nomeItem).trim();
-        if (nomeLimpo && !itensMap[nomeLimpo.toLowerCase()]) {
-          itensMap[nomeLimpo.toLowerCase()] = { nome: nomeLimpo, tipo: itemObj.tipo || "Outro" };
+        
+        if (nomeLimpo) {
+          // AQUI ESTÁ A MÁGICA: A chave agora junta o nome e o tipo em minúsculas!
+          const chave = `${nomeLimpo.toLowerCase()}|||${tipoItem.toLowerCase()}`;
+          if (!itensMap[chave]) {
+            itensMap[chave] = { nome: nomeLimpo, tipo: tipoItem };
+          }
         }
       });
     } else if (v.item) {
       const nomeLimpo = String(v.item).trim();
-      if (nomeLimpo && !itensMap[nomeLimpo.toLowerCase()]) {
-        itensMap[nomeLimpo.toLowerCase()] = { nome: nomeLimpo, tipo: "Outro" };
+      const tipoItem = "Outro";
+      
+      if (nomeLimpo) {
+        const chave = `${nomeLimpo.toLowerCase()}|||${tipoItem.toLowerCase()}`;
+        if (!itensMap[chave]) {
+          itensMap[chave] = { nome: nomeLimpo, tipo: tipoItem };
+        }
       }
     }
   });
@@ -192,7 +203,7 @@ function buscarSugestoesItem(texto, index) {
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
 
   dropdown.innerHTML = sugestoes.slice(0, 6).map(i => {
-    return `<div class="autocomplete-item" onmousedown="selecionarSugestaoItem('${safeString(i.nome)}', '${safeString(i.tipo)}', ${index})">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
+    return `<div class="autocomplete-item" onmousedown="clicarSugestaoItem(this, ${index})" data-nome="${esc(i.nome)}" data-tipo="${esc(i.tipo)}">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
   }).join("");
   dropdown.style.display = "block";
 }
@@ -219,7 +230,10 @@ function selecionarSugestaoNickPresente(nick, index) {
   document.getElementById(`nickPresenteSuggestions_${index}`).style.display = "none";
 }
 
-function selecionarSugestaoItem(nomeItem, tipoItem, index) {
+function clicarSugestaoItem(element, index) {
+  const nomeItem = element.getAttribute("data-nome");
+  const tipoItem = element.getAttribute("data-tipo");
+  
   const input = document.getElementById(`itemNameInput_${index}`);
   if (input) input.value = nomeItem;
 
