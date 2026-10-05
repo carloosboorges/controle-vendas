@@ -2,6 +2,13 @@
 // MÓDULO DE AUTOCOMPLETE (Sugestões Inteligentes)
 // ========================================================
 
+// Nova função blindada: Protege aspas e apóstrofos PRIMEIRO para o JS, depois para o HTML
+function safeString(str) {
+  if (!str) return "";
+  const jsEscaped = String(str).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  return typeof esc === 'function' ? esc(jsEscaped) : jsEscaped.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
 function buscarSugestoesCliente(texto) {
   const dropdown = document.getElementById("clienteSuggestions");
   const idInput = document.getElementById("clienteIdInput");
@@ -32,7 +39,7 @@ function buscarSugestoesCliente(texto) {
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
     const obsIcon = (state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao) ? ' <span style="font-size:11px;" title="Possui observação">📌</span>' : '';
-    return `<div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(c.id).replace(/'/g, "\\'")}', '${esc(c.nome).replace(/'/g, "\\'")}', '${esc(c.nick).replace(/'/g, "\\'")}', '${esc(c.whatsapp).replace(/'/g, "\\'")}', '${esc(c.tiktok).replace(/'/g, "\\'")}')">👤 ${esc(c.nome)}${obsIcon} <span class="autocomplete-nick">🎮 ${esc(c.nick)}</span></div>`;
+    return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tiktok)}')">👤 ${esc(c.nome)}${obsIcon} <span class="autocomplete-nick">🎮 ${esc(c.nick)}</span></div>`;
   }).join("");
   dropdown.style.display = "block";
 }
@@ -58,7 +65,7 @@ function buscarSugestoesNick(texto) {
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
-    return `<div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(c.id).replace(/'/g, "\\'")}', '${esc(c.nome).replace(/'/g, "\\'")}', '${esc(c.nick).replace(/'/g, "\\'")}', '${esc(c.whatsapp).replace(/'/g, "\\'")}', '${esc(c.tiktok).replace(/'/g, "\\'")}')">🎮 ${esc(c.nick)} <span class="autocomplete-nick">👤 ${esc(c.nome)}</span></div>`;
+    return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tiktok)}')">🎮 ${esc(c.nick)} <span class="autocomplete-nick">👤 ${esc(c.nome)}</span></div>`;
   }).join("");
   dropdown.style.display = "block";
 }
@@ -91,7 +98,7 @@ function buscarSugestoesWhatsapp(texto) {
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
     const obsIcon = (state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao) ? ' <span style="font-size:11px;" title="Possui observação">📌</span>' : '';
-    return `<div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(c.id).replace(/'/g, "\\'")}', '${esc(c.nome).replace(/'/g, "\\'")}', '${esc(c.nick).replace(/'/g, "\\'")}', '${esc(c.wppOriginal).replace(/'/g, "\\'")}', '${esc(c.tiktok).replace(/'/g, "\\'")}')">📱 ${esc(c.wppOriginal)} <span class="autocomplete-nick">👤 ${esc(c.nome)}${obsIcon}</span></div>`;
+    return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.wppOriginal)}', '${safeString(c.tiktok)}')">📱 ${esc(c.wppOriginal)} <span class="autocomplete-nick">👤 ${esc(c.nome)}${obsIcon}</span></div>`;
   }).join("");
   dropdown.style.display = "block";
 }
@@ -121,7 +128,7 @@ function buscarSugestoesTiktok(texto) {
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
     const obsIcon = (state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao) ? ' <span style="font-size:11px;" title="Possui observação">📌</span>' : '';
-    return `<div class="autocomplete-item" onclick="selecionarSugestaoCliente('${esc(c.id).replace(/'/g, "\\'")}', '${esc(c.nome).replace(/'/g, "\\'")}', '${esc(c.nick).replace(/'/g, "\\'")}', '${esc(c.whatsapp).replace(/'/g, "\\'")}', '${esc(c.tkOriginal).replace(/'/g, "\\'")}')">${TIKTOK_SVG} ${esc(c.tkOriginal)} <span class="autocomplete-nick">👤 ${esc(c.nome)}${obsIcon}</span></div>`;
+    return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tkOriginal)}')">${TIKTOK_SVG} ${esc(c.tkOriginal)} <span class="autocomplete-nick">👤 ${esc(c.nome)}${obsIcon}</span></div>`;
   }).join("");
   dropdown.style.display = "block";
 }
@@ -151,7 +158,7 @@ function sugerirNickPresente(texto, index) {
   const sugestoes = Object.keys(nicksMap).filter(n => n.toLowerCase().includes(termo));
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
-  dropdown.innerHTML = sugestoes.slice(0, 6).map(nick => `<div class="autocomplete-item" onclick="selecionarSugestaoNickPresente('${esc(nick).replace(/'/g, "\\'")}', ${index})">🎁 ${esc(nick)} <span class="autocomplete-nick">(${esc(nicksMap[nick])})</span></div>`).join("");
+  dropdown.innerHTML = sugestoes.slice(0, 6).map(nick => `<div class="autocomplete-item" onmousedown="selecionarSugestaoNickPresente('${safeString(nick)}', ${index})">🎁 ${esc(nick)} <span class="autocomplete-nick">(${esc(nicksMap[nick])})</span></div>`).join("");
   dropdown.style.display = "block";
 }
 
@@ -185,7 +192,7 @@ function buscarSugestoesItem(texto, index) {
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
 
   dropdown.innerHTML = sugestoes.slice(0, 6).map(i => {
-    return `<div class="autocomplete-item" onmousedown="clicarSugestaoItem(this, ${index})" data-nome="${esc(i.nome)}" data-tipo="${esc(i.tipo)}">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
+    return `<div class="autocomplete-item" onmousedown="selecionarSugestaoItem('${safeString(i.nome)}', '${safeString(i.tipo)}', ${index})">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
   }).join("");
   dropdown.style.display = "block";
 }
@@ -212,10 +219,7 @@ function selecionarSugestaoNickPresente(nick, index) {
   document.getElementById(`nickPresenteSuggestions_${index}`).style.display = "none";
 }
 
-function clicarSugestaoItem(element, index) {
-  const nomeItem = element.getAttribute("data-nome");
-  const tipoItem = element.getAttribute("data-tipo");
-  
+function selecionarSugestaoItem(nomeItem, tipoItem, index) {
   const input = document.getElementById(`itemNameInput_${index}`);
   if (input) input.value = nomeItem;
 
