@@ -185,7 +185,10 @@ function buscarSugestoesItem(texto, index) {
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
 
   dropdown.innerHTML = sugestoes.slice(0, 6).map(i => {
-    return `<div class="autocomplete-item" onclick="selecionarSugestaoItem('${esc(i.nome).replace(/'/g, "\\'")}', '${esc(i.tipo).replace(/'/g, "\\'")}', ${index})">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
+    const nomeSeguro = esc(i.nome).replace(/'/g, "&#39;");
+    const tipoSeguro = esc(i.tipo).replace(/'/g, "&#39;");
+    
+    return `<div class="autocomplete-item" onclick="selecionarSugestaoItem('${nomeSeguro}', '${tipoSeguro}', ${index})">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
   }).join("");
   dropdown.style.display = "block";
 }
