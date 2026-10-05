@@ -185,10 +185,7 @@ function buscarSugestoesItem(texto, index) {
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
 
   dropdown.innerHTML = sugestoes.slice(0, 6).map(i => {
-    const nomeSeguro = esc(i.nome).replace(/'/g, "&#39;");
-    const tipoSeguro = esc(i.tipo).replace(/'/g, "&#39;");
-    
-    return `<div class="autocomplete-item" onmousedown="selecionarSugestaoItem('${nomeSeguro}', '${tipoSeguro}', ${index})">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
+    return `<div class="autocomplete-item" onmousedown="clicarSugestaoItem(this, ${index})" data-nome="${esc(i.nome)}" data-tipo="${esc(i.tipo)}">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
   }).join("");
   dropdown.style.display = "block";
 }
@@ -215,7 +212,10 @@ function selecionarSugestaoNickPresente(nick, index) {
   document.getElementById(`nickPresenteSuggestions_${index}`).style.display = "none";
 }
 
-function selecionarSugestaoItem(nomeItem, tipoItem, index) {
+function clicarSugestaoItem(element, index) {
+  const nomeItem = element.getAttribute("data-nome");
+  const tipoItem = element.getAttribute("data-tipo");
+  
   const input = document.getElementById(`itemNameInput_${index}`);
   if (input) input.value = nomeItem;
 
