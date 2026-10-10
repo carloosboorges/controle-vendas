@@ -175,8 +175,6 @@ function renderizarHistoricoItensCompleto() {
     return;
   }
 
-  const mLucro = typeof MARGEM_LUCRO !== 'undefined' ? MARGEM_LUCRO : (100 / 310);
-
   container.innerHTML = `
     <div style="overflow-x:auto;">
       <table class="financial-table" style="width:100%; border-collapse:collapse;">
@@ -193,7 +191,9 @@ function renderizarHistoricoItensCompleto() {
         </thead>
         <tbody>
           ${itensPagina.map(item => {
-            const lucroItem = item.faturamentoReal * mLucro;
+            const custoPorVbuck = 0.01;
+            const custoTotalDoItem = item.vbucksAcumuladoReal * custoPorVbuck;
+            const lucroItem = item.faturamentoReal - custoTotalDoItem;
             const lucroFormatado = ocultarLucroItens ? "R$ *****" : money(lucroItem);
 
             return `
