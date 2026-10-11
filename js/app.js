@@ -33,7 +33,7 @@ function adicionarVenda() {
   }
 
   if (!cliente) { mostrarNotificacao("⚠️ Preencha o Nome do Cliente!", "erro"); return; }
-  if (!nickCliente) { mostrarNotificacao("⚠️️ Preencha o Nick do Cliente!", "erro"); return; }
+  if (!nickCliente) { mostrarNotificacao("⚠ Preencha o Nick do Cliente!", "erro"); return; }
   if (!primeiroItem) { mostrarNotificacao("⚠️ Preencha o Item a ser vendido!", "erro"); return; }
   if (!valorDigitado || isNaN(valorDigitado)) { mostrarNotificacao("⚠️ Informe o valor da venda!", "erro"); return; }
   if (!conta) { mostrarNotificacao("⚠️ Selecione uma conta!", "erro"); return; }
@@ -93,7 +93,6 @@ function adicionarVenda() {
             const displayVagas = Math.max(0, vagasProjetadasHoje);
             const txtPreVenda = qtdReservadaHoje === 1 ? "<b>1 pré-venda</b>" : `<b>${qtdReservadaHoje} pré-vendas</b>`;
             
-            // Tratamento inteligente para 0 vagas
             let txtVagaLivre = "";
             if (displayVagas === 0) {
                 txtVagaLivre = "você ficará <b>sem nenhuma vaga livre</b> até as 23:59.";
@@ -314,12 +313,6 @@ function salvarEdicaoVenda() {
   const whatsapp = document.getElementById("editWhatsappInput")?.value.trim() || "";
   const tiktok = document.getElementById("editTiktokInput")?.value.trim() || "";
   const observacao = document.getElementById("editObservacaoInput")?.value.trim() || "";
-  const valor = parseFloat(document.getElementById("editValorInput")?.value) || 0;
-
-  if (!novaConta || !valor || !cliente || !nick) {
-    mostrarNotificacao("Preencha todos os campos obrigatórios.", "erro");
-    return;
-  }
 
   const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
   const novosItens = [];
@@ -337,7 +330,12 @@ function salvarEdicaoVenda() {
   }
 
   const somaVbucksNovos = novosItens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
-  const novoVbucks = somaVbucksNovos > 0 ? somaVbucksNovos : (typeof valorParaVBucks === 'function' ? valorParaVBucks(valor) : Math.round((valor / (venda.valorBaseMomento || state.valorBase100 || 2.5)) * 100));
+  const baseMomento = venda.valorBaseMomento || state.valorBase100 || 2.5;
+  const novoVbucks = somaVbucksNovos > 0 ? somaVbucksNovos : (typeof valorParaVBucks === 'function' ? valorParaVBucks(parseFloat(document.getElementById("editValorInput")?.value) || 0) : Math.round(((parseFloat(document.getElementById("editValorInput")?.value) || 0) / baseMomento) * 100));
+  
+  // RECALCULO AUTOMÁTICO DO VALOR EM REAIS COM BASE NOS V-BUCKS RESTANTES
+  const novoValorEmReais = Number(((novoVbucks / 100) * baseMomento).toFixed(2));
+
   const vbucksAntigo = venda.vbucks !== undefined ? Number(venda.vbucks) : (typeof valorParaVBucks === 'function' ? valorParaVBucks(venda.valor, venda.valorBaseMomento) : 0);
 
   if (!isAgendamento && (venda.conta !== novaConta || venda.vbucks !== novoVbucks)) {
@@ -354,12 +352,13 @@ function salvarEdicaoVenda() {
   venda.tiktok = tiktok;
   venda.nickPresente = "";
   venda.observacao = observacao;
-  venda.valor = Number(valor);
+  venda.valor = novoValorEmReais; // Atualiza com o valor exato recalculado
   venda.vbucks = novoVbucks;
   
   if (novosItens.length > 0) {
     venda.itens = novosItens;
     venda.item = novosItens[0];
+    venda.quantidade = novosItens.length; // Atualiza as vagas do card
   }
 
   if (isAgendamento) {
@@ -382,9 +381,10 @@ function salvarEdicaoVenda() {
     if (sessaoVenda) {
       Object.assign(sessaoVenda, {
         conta: novaConta, cliente, nickCliente: nick, whatsapp, tiktok,
-        observacao, data: novaData, hora: novaHora, valor: Number(valor),
+        observacao, data: novaData, hora: novaHora, valor: novoValorEmReais,
         vbucks: novoVbucks, itens: novosItens.length ? novosItens : sessaoVenda.itens,
-        item: novosItens.length ? novosItens[0] : sessaoVenda.item
+        item: novosItens.length ? novosItens[0] : sessaoVenda.item,
+        quantidade: novosItens.length ? novosItens.length : sessaoVenda.quantidade
       });
     }
     if (state.reservas) {
