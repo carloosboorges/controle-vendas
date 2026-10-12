@@ -28,10 +28,11 @@ const DADOS_DEMO = {
   ],
   vendas: [],
   reservas: [],
-  valorBase100: 2.5,        // Valor base normal padrão (ex: R$ 2,50)
-  valorBasePromo: 2.00,     // Valor base promocional de volume (ex: R$ 2,00)
-  modoPrecificacao: "padrao", // "padrao", "global_promo", "volume_promo"
-  limiteVolumePromo: 1500,   // Limite mínimo em V-Bucks para ativar a promoção por volume
+  valorBase100: 2.5,          // Valor base normal padrão (ex: R$ 2,50)
+  valorBasePromo: 2.00,       // Valor base promocional de volume (ex: R$ 2,00)
+  modoPrecificacao: "padrao",   // "padrao", "global_promo", "volume_promo"
+  limiteVolumePromo: 1500,     // Limite mínimo em V-Bucks para ativar a promoção por volume
+  modoVolumeRegra: "individual", // "individual" (cada item tem de atingir a meta) ou "acumulado" (soma tudo)
   historicoVendas: [],
   lixeiraVendas: [],
   apoiadorRegistros: {},
@@ -109,7 +110,6 @@ function mostrarNotificacao(msg, tipo = "info") {
 // FUNÇÃO DE CÓPIA BLINDADA (Anti-falhas)
 // ==========================================
 async function copiarTexto(texto, tipoLabel = "Texto", evento = null) {
-  // Evita propagação do clique para painéis indesejados
   if (evento) {
       evento.preventDefault();
       evento.stopPropagation();
@@ -121,9 +121,9 @@ async function copiarTexto(texto, tipoLabel = "Texto", evento = null) {
   }
 
   const msgSucesso = () => {
-      if (tipoLabel === 'E-mail') mostrarNotificacao("📋 E-mail copiado!", "sucesso");
-      else if (tipoLabel === 'Senha') mostrarNotificacao("📋 Senha copiada!", "sucesso");
-      else mostrarNotificacao(`📋 ${tipoLabel} copiado: "${texto}"`, "sucesso");
+    if (tipoLabel === 'E-mail') mostrarNotificacao("📋 E-mail copiado!", "sucesso");
+    else if (tipoLabel === 'Senha') mostrarNotificacao("📋 Senha copiada!", "sucesso");
+    else mostrarNotificacao(`📋 ${tipoLabel} copiado: "${texto}"`, "sucesso");
   };
 
   const forceCopy = () => {
@@ -213,6 +213,7 @@ function sanitizarDados() {
   if (!state.modoPrecificacao) state.modoPrecificacao = "padrao";
   if (!state.limiteVolumePromo) state.limiteVolumePromo = 1500;
   if (!state.valorBasePromo) state.valorBasePromo = 2.00;
+  if (!state.modoVolumeRegra) state.modoVolumeRegra = "individual";
 }
 
 function sincronizarDadosCliente(nome, whatsapp, tiktok) {
@@ -438,30 +439,66 @@ function criarTimerReserva(conta, vendaId) {
   };
 }
 
+function alterarModoRegraVolume(novoModo) {
+  if (!state) return;
+  state.modoVolumeRegra = novoModo;
+  if (typeof save === 'function') save();
+  if (typeof render === 'function') render();
+  if (typeof calcularPrecoInteligente === 'function') calcularPrecoInteligente();
+  mostrarNotificacao(`Modo de volume alterado para: ${novoModo === 'individual' ? 'Por Item Individual' : 'Soma Acumulada'}`, "sucesso");
+}
+
 // -------------------------------------------------------------
-// MOTOR DE CÁLCULO INTELIGENTE DE PREÇOS E V-BUCKS (COM ESCUDO DE DESCONTO)
+// MOTOR DE CÁLCULO INTELIGENTE DE PREÇOS E V-BUCKS (COM SUPORTE A 2 MODOS DE VOLUME)
 // -------------------------------------------------------------
 function calcularPrecoInteligente(vbucks) {
-  const vb = Number(vbucks) || 0;
+  const inputQtd = document.getElementById("quantidadeInput");
+  const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
+  
+  const itensVbList = [];
+  for (let i = 0; i < qtd; i++) {
+    const vbInput = document.getElementById(`itemVbucksInput_${i}`);
+    if (vbInput && vbInput.value) {
+      itensVbList.push(Number(vbInput.value) || 0);
+    }
+  }
+
+  const vbTotal = itensVbList.reduce((acc, v) => acc + v, 0);
+  const vb = itensVbList.length > 0 ? vbTotal : (Number(vbucks) || 0);
   if (vb <= 0) return 0;
 
   const modo = state?.modoPrecificacao || 'padrao';
   const baseNormal = Number(state?.valorBase100 || 2.5); 
   const basePromo = Number(state?.valorBasePromo || 2.00); 
   const limiteVolume = Number(state?.limiteVolumePromo || 1500); 
+  const modoRegraVolume = state?.modoVolumeRegra || 'individual';
 
   let precoCalculado = 0;
 
   if (modo === 'global_promo') {
     precoCalculado = (vb / 100) * baseNormal;
   } else if (modo === 'volume_promo') {
-    if (vb >= limiteVolume) {
-      precoCalculado = (vb / 100) * basePromo;
+    if (modoRegraVolume === 'individual' && itensVbList.length > 0) {
+      // MODO INDIVIDUAL: Cada item avaliado separadamente. Atingiu a meta? Preço promo. Senão, preço normal.
+      itensVbList.forEach(itemVb => {
+        if (itemVb >= limiteVolume) {
+          precoCalculado += (itemVb / 100) * basePromo;
+        } else {
+          precoCalculado += (itemVb / 100) * baseNormal;
+        }
+      });
     } else {
-      if (vb < 2000) {
-        precoCalculado = (vb / 100) * baseNormal;
-      } else if (TABELA_PRECOS_ESPECIAIS[vb]) {
-        precoCalculado = TABELA_PRECOS_ESPECIAIS[vb];
+      // MODO ACUMULADO: Se o total da venda atingir a meta, tudo ganha o preço promo
+      if (vb >= limiteVolume) {
+        precoCalculado = (vb / 100) * basePromo;
+      } else {
+        if (vb < 2000) {
+          precoCalculado = (vb / 100) * baseNormal;
+        } else if (TABELA_PRECOS_ESPECIAIS[vb]) {
+          precoCalculado = TABELA_PRECOS_ESPECIAIS[vb];
+        } else {
+          precoCalculado = (vb / 100) * baseNormal;
+        }
       }
     }
   } else {
@@ -501,7 +538,6 @@ function calcularPrecoInteligente(vbucks) {
     const valorAtual = parseFloat(stringAtual) || 0;
 
     // ESCUDO PROTETOR: Só altera o preço se o campo estiver vazio ou se corresponder à última sugestão automática.
-    // Se você digitou um desconto à mão, o sistema NÃO sobrescreve!
     if (valorAtual === 0 || Math.abs(valorAtual - ultimoValorSugeridoAuto) < 0.02) {
       valorInput.value = finalValor.toFixed(2);
       ultimoValorSugeridoAuto = finalValor;

@@ -9,6 +9,47 @@ function safeString(str) {
   return typeof esc === 'function' ? esc(jsEscaped) : jsEscaped.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
+// FUNÇÃO AUXILIAR: Mapeia todos os clientes (Histórico + Clientes Cadastrados Manualmente)
+function obterMapaDeClientes() {
+  const clientesMap = {};
+  
+  // 1. Prioridade: Clientes cadastrados manualmente ou já com perfil no clientesInfo
+  if (state && state.clientesInfo) {
+    Object.keys(state.clientesInfo).forEach(id => {
+      const info = state.clientesInfo[id];
+      const nome = String(info.nome || id).trim(); // Se não tiver nome salvo, tenta usar o ID (alguns antigos usam nome como ID)
+      if (nome && !nome.startsWith('cli-')) {
+        clientesMap[id] = { 
+          id: id, 
+          nome: nome, 
+          nick: info.nick || info.nickCliente || "", 
+          whatsapp: info.whatsapp || "", 
+          tiktok: info.tiktok || "" 
+        };
+      }
+    });
+  }
+
+  // 2. Mescla com os do Histórico de Vendas (do mais recente para o mais antigo)
+  const histReverso = [...(state.historicoVendas || [])].reverse();
+  
+  histReverso.forEach(v => {
+    const nome = String(v.cliente || "").trim();
+    const id = v.clienteId || nome;
+    
+    if (nome && !clientesMap[id]) {
+      clientesMap[id] = { id: id, nome: nome, nick: v.nickCliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
+    } else if (nome && clientesMap[id]) {
+      // Atualiza dados faltantes se achar no histórico
+      if (!clientesMap[id].whatsapp && v.whatsapp) clientesMap[id].whatsapp = v.whatsapp;
+      if (!clientesMap[id].tiktok && v.tiktok) clientesMap[id].tiktok = v.tiktok;
+      if (!clientesMap[id].nick && v.nickCliente) clientesMap[id].nick = v.nickCliente;
+    }
+  });
+
+  return clientesMap;
+}
+
 function buscarSugestoesCliente(texto) {
   const dropdown = document.getElementById("clienteSuggestions");
   const idInput = document.getElementById("clienteIdInput");
@@ -19,20 +60,7 @@ function buscarSugestoesCliente(texto) {
   const termo = String(texto).toLowerCase().trim();
   if (!termo) { dropdown.style.display = "none"; return; }
   
-  const clientesMap = {};
-  const histReverso = [...(state.historicoVendas || [])].reverse();
-  
-  histReverso.forEach(v => {
-    const nome = String(v.cliente || "").trim();
-    const id = v.clienteId || nome;
-    
-    if (nome && !clientesMap[id]) {
-      clientesMap[id] = { id: id, nome: nome, nick: v.nickCliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
-    } else if (nome && clientesMap[id]) {
-      if (!clientesMap[id].whatsapp && v.whatsapp) clientesMap[id].whatsapp = v.whatsapp;
-      if (!clientesMap[id].tiktok && v.tiktok) clientesMap[id].tiktok = v.tiktok;
-    }
-  });
+  const clientesMap = obterMapaDeClientes();
   
   const sugestoes = Object.values(clientesMap).filter(c => c.nome.toLowerCase().includes(termo));
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
@@ -50,16 +78,7 @@ function buscarSugestoesNick(texto) {
   const termo = String(texto).toLowerCase().trim();
   if (!termo) { dropdown.style.display = "none"; return; }
   
-  const clientesMap = {};
-  const histReverso = [...(state.historicoVendas || [])].reverse();
-  
-  histReverso.forEach(v => {
-    const nick = String(v.nickCliente || "").trim();
-    const id = v.clienteId || v.cliente;
-    if (nick && !clientesMap[id]) {
-        clientesMap[id] = { id: id, nick: nick, nome: v.cliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
-    }
-  });
+  const clientesMap = obterMapaDeClientes();
   
   const sugestoes = Object.values(clientesMap).filter(c => c.nick.toLowerCase().includes(termo));
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
@@ -77,23 +96,22 @@ function buscarSugestoesWhatsapp(texto) {
   if (termo.startsWith("55") && termo.length > 2) termo = termo.substring(2);
   if (!termo || termo.length < 2) { dropdown.style.display = "none"; return; }
   
-  const clientesMap = {};
-  const histReverso = [...(state.historicoVendas || [])].reverse();
+  const clientesMap = obterMapaDeClientes();
+  const resultadosEncontrados = {};
   
-  histReverso.forEach(v => {
-    const wppOriginal = String(v.whatsapp || "");
-    const id = v.clienteId || v.cliente;
+  Object.values(clientesMap).forEach(c => {
+    const wppOriginal = String(c.whatsapp || "");
     if (!wppOriginal) return;
     
     let wppNumbers = wppOriginal.replace(/\D/g, "");
     if (wppNumbers.startsWith("55") && wppNumbers.length > 2) wppNumbers = wppNumbers.substring(2);
     
-    if (wppNumbers.includes(termo) && !clientesMap[id]) {
-      clientesMap[id] = { id: id, wppOriginal: wppOriginal, nome: v.cliente || "", nick: v.nickCliente || "", tiktok: v.tiktok || "" };
+    if (wppNumbers.includes(termo)) {
+      resultadosEncontrados[c.id] = { ...c, wppOriginal: wppOriginal };
     }
   });
   
-  const sugestoes = Object.values(clientesMap);
+  const sugestoes = Object.values(resultadosEncontrados);
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
@@ -109,26 +127,25 @@ function buscarSugestoesTiktok(texto) {
   let termo = String(texto).toLowerCase().trim().replace(/@/g, "");
   if (!termo || termo.length < 2) { dropdown.style.display = "none"; return; }
   
-  const clientesMap = {};
-  const histReverso = [...(state.historicoVendas || [])].reverse();
+  const clientesMap = obterMapaDeClientes();
+  const resultadosEncontrados = {};
   
-  histReverso.forEach(v => {
-    const tkOriginal = String(v.tiktok || "").trim();
-    const id = v.clienteId || v.cliente;
+  Object.values(clientesMap).forEach(c => {
+    const tkOriginal = String(c.tiktok || "").trim();
     if (!tkOriginal) return;
     
     const tkLimpo = tkOriginal.toLowerCase().replace(/@/g, "");
-    if (tkLimpo.includes(termo) && !clientesMap[id]) {
-      clientesMap[id] = { id: id, tkOriginal: tkOriginal, nome: v.cliente || "", nick: v.nickCliente || "", whatsapp: v.whatsapp || "" };
+    if (tkLimpo.includes(termo)) {
+      resultadosEncontrados[c.id] = { ...c, tkOriginal: tkOriginal };
     }
   });
   
-  const sugestoes = Object.values(clientesMap);
+  const sugestoes = Object.values(resultadosEncontrados);
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
     const obsIcon = (state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao) ? ' <span style="font-size:11px;" title="Possui observação">📌</span>' : '';
-    return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tkOriginal)}')">${TIKTOK_SVG} ${esc(c.tkOriginal)} <span class="autocomplete-nick">👤 ${esc(c.nome)}${obsIcon}</span></div>`;
+    return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tkOriginal)}')">${typeof TIKTOK_SVG !== 'undefined' ? TIKTOK_SVG : '🎵'} ${esc(c.tkOriginal)} <span class="autocomplete-nick">👤 ${esc(c.nome)}${obsIcon}</span></div>`;
   }).join("");
   dropdown.style.display = "block";
 }
@@ -179,7 +196,6 @@ function buscarSugestoesItem(texto, index) {
         const nomeLimpo = String(nomeItem).trim();
         
         if (nomeLimpo) {
-          // AQUI ESTÁ A MÁGICA: A chave agora junta o nome e o tipo em minúsculas!
           const chave = `${nomeLimpo.toLowerCase()}|||${tipoItem.toLowerCase()}`;
           if (!itensMap[chave]) {
             itensMap[chave] = { nome: nomeLimpo, tipo: tipoItem };

@@ -136,6 +136,15 @@
                   <span style="font-size: 12px; color: var(--muted);">VB</span>
                 </div>
               </div>
+
+              <!-- NOVO SELETOR DE MODO DE APLICAÇÃO DO VOLUME -->
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px;">
+                <span style="font-size: 12px; color: #fff;">Modo de Aplicação do Desconto:</span>
+                <select id="selectModoVolumeRegra" class="item-type-select" style="width: 200px; padding: 6px; font-size: 12px;" onchange="alterarModoRegraVolume(this.value)">
+                  <option value="individual">Por Item Individual (Exige meta por item)</option>
+                  <option value="acumulado">Soma Acumulada Total da Venda</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -903,7 +912,7 @@
                   id="totalItensResumo"
                   style="font-size: 13px; color: var(--muted); font-weight: 600"
                 >
-                  0 itens cadastrados
+                  0 items cadastrados
                 </div>
               </div>
             </div>
@@ -1038,6 +1047,15 @@
         state.limiteVolumePromo = parseInt(val, 10) || 1500;
         if (typeof save === 'function') save();
       };
+      // Sincroniza o select visual com o estado ao carregar/renderizar
+      document.addEventListener("DOMContentLoaded", () => {
+        setTimeout(() => {
+          const sel = document.getElementById("selectModoVolumeRegra");
+          if (sel && state && state.modoVolumeRegra) {
+            sel.value = state.modoVolumeRegra;
+          }
+        }, 300);
+      });
     </script>
   </body>
 </html>

@@ -553,11 +553,14 @@ function salvarEdicaoVenda() {
     }
   }
 
+  // Lógica corrigida: Assumir sempre o valor que o usuário digitou no campo (não forçar recálculo de V-Bucks)
+  const stringValorEditado = String(document.getElementById("editValorInput")?.value || "0").replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+  const novoValorEmReais = parseFloat(stringValorEditado) || 0;
+
   const somaVbucksNovos = novosItens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
   const baseMomento = venda.valorBaseMomento || state.valorBase100 || 2.5;
-  const novoVbucks = somaVbucksNovos > 0 ? somaVbucksNovos : (typeof valorParaVBucks === 'function' ? valorParaVBucks(parseFloat(document.getElementById("editValorInput")?.value) || 0) : Math.round(((parseFloat(document.getElementById("editValorInput")?.value) || 0) / baseMomento) * 100));
+  const novoVbucks = somaVbucksNovos > 0 ? somaVbucksNovos : (typeof valorParaVBucks === 'function' ? valorParaVBucks(novoValorEmReais, baseMomento) : Math.round((novoValorEmReais / baseMomento) * 100));
   
-  const novoValorEmReais = Number(((novoVbucks / 100) * baseMomento).toFixed(2));
   const vbucksAntigo = venda.vbucks !== undefined ? Number(venda.vbucks) : (typeof valorParaVBucks === 'function' ? valorParaVBucks(venda.valor, venda.valorBaseMomento) : 0);
 
   if (!isAgendamento && (venda.conta !== novaConta || venda.vbucks !== novoVbucks)) {
@@ -574,7 +577,7 @@ function salvarEdicaoVenda() {
   venda.tiktok = tiktok;
   venda.nickPresente = "";
   venda.observacao = observacao;
-  venda.valor = novoValorEmReais;
+  venda.valor = novoValorEmReais; // Garante que o valor salvo é o que estava escrito no input!
   venda.vbucks = novoVbucks;
   
   if (novosItens.length > 0) {
