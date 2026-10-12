@@ -316,12 +316,35 @@ function renderizarAgendamentos() {
   
   const hojeTime = new Date().setHours(0,0,0,0);
   
-  container.innerHTML = headerTotalHtml + agendamentos.map(a => {
+  // LÓGICA DE ORDENAÇÃO: Prioridade por Data de Envio (Mais urgente no topo) -> Desempate por Ordem de Criação
+  const agendamentosOrdenados = [...agendamentos].sort((a, b) => {
+    function getTempo(dStr) {
+      if (!dStr || dStr === "Imediato") return hojeTime;
+      const p = dStr.split("/");
+      if (p.length === 3) return new Date(p[2], p[1] - 1, p[0]).getTime();
+      return hojeTime;
+    }
+    const timeA = getTempo(a.dataEnvio);
+    const timeB = getTempo(b.dataEnvio);
+    
+    if (timeA === timeB) {
+      return (a.criadoEmMs || 0) - (b.criadoEmMs || 0); // Mais antigo aparece primeiro
+    }
+    return timeA - timeB; // Crescente (Passado e Hoje primeiro, Futuro depois)
+  });
+  
+  container.innerHTML = headerTotalHtml + agendamentosOrdenados.map(a => {
     if (a.dataRegistro === "28/09/2026" && a.horaRegistro === "23:18") {
       a.dataRegistro = "27/09/2026";
     }
     const vb = a.vbucks !== undefined ? Number(a.vbucks) : valorParaVBucks(a.valor, a.valorBaseMomento);
-    const badgeEnvioEstilo = (a.dataEnvio !== "Imediato" && parseDataBR(a.dataEnvio) <= hojeTime) 
+    
+    const dataEnvioTime = (!a.dataEnvio || a.dataEnvio === "Imediato") ? hojeTime : (() => {
+        const p = a.dataEnvio.split("/");
+        return p.length === 3 ? new Date(p[2], p[1] - 1, p[0]).getTime() : hojeTime;
+    })();
+
+    const badgeEnvioEstilo = (a.dataEnvio !== "Imediato" && dataEnvioTime <= hojeTime) 
       ? "background: rgba(255, 152, 0, 0.2); border: 1px solid rgba(255, 152, 0, 0.6); color: #ffb74d;" 
       : "background: rgba(142,68,255,0.15); border: 1px solid var(--accent); color: var(--accent-light);";
       

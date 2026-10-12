@@ -69,7 +69,8 @@ function removerItemEspecifico(indexParaRemover) {
         tipo: document.getElementById(`itemTypeSelect_${i}`)?.value || "Traje",
         nome: document.getElementById(`itemNameInput_${i}`)?.value || "",
         vbucks: document.getElementById(`itemVbucksInput_${i}`)?.value || "",
-        presente: document.getElementById(`itemPresenteInput_${i}`)?.value || ""
+        presente: document.getElementById(`itemPresenteInput_${i}`)?.value || "",
+        enviadoAvulso: document.getElementById(`itemEnviadoAvulso_${i}`)?.value === "true"
       });
     }
   }
@@ -407,6 +408,50 @@ function recalcularValorSugeridoPorItem() {
   }
 }
 
+function dispararEnvioItemAvulso(i) {
+  const conta = document.getElementById("contaSelect")?.value;
+  const nomeItem = document.getElementById(`itemNameInput_${i}`)?.value.trim();
+  const inputEnviado = document.getElementById(`itemEnviadoAvulso_${i}`);
+  const btnEnvio = document.getElementById(`btnEnvioAvulso_${i}`);
+
+  if (!conta) {
+    mostrarNotificacao("⚠️ Selecione uma conta primeiro!", "erro");
+    return;
+  }
+  if (!nomeItem) {
+    mostrarNotificacao("⚠️ Preencha o nome do item antes de disparar o envio!", "erro");
+    return;
+  }
+
+  const usadas = typeof usadasDaConta === 'function' ? usadasDaConta(conta) : 0;
+  if (usadas >= 5) {
+    mostrarNotificacao(`⚠️ A conta ${conta} já atingiu o limite de 5 envios!`, "erro");
+    return;
+  }
+
+  if (inputEnviado && inputEnviado.value === "true") {
+    mostrarNotificacao("ℹ️ Este item já teve o timer disparado.", "info");
+    return;
+  }
+
+  // Cria o timer imediatamente na conta
+  if (typeof criarTimerReserva === 'function') {
+    state.reservas.push(criarTimerReserva(conta, 'avulso-' + Date.now()));
+  }
+
+  if (inputEnviado) inputEnviado.value = "true";
+  if (btnEnvio) {
+    btnEnvio.textContent = "🚀 Enviado!";
+    btnEnvio.style.background = "var(--green)";
+    btnEnvio.style.borderColor = "var(--green)";
+    btnEnvio.disabled = true;
+  }
+
+  if (typeof save === 'function') save();
+  if (typeof render === 'function') render();
+  mostrarNotificacao(`🚀 Timer do item ${i + 1} disparado na conta${conta}!`, "sucesso");
+}
+
 function atualizarCamposItens(preserveValues = false) {
   const inputQtd = document.getElementById("quantidadeInput");
   const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
@@ -421,13 +466,14 @@ function atualizarCamposItens(preserveValues = false) {
         tipo: document.getElementById(`itemTypeSelect_${i}`)?.value || "Traje",
         nome: document.getElementById(`itemNameInput_${i}`)?.value || "",
         vbucks: document.getElementById(`itemVbucksInput_${i}`)?.value || "",
-        presente: document.getElementById(`itemPresenteInput_${i}`)?.value || ""
+        presente: document.getElementById(`itemPresenteInput_${i}`)?.value || "",
+        enviadoAvulso: document.getElementById(`itemEnviadoAvulso_${i}`)?.value === "true"
       });
     }
   }
   
   while (valoresSalvos.length < qtd) {
-    valoresSalvos.push({ tipo: "Traje", nome: "", vbucks: "", presente: "" });
+    valoresSalvos.push({ tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false });
   }
   
   if (valoresSalvos.length > qtd) {
@@ -448,31 +494,42 @@ function atualizarCamposItensComDados(valoresSalvos) {
   const categoriasArray = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
   
   container.innerHTML = Array.from({ length: qtd }, (_, i) => {
-    const saved = valoresSalvos[i] || { tipo: "Traje", nome: "", vbucks: "", presente: "" };
+    const saved = valoresSalvos[i] || { tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false };
     const optionsHtml = categoriasArray.map(c => `<option value="${c}" ${c === saved.tipo ? "selected" : ""}>${c}</option>`).join("");
     
     const botaoExcluirHtml = qtd > 1 
-      ? `<button type="button" class="btn-danger" style="padding: 0; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;" onclick="removerItemEspecifico(${i})" title="Remover este item">✕</button>`
+      ? `<button type="button" class="btn-danger" style="padding: 0; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;" onclick="removerItemEspecifico(${i})" title="Remover este item">✕</button>` 
       : ``;
+
+    const estiloBtnAvulso = saved.enviadoAvulso 
+      ? `background: var(--green); border-color: var(--green); color: #fff;` 
+      : `background: rgba(142,68,255,0.2); border-color: rgba(142,68,255,0.4); color: var(--accent-light);`;
+
+    const textoBtnAvulso = saved.enviadoAvulso ? "🚀 Enviado!" : "🚀 Enviar";
+    const disabledBtnAvulso = saved.enviadoAvulso ? "disabled" : "";
     
     return `
     <div class="item-picker-box" style="margin-bottom: 8px; width: 100%;">
       <div class="item-picker-row" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
-        <select class="item-type-select" id="itemTypeSelect_${i}" style="flex: 1.2; min-width: 100px; padding: 10px;">${optionsHtml}</select>
+        <select class="item-type-select" id="itemTypeSelect_${i}" style="flex: 1.1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
         
-        <div style="position: relative; flex: 2.5; min-width: 140px;">
+        <div style="position: relative; flex: 2.2; min-width: 130px;">
           <input class="item-name-input" id="itemNameInput_${i}" type="text" maxlength="120" placeholder="Item Vendido" style="width: 100%; padding: 10px;" oninput="typeof buscarSugestoesItem === 'function' ? buscarSugestoesItem(this.value, ${i}) : null" autocomplete="off" value="${saved.nome.replace(/"/g, '&quot;')}">
           <div id="itemSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
 
-        <div style="flex: 1; min-width: 90px;">
+        <div style="flex: 0.9; min-width: 80px;">
           <input class="item-vbucks-input" id="itemVbucksInput_${i}" type="number" step="50" min="0" placeholder="V-Bucks" style="width: 100%; padding: 10px; text-align: center;" oninput="recalcularValorSugeridoPorItem(); atualizarPreviewVBucks();" title="Digite o V-Bucks oficial deste item" value="${saved.vbucks.replace(/"/g, '&quot;')}">
         </div>
 
-        <div style="position: relative; flex: 2; min-width: 120px;">
+        <div style="position: relative; flex: 1.8; min-width: 110px;">
           <input class="item-name-input" id="itemPresenteInput_${i}" type="text" maxlength="80" placeholder="🎁 P/ Nick" style="width: 100%; padding: 10px;" oninput="typeof sugerirNickPresente === 'function' ? sugerirNickPresente(this.value, ${i}) : null" autocomplete="off" value="${saved.presente.replace(/"/g, '&quot;')}">
           <div id="nickPresenteSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
+
+        <!-- Botão de Envio Avulso / Fracionado -->
+        <input type="hidden" id="itemEnviadoAvulso_${i}" value="${saved.enviadoAvulso ? "true" : "false"}">
+        <button type="button" class="btn-gray" id="btnEnvioAvulso_${i}" style="padding: 0 10px; height: 42px; font-size: 11px; font-weight: 700; border-radius: 8px; white-space: nowrap; flex-shrink: 0; ${estiloBtnAvulso}" onclick="dispararEnvioItemAvulso(${i})" ${disabledBtnAvulso} title="Disparar timer apenas deste item agora">${textoBtnAvulso}</button>
 
         ${botaoExcluirHtml}
       </div>

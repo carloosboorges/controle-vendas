@@ -32,15 +32,28 @@ function adicionarVenda() {
     }
   }
 
-  if (!cliente) { mostrarNotificacao("⚠️ Preencha o Nome do Cliente!", "erro"); return; }
-  if (!nickCliente) { mostrarNotificacao("⚠ Preencha o Nick do Cliente!", "erro"); return; }
-  if (!primeiroItem) { mostrarNotificacao("⚠️ Preencha o Item a ser vendido!", "erro"); return; }
-  if (!valorDigitado || isNaN(valorDigitado)) { mostrarNotificacao("⚠️ Informe o valor da venda!", "erro"); return; }
-  if (!conta) { mostrarNotificacao("⚠️ Selecione uma conta!", "erro"); return; }
-  if (itens.length < quantidade) { mostrarNotificacao("⚠️ Preencha o nome de todos os itens extras!", "erro"); return; }
+  // VALIDAÇÕES ESPECÍFICAS CAMPO A CAMPO
+  if (!cliente) { mostrarNotificacao("⚠️ Por favor, informe o Nome do Cliente!", "erro"); return; }
+  if (!nickCliente) { mostrarNotificacao("⚠️ Por favor, informe o Nick do Cliente!", "erro"); return; }
+  if (!primeiroItem) { mostrarNotificacao("⚠️ Por favor, informe o nome do Item!", "erro"); return; }
+  if (!valorDigitado || isNaN(valorDigitado)) { mostrarNotificacao("⚠️ Por favor, informe o Valor da venda!", "erro"); return; }
+  if (!conta) { mostrarNotificacao("⚠️ Por favor, selecione uma Conta!", "erro"); return; }
+  if (itens.length < quantidade) { mostrarNotificacao("⚠️ Por favor, preencha o nome de todos os itens extras!", "erro"); return; }
+
+  // REGRA: Se tiver 2 ou mais itens, exige obrigatoriamente o V-Bucks de cada um
+  if (quantidade >= 2) {
+    for (let idx = 0; idx < itens.length; idx++) {
+      if (!itens[idx].vbucks || Number(itens[idx].vbucks) <= 0) {
+        mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${idx + 1} (obrigatório para 2 ou mais itens)!`, "erro");
+        return;
+      }
+    }
+  }
 
   const usadas = typeof usadasDaConta === 'function' ? usadasDaConta(conta) : 0;
-  if (usadas + quantidade > 5) {
+  const itensPendentesEnvio = itens.filter(it => !it.enviadoAvulso).length;
+
+  if (usadas + itensPendentesEnvio > 5) {
     mostrarNotificacao(`Limite excedido na conta ${conta}.`, "erro");
     return;
   }
@@ -76,7 +89,7 @@ function adicionarVenda() {
         
         const timersConta = (state.reservas || []).filter(r => r.conta === conta);
         timersConta.forEach(t => {
-            const timeFim = t.expiresAt || t.expiraEm || t.fim || t.tempoFim || (t.criadoEmMs ? t.criadoEmMs + 86400000 : null);
+            const timeFim = t.expiresAt || t.expiraEm || t.fim || t.tempoFim || (t.criadoEmMs ? t.criadoEmMs + 86400000 + 120000 : null);
             if (timeFim) {
                 if (timeFim <= fimDoDia.getTime()) {
                     timersExpiraHoje++;
@@ -87,7 +100,7 @@ function adicionarVenda() {
             }
         });
 
-        const vagasProjetadasHoje = vagasLivresAgora - quantidade + timersExpiraHoje;
+        const vagasProjetadasHoje = vagasLivresAgora - itensPendentesEnvio + timersExpiraHoje;
 
         if (vagasProjetadasHoje < qtdReservadaHoje) {
             const displayVagas = Math.max(0, vagasProjetadasHoje);
@@ -99,7 +112,7 @@ function adicionarVenda() {
             } else if (displayVagas === 1) {
                 txtVagaLivre = "sobrará apenas <b>1 vaga livre</b> até as 23:59.";
             } else {
-                txtVagaLivre = `sobrarão apenas <b>${displayVagas} vagas livres</b> até as 23:59.`;
+                txtVagaLivre = `sobrarão apenas <b>${displayVagas} livres</b> até as 23:59.`;
             }
             
             let txtProximoTimer = "";
@@ -116,7 +129,7 @@ function adicionarVenda() {
             if (typeof abrirModalConfirmacao === 'function') {
                 const mensagemModal = `A conta <b>${conta}</b> possui ${txtPreVenda} para enviar HOJE.<br><br>Se registrar essa venda agora, ${txtVagaLivre}<br>${txtProximoTimer}<br><br>Deseja confirmar a venda e ocupar o timer mesmo assim?`;
                 
-                abrirModalConfirmacao("⚠️ Atenção com as Reservas", mensagemModal, () => {
+                abrirModalConfirmacao("⚠️ Atenção com las Reservas", mensagemModal, () => {
                     window.ignorarAvisoReserva = true;
                     adicionarVenda(); 
                 });
@@ -181,11 +194,30 @@ function adicionarVenda() {
   state.vendas.push(novaVenda);
   state.historicoVendas.push({ ...novaVenda, itens: [...itens] });
   
-  for (let n = 0; n < quantidade; n++) {
-    if (typeof criarTimerReserva === 'function') {
-      state.reservas.push(criarTimerReserva(conta, vendaId));
+  // GERAÇÃO INTELIGENTE DE TIMERS (Evita duplicidade pegando o timer órfão)
+  if (!state.reservas) state.reservas = [];
+  
+  itens.forEach(it => {
+    if (it.enviadoAvulso) {
+      // Procura a reserva que criamos avulsa (está sem vendaId) e vincula à venda
+      const reservaOrfa = state.reservas.find(r => r.conta === conta && r.vendaId === null);
+      if (reservaOrfa) {
+        reservaOrfa.vendaId = vendaId; 
+      } else {
+        // Fallback de segurança (caso não ache)
+        state.reservas.push({
+          id: `timer-${agora}-${Math.random().toString(36).substr(2, 5)}`,
+          conta: conta,
+          vendaId: vendaId,
+          expiresAt: agora + 86400000 + 120000
+        });
+      }
+    } else {
+      if (typeof criarTimerReserva === 'function') {
+        state.reservas.push(criarTimerReserva(conta, vendaId));
+      }
     }
-  }
+  });
 
   if (typeof sincronizarDadosCliente === 'function') sincronizarDadosCliente(clienteId, cliente, whatsapp, tiktok);
   
@@ -197,10 +229,11 @@ function adicionarVenda() {
   if (document.getElementById("dataEnvioInput")) document.getElementById("dataEnvioInput").value = "";
   if (document.getElementById("labelAgendaData")) document.getElementById("labelAgendaData").textContent = "Hoje";
   
+  // LIMPEZA TOTAL DOS ITENS
   if (typeof atualizarCamposItensComDados === 'function') {
-    atualizarCamposItensComDados([{ tipo: "Traje", nome: "", vbucks: "", presente: "" }]);
+    atualizarCamposItensComDados([{ tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false }]);
   } else if (typeof atualizarCamposItens === 'function') {
-    atualizarCamposItens(true);
+    atualizarCamposItens(false);
   }
 
   if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
@@ -210,6 +243,188 @@ function adicionarVenda() {
   if (typeof save === 'function') save(); 
   
   mostrarNotificacao("✅ Venda registrada com sucesso!", "sucesso");
+}
+
+function dispararEnvioItemAvulso(i) {
+  const conta = document.getElementById("contaSelect")?.value;
+  const cliente = document.getElementById("clienteInput")?.value.trim();
+  const nickCliente = document.getElementById("nickClienteInput")?.value.trim();
+  const valorDigitado = parseFloat(document.getElementById("valorInput")?.value || 0);
+  const nomeItem = document.getElementById(`itemNameInput_${i}`)?.value.trim();
+  
+  const inputQtd = document.getElementById("quantidadeInput");
+  const quantidade = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
+
+  const inputEnviado = document.getElementById(`itemEnviadoAvulso_${i}`);
+  const btnEnvio = document.getElementById(`btnEnvioAvulso_${i}`);
+
+  // Se já estava enviado, o clique funciona como CANCELAR com confirmação
+  if (inputEnviado && inputEnviado.value === "true") {
+    if (typeof abrirModalConfirmacao === 'function') {
+      abrirModalConfirmacao(
+        "🔄 Cancelar Envio deste Item",
+        `Deseja cancelar o envio do item ${i + 1} (${nomeItem || 'Sem nome'})? O timer criado será removido e o status voltará a pendente.`,
+        () => {
+          // Remove exatamente um timer órfão (vendaId === null) dessa conta
+          const idxOrfao = (state.reservas || []).findIndex(r => r.conta === conta && r.vendaId === null);
+          if (idxOrfao !== -1) {
+            state.reservas.splice(idxOrfao, 1);
+          }
+          if (inputEnviado) inputEnviado.value = "false";
+          if (btnEnvio) {
+            btnEnvio.textContent = "🚀 Enviar";
+            btnEnvio.style.background = "rgba(142,68,255,0.2)";
+            btnEnvio.style.borderColor = "rgba(142,68,255,0.4)";
+            btnEnvio.style.color = "var(--accent-light)";
+          }
+          if (typeof render === 'function') render();
+          if (typeof save === 'function') save();
+          mostrarNotificacao("ℹ️ Envio do item cancelado e timer removido.", "info");
+        }
+      );
+    }
+    return;
+  }
+
+  // VALIDAÇÕES ESPECÍFICAS PARA O ENVIO AVULSO
+  if (!cliente) { mostrarNotificacao("⚠️ Por favor, informe o Nome do Cliente antes de enviar!", "erro"); return; }
+  if (!nickCliente) { mostrarNotificacao("⚠️ Por favor, informe o Nick do Cliente antes de enviar!", "erro"); return; }
+  if (!nomeItem) { mostrarNotificacao("⚠️ Por favor, preencha o nome do item antes de disparar o envio!", "erro"); return; }
+  if (!valorDigitado || isNaN(valorDigitado)) { mostrarNotificacao("⚠️ Por favor, informe o Valor da venda antes de enviar o item!", "erro"); return; }
+  if (!conta) { mostrarNotificacao("⚠️ Por favor, selecione uma Conta!", "erro"); return; }
+
+  // REGRA: Se tiver 2 ou mais itens, exige o V-Bucks também no envio avulso
+  const vbucksItemInput = parseInt(document.getElementById(`itemVbucksInput_${i}`)?.value, 10) || 0;
+  if (quantidade >= 2 && (!vbucksItemInput || vbucksItemInput <= 0)) {
+    mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${i + 1} (obrigatório para 2 ou mais itens)!`, "erro");
+    return;
+  }
+
+  const usadas = typeof usadasDaConta === 'function' ? usadasDaConta(conta) : 0;
+  if (usadas >= 5) {
+    mostrarNotificacao(`⚠️ A conta ${conta} já atingiu o limite máximo de 5 envios!`, "erro");
+    return;
+  }
+
+  const agora = Date.now();
+
+  if (inputEnviado) inputEnviado.value = "true";
+  
+  // CRIA O TIMER IMEDIATAMENTE NA HORA DO CLIQUE COM 24H + 2 MIN DE MARGEM
+  if (!state.reservas) state.reservas = [];
+  state.reservas.push({
+    id: `timer-${agora}-${Math.random().toString(36).substr(2, 5)}`,
+    conta: conta,
+    vendaId: null, // Deixamos "órfão" para vincular no clique de Registrar
+    expiresAt: agora + 86400000 + 120000 // 24 horas + 2 minutos
+  });
+
+  if (btnEnvio) {
+    btnEnvio.textContent = "🚀 Enviado!";
+    btnEnvio.style.background = "var(--green)";
+    btnEnvio.style.borderColor = "var(--green)";
+    btnEnvio.style.color = "#fff";
+  }
+
+  if (typeof render === 'function') render();
+  if (typeof save === 'function') save();
+
+  mostrarNotificacao(`🚀 Item ${i + 1} enviado! O timer começou a contar agora mesmo.`, "sucesso");
+}
+
+function obterItensDaVenda() {
+  const inputQtd = document.getElementById("quantidadeInput");
+  const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
+  const lista = [];
+  for (let i = 0; i < qtd; i++) {
+    const tipo = document.getElementById(`itemTypeSelect_${i}`)?.value || "Outro";
+    const nome = document.getElementById(`itemNameInput_${i}`)?.value.trim() || "";
+    const vbucks = parseInt(document.getElementById(`itemVbucksInput_${i}`)?.value, 10) || 0;
+    const presente = document.getElementById(`itemPresenteInput_${i}`)?.value.trim() || "";
+    const enviadoAvulso = document.getElementById(`itemEnviadoAvulso_${i}`)?.value === "true";
+    if (nome) lista.push({ tipo, nome, vbucks, presente, enviadoAvulso });
+  }
+  return lista;
+}
+
+function agendarVenda() {
+  if (typeof limparReservasExpiradas === 'function') limparReservasExpiradas();
+  
+  const conta = document.getElementById("contaSelect")?.value;
+  const valorInputEl = document.getElementById("valorInput");
+  const valorDigitado = parseFloat(valorInputEl ? valorInputEl.value : 0);
+  const cliente = document.getElementById("clienteInput")?.value.trim();
+  const nickCliente = document.getElementById("nickClienteInput")?.value.trim();
+  let whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
+  let tiktok = document.getElementById("tiktokInput")?.value.trim() || "";
+  const observacao = document.getElementById("observacaoInput")?.value.trim() || "";
+  const dataEnvioCrua = document.getElementById("dataEnvioInput")?.value.trim();
+  
+  const inputQtd = document.getElementById("quantidadeInput");
+  const quantidade = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
+  const itens = obterItensDaVenda();
+  const baseAtual = state.valorBase100 || 2.5;
+  const primeiroItem = document.getElementById("itemNameInput_0")?.value?.trim();
+  let clienteId = document.getElementById("clienteIdInput")?.value;
+
+  if (!cliente) { mostrarNotificacao("⚠️ Por favor, informe o Nome do Cliente para a pré-venda!", "erro"); return; }
+  if (!nickCliente) { mostrarNotificacao("⚠️ Por favor, informe o Nick do Cliente para a pré-venda!", "erro"); return; }
+  if (!primeiroItem) { mostrarNotificacao("⚠️ Por favor, informe o nome do Item da pré-venda!", "erro"); return; }
+  if (!valorDigitado || isNaN(valorDigitado)) { mostrarNotificacao("⚠️ Por favor, informe o Valor da pré-venda!", "erro"); return; }
+  if (!conta) { mostrarNotificacao("⚠️ Por favor, selecione uma Conta!", "erro"); return; }
+  if (itens.length < quantidade) { mostrarNotificacao("⚠️ Por favor, preencha o nome de todos os itens extras!", "erro"); return; }
+
+  if (quantidade >= 2) {
+    for (let idx = 0; idx < itens.length; idx++) {
+      if (!itens[idx].vbucks || Number(itens[idx].vbucks) <= 0) {
+        mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${idx + 1} (obrigatório para 2 ou mais itens)!`, "erro");
+        return;
+      }
+    }
+  }
+
+  const somaVbucksItens = itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
+  const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : (typeof valorParaVBucks === 'function' ? valorParaVBucks(valorDigitado) : Math.round((valorDigitado / baseAtual) * 100));
+
+  const agora = Date.now(), d = new Date(), agendamentoId = `agendamento-${agora}`;
+  if (!clienteId) clienteId = "cli-" + agora + "-" + Math.random().toString(36).substr(2, 4);
+
+  let dataEnvioFormatada = "Imediato";
+  if (dataEnvioCrua) {
+    const p = dataEnvioCrua.split("-");
+    if (p.length === 3) dataEnvioFormatada = `${p[2]}/${p[1]}/${p[0]}`;
+  }
+
+  const novoAgendamento = {
+    id: agendamentoId, clienteId, conta, valor: Number(valorDigitado), vbucks: vbucksNecessarios,
+    quantidade, cliente, nickCliente, observacao, item: itens[0] || "", itens, whatsapp, tiktok,
+    dataRegistro: d.toLocaleDateString("pt-BR"),
+    horaRegistro: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    dataEnvio: dataEnvioFormatada, criadoEmMs: agora
+  };
+
+  if (!state.agendamentos) state.agendamentos = [];
+  state.agendamentos.push(novoAgendamento);
+
+  if (typeof sincronizarDadosCliente === 'function') sincronizarDadosCliente(clienteId, cliente, whatsapp, tiktok);
+
+  ["valorInput", "clienteInput", "clienteIdInput", "nickClienteInput", "whatsappInput", "tiktokInput", "observacaoInput", "dataEnvioInput"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  if (document.getElementById("quantidadeInput")) document.getElementById("quantidadeInput").value = "1";
+  if (document.getElementById("labelAgendaData")) document.getElementById("labelAgendaData").textContent = "Hoje";
+  
+  // LIMPEZA TOTAL DOS ITENS
+  if (typeof atualizarCamposItensComDados === 'function') {
+    atualizarCamposItensComDados([{ tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false }]);
+  } else if (typeof atualizarCamposItens === 'function') {
+    atualizarCamposItens(false);
+  }
+
+  if (typeof render === 'function') render();
+  if (typeof save === 'function') save();
+  mostrarNotificacao("⏳ Pré-venda agendada com sucesso!", "sucesso");
 }
 
 function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNome = null) {
@@ -329,13 +544,20 @@ function salvarEdicaoVenda() {
     return;
   }
 
+  if (novosItens.length >= 2) {
+    for (let idx = 0; idx < novosItens.length; idx++) {
+      if (!novosItens[idx].vbucks || Number(novosItens[idx].vbucks) <= 0) {
+        mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${idx + 1} (obrigatório para 2 ou mais itens)!`, "erro");
+        return;
+      }
+    }
+  }
+
   const somaVbucksNovos = novosItens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
   const baseMomento = venda.valorBaseMomento || state.valorBase100 || 2.5;
   const novoVbucks = somaVbucksNovos > 0 ? somaVbucksNovos : (typeof valorParaVBucks === 'function' ? valorParaVBucks(parseFloat(document.getElementById("editValorInput")?.value) || 0) : Math.round(((parseFloat(document.getElementById("editValorInput")?.value) || 0) / baseMomento) * 100));
   
-  // RECALCULO AUTOMÁTICO DO VALOR EM REAIS COM BASE NOS V-BUCKS RESTANTES
   const novoValorEmReais = Number(((novoVbucks / 100) * baseMomento).toFixed(2));
-
   const vbucksAntigo = venda.vbucks !== undefined ? Number(venda.vbucks) : (typeof valorParaVBucks === 'function' ? valorParaVBucks(venda.valor, venda.valorBaseMomento) : 0);
 
   if (!isAgendamento && (venda.conta !== novaConta || venda.vbucks !== novoVbucks)) {
@@ -352,13 +574,13 @@ function salvarEdicaoVenda() {
   venda.tiktok = tiktok;
   venda.nickPresente = "";
   venda.observacao = observacao;
-  venda.valor = novoValorEmReais; // Atualiza com o valor exato recalculado
+  venda.valor = novoValorEmReais;
   venda.vbucks = novoVbucks;
   
   if (novosItens.length > 0) {
     venda.itens = novosItens;
     venda.item = novosItens[0];
-    venda.quantidade = novosItens.length; // Atualiza as vagas do card
+    venda.quantidade = novosItens.length;
   }
 
   if (isAgendamento) {
@@ -432,7 +654,13 @@ function excluirHistoricoPorId(vendaId) {
       const conta = (state.contas || []).find(c => c.nome === venda.conta);
       if (conta) conta.vbucks += (venda.vbucks || 0);
       
+      // GUARDA OS TIMERS NA VENDA ANTES DE APAGAR (Para poder restaurar invisivelmente depois)
+      const timersDaVenda = (state.reservas || []).filter(r => r.vendaId === venda.id);
+      venda.timersSalvos = JSON.parse(JSON.stringify(timersDaVenda));
+      
+      // REMOVE DEFINITIVAMENTE TODOS OS TIMERS VINCULADOS A ESTE VENDAID DA TELA
       state.reservas = (state.reservas || []).filter(r => r.vendaId !== venda.id);
+      
       state.vendas = (state.vendas || []).filter(v => v.id !== venda.id);
       state.historicoVendas.splice(i, 1);
       
@@ -441,7 +669,7 @@ function excluirHistoricoPorId(vendaId) {
       
       if (typeof render === 'function') render();
       if (typeof save === 'function') save();
-      mostrarNotificacao("Venda movida para a lixeira.", "sucesso");
+      mostrarNotificacao("Venda e timers associados movidos para a lixeira.", "sucesso");
     });
   }
 }
@@ -458,6 +686,14 @@ function excluirCliente(clienteId, nomeCliente) {
         };
 
         const vendasDoCliente = (state.historicoVendas || []).filter(ehEsteCliente);
+        
+        vendasDoCliente.forEach(venda => {
+          // Salva os timers para possível restauração futura
+          const timersDaVenda = (state.reservas || []).filter(r => r.vendaId === venda.id);
+          venda.timersSalvos = JSON.parse(JSON.stringify(timersDaVenda));
+          
+          state.reservas = (state.reservas || []).filter(r => r.vendaId !== venda.id);
+        });
         
         if (!state.lixeiraVendas) state.lixeiraVendas = [];
         state.lixeiraVendas.unshift(...vendasDoCliente);
@@ -481,12 +717,33 @@ function excluirCliente(clienteId, nomeCliente) {
 function restaurarVenda(idx) {
   const venda = (state.lixeiraVendas || [])[idx];
   if (!venda) return;
+  
+  // DEBITA OS V-BUCKS NOVAMENTE DA CONTA (já que eles foram devolvidos ao excluir)
+  const contaObj = (state.contas || []).find(c => c.nome === venda.conta);
+  if (contaObj) {
+    contaObj.vbucks = Math.max(0, contaObj.vbucks - (Number(venda.vbucks) || 0));
+  }
+
+  // RESTAURA OS TIMERS ("rodando invisível" porque o timestamp final continua o mesmo da época)
+  if (venda.timersSalvos && venda.timersSalvos.length > 0) {
+    if (!state.reservas) state.reservas = [];
+    state.reservas.push(...venda.timersSalvos);
+    delete venda.timersSalvos; // Limpa o cache para não pesar
+  }
+
+  // Devolve para a sessão se a venda for de hoje (da sessão atual)
+  if (venda.criadoEmMs && state.sessaoIniciadaEm && venda.criadoEmMs >= state.sessaoIniciadaEm) {
+    if (!state.vendas) state.vendas = [];
+    state.vendas.push(venda);
+  }
+
   state.lixeiraVendas.splice(idx, 1);
   state.historicoVendas.push(venda);
+  
   if (typeof render === 'function') render();
   if (typeof save === 'function') save();
   if (typeof abrirModalLixeira === 'function') abrirModalLixeira();
-  mostrarNotificacao("Venda restaurada com sucesso!", "sucesso");
+  mostrarNotificacao("Venda e timers restaurados com sucesso!", "sucesso");
 }
 
 function excluirDefinitivoLixeira(idx) {
@@ -578,20 +835,6 @@ async function novaLive() {
   mostrarNotificacao("Nova sessão iniciada!", "sucesso");
 }
 
-function obterItensDaVenda() {
-  const inputQtd = document.getElementById("quantidadeInput");
-  const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
-  const lista = [];
-  for (let i = 0; i < qtd; i++) {
-    const tipo = document.getElementById(`itemTypeSelect_${i}`)?.value || "Outro";
-    const nome = document.getElementById(`itemNameInput_${i}`)?.value.trim() || "";
-    const vbucks = parseInt(document.getElementById(`itemVbucksInput_${i}`)?.value, 10) || 0;
-    const presente = document.getElementById(`itemPresenteInput_${i}`)?.value.trim() || "";
-    if (nome) lista.push({ tipo, nome, vbucks, presente });
-  }
-  return lista;
-}
-
 function confirmarRemoverTimersConta(idx, nomeConta) {
   if (typeof abrirModalConfirmacao === 'function') {
     abrirModalConfirmacao("🗑️ Resetar Timers", `Os timers de envio da conta ${nomeConta} serão resetados (liberando as 5 vagas). Tem certeza que deseja continuar?`, () => {
@@ -654,7 +897,14 @@ if (elLimparTudo) {
     if (document.getElementById("quantidadeInput")) document.getElementById("quantidadeInput").value = "1";
     if (document.getElementById("dataEnvioInput")) document.getElementById("dataEnvioInput").value = "";
     if (document.getElementById("labelAgendaData")) document.getElementById("labelAgendaData").textContent = "Hoje";
-    if (typeof atualizarCamposItens === 'function') atualizarCamposItens(true);
+    
+    // LIMPEZA TOTAL NO BOTÃO LIMPAR TUDO TAMBÉM
+    if (typeof atualizarCamposItensComDados === 'function') {
+      atualizarCamposItensComDados([{ tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false }]);
+    } else if (typeof atualizarCamposItens === 'function') {
+      atualizarCamposItens(false);
+    }
+    
     if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
     if (typeof verificarObservacaoCliente === 'function') verificarObservacaoCliente("");
   });
@@ -728,7 +978,7 @@ let ultimaDataHojeConhecida = typeof obterDataHojeFormatada === 'function' ? obt
 inicializar();
 
 // =============================================================
-// O "CORAÇÃO" DO SISTEMA - RODA A CADA 1 SEGUNDO (ATUALIZADO)
+// O "CORAÇÃO" DO SISTEMA - RODA A CADA 1 SEGUNDO
 // =============================================================
 setInterval(() => {
   if (typeof state !== 'undefined' && state) {
