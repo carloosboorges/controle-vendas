@@ -501,12 +501,13 @@ function atualizarCamposItensComDados(valoresSalvos) {
       ? `<button type="button" class="btn-danger" style="padding: 0; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;" onclick="removerItemEspecifico(${i})" title="Remover este item">✕</button>` 
       : ``;
 
-    const estiloBtnAvulso = saved.enviadoAvulso 
-      ? `background: var(--green); border-color: var(--green); color: #fff;` 
-      : `background: rgba(142,68,255,0.2); border-color: rgba(142,68,255,0.4); color: var(--accent-light);`;
-
-    const textoBtnAvulso = saved.enviadoAvulso ? "🚀 Enviado!" : "🚀 Enviar";
-    const disabledBtnAvulso = saved.enviadoAvulso ? "disabled" : "";
+    // CORREÇÃO: O botão "Enviar" só aparece se a quantidade de itens for 2 ou mais (qtd >= 2)
+    const botaoEnvioHtml = qtd >= 2 
+      ? `
+        <input type="hidden" id="itemEnviadoAvulso_${i}" value="${saved.enviadoAvulso ? "true" : "false"}">
+        <button type="button" class="btn-gray" id="btnEnvioAvulso_${i}" style="padding: 0 10px; height: 42px; font-size: 11px; font-weight: 700; border-radius: 8px; white-space: nowrap; flex-shrink: 0; ${saved.enviadoAvulso ? "background: var(--green); border-color: var(--green); color: #fff;" : "background: rgba(142,68,255,0.2); border-color: rgba(142,68,255,0.4); color: var(--accent-light);"}" onclick="dispararEnvioItemAvulso(${i})" ${saved.enviadoAvulso ? "disabled" : ""} title="Disparar timer apenas deste item agora">${saved.enviadoAvulso ? "🚀 Enviado!" : "🚀 Enviar"}</button>
+      ` 
+      : `<input type="hidden" id="itemEnviadoAvulso_${i}" value="false">`;
     
     return `
     <div class="item-picker-box" style="margin-bottom: 8px; width: 100%;">
@@ -527,10 +528,7 @@ function atualizarCamposItensComDados(valoresSalvos) {
           <div id="nickPresenteSuggestions_${i}" class="autocomplete-dropdown"></div>
         </div>
 
-        <!-- Botão de Envio Avulso / Fracionado -->
-        <input type="hidden" id="itemEnviadoAvulso_${i}" value="${saved.enviadoAvulso ? "true" : "false"}">
-        <button type="button" class="btn-gray" id="btnEnvioAvulso_${i}" style="padding: 0 10px; height: 42px; font-size: 11px; font-weight: 700; border-radius: 8px; white-space: nowrap; flex-shrink: 0; ${estiloBtnAvulso}" onclick="dispararEnvioItemAvulso(${i})" ${disabledBtnAvulso} title="Disparar timer apenas deste item agora">${textoBtnAvulso}</button>
-
+        ${botaoEnvioHtml}
         ${botaoExcluirHtml}
       </div>
     </div>`;
