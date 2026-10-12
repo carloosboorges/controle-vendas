@@ -253,7 +253,8 @@ function agendarVenda() {
     return; 
   }
 
-  const vbucksNecessarios = Math.round((valor / baseAtual) * 100);
+  const somaVbucksItens = itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
+  const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : Math.round((valor / baseAtual) * 100);
   const contaObj = (state.contas || []).find(c => c.nome === conta);
   
   if (Number(contaObj?.vbucks) < vbucksNecessarios) { 
@@ -316,7 +317,6 @@ function renderizarAgendamentos() {
   
   const hojeTime = new Date().setHours(0,0,0,0);
   
-  // LÓGICA DE ORDENAÇÃO: Prioridade por Data de Envio (Mais urgente no topo) -> Desempate por Ordem de Criação
   const agendamentosOrdenados = [...agendamentos].sort((a, b) => {
     function getTempo(dStr) {
       if (!dStr || dStr === "Imediato") return hojeTime;
@@ -328,9 +328,9 @@ function renderizarAgendamentos() {
     const timeB = getTempo(b.dataEnvio);
     
     if (timeA === timeB) {
-      return (a.criadoEmMs || 0) - (b.criadoEmMs || 0); // Mais antigo aparece primeiro
+      return (a.criadoEmMs || 0) - (b.criadoEmMs || 0);
     }
-    return timeA - timeB; // Crescente (Passado e Hoje primeiro, Futuro depois)
+    return timeA - timeB;
   });
   
   container.innerHTML = headerTotalHtml + agendamentosOrdenados.map(a => {
@@ -352,6 +352,43 @@ function renderizarAgendamentos() {
 
     const obsHtml = a.observacao ? `<div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--accent); white-space: pre-wrap; word-break: break-word;">💬 <b>Observação:</b> ${esc(a.observacao)}</div>` : "";
 
+    // GERAÇÃO DOS SUBTOTAIS E DESCONTO PARA O CARD DE AGENDAMENTO
+    let breakdownHtmlAgenda = "";
+    const listaItensBreakdown = Array.isArray(a.itens) && a.itens.length > 0 ? a.itens : (a.item ? [{ tipo: "Outro", nome: a.item }] : []);
+    
+    if (listaItensBreakdown.length > 1) {
+        let linhasSubtotais = "";
+        listaItensBreakdown.forEach(it => {
+            let itName = typeof it === 'string' ? it : (it.nome || "");
+            let itVb = typeof it === 'string' ? 0 : (Number(it.vbucks) || 0);
+            
+            if (itVb > 0 && vb > 0) {
+                let calcRs = (itVb / vb) * Number(a.valor || 0);
+                let nLimpo = itName.length > 15 ? itName.substring(0, 15) + "..." : itName;
+                linhasSubtotais += `<div style="font-size: 11px; color: var(--muted); margin-bottom: 2px;">${esc(nLimpo)}: <span style="color:#fff; font-weight:600;">${money(calcRs)}</span></div>`;
+            }
+        });
+        
+        if (linhasSubtotais) {
+            breakdownHtmlAgenda = `
+                <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed rgba(255,255,255,0.15); width: 100%;">
+                    <div style="font-size: 10px; color: var(--accent-light); font-weight: 800; margin-bottom: 4px; text-transform: uppercase;">Subtotais</div>
+                    ${linhasSubtotais}
+                </div>
+            `;
+        }
+    }
+
+    let descontoHtmlAgenda = "";
+    if (vb > 0) {
+        const baseMomentoAgenda = a.valorBaseMomento || state.valorBase100 || 2.5;
+        const valorSemDesconto = (vb / 100) * baseMomentoAgenda;
+        const diferencaDesconto = valorSemDesconto - Number(a.valor || 0);
+        if (diferencaDesconto > 0.5) {
+            descontoHtmlAgenda = `<div style="color: #ffb74d; font-size: 11px; font-weight: 700; white-space: nowrap; margin-top: 2px;">🏷️ Desconto aplicado: -${money(diferencaDesconto)}</div>`;
+        }
+    }
+
     return `
       <div class="history-card" style="border-left: 4px solid var(--accent-light);">
         <div class="history-main">
@@ -370,7 +407,15 @@ function renderizarAgendamentos() {
             ${obsHtml}
             <div style="font-size: 12px; font-weight: bold; margin-top: 8px; padding: 4px 8px; border-radius: 6px; display: inline-block; ${badgeEnvioEstilo}">🚀 Enviar no dia: ${esc(a.dataEnvio || "Imediato")}</div>
           </div>
-          <div class="history-value">${money(a.valor)}</div>
+          
+          <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; min-width: 140px;">
+            ${breakdownHtmlAgenda}
+            <div style="display: flex; flex-direction: column; align-items: flex-end;">
+               ${breakdownHtmlAgenda ? `<div style="font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 800; margin-bottom: 2px;">Total da Pré-venda</div>` : ''}
+               <div class="history-value" style="margin: 0; font-size: 22px;">${money(a.valor)}</div>
+               ${descontoHtmlAgenda}
+            </div>
+          </div>
         </div>
         <div class="history-details">
           <span>🪙 ${formatVBucks(vb)} V-Bucks exigidos</span>
