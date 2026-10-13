@@ -17,6 +17,50 @@ function parseValorMonetario(valorStr) {
     return parseFloat(limpo) || 0;
 }
 
+// ---------------------------------------------------------
+// NOVO: Função para calcular o valor em Reais com base nos V-Bucks e no modo de preço ativo
+// ---------------------------------------------------------
+function calcularValorReaisPorVbucksEdicao(vbucksTotal) {
+  if (!vbucksTotal || vbucksTotal <= 0) return 0;
+  
+  const modo = state.modoPrecificacao || 'padrao';
+  const basePadrao = state.valorBase100 || 2.5;
+
+  if (modo === 'global_promo') {
+    const baseGlobal = state.valorBaseGlobal || basePadrao;
+    return (vbucksTotal / 100) * baseGlobal;
+  } else if (modo === 'volume_promo') {
+    const metaVolume = state.volumeMeta || 1500;
+    const baseNormal = state.volumeBaseNormal || 2.5;
+    const basePromo = state.volumeBasePromo || 2.0;
+    const baseAplicar = vbucksTotal >= metaVolume ? basePromo : baseNormal;
+    return (vbucksTotal / 100) * baseAplicar;
+  } else {
+    return (vbucksTotal / 100) * basePadrao;
+  }
+}
+
+// ---------------------------------------------------------
+// NOVO: Atualiza o input de valor em Reais automaticamente ao mexer nos V-Bucks dos itens
+// ---------------------------------------------------------
+function atualizarCalculoEdicaoAutomatico() {
+  const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
+  let somaVbucks = 0;
+
+  itemBoxes.forEach(box => {
+    const vb = parseInt(box.querySelector(".edit-modal-item-vbucks")?.value, 10) || 0;
+    somaVbucks += vb;
+  });
+
+  if (somaVbucks > 0) {
+    const valorCalculadoReais = calcularValorReaisPorVbucksEdicao(somaVbucks);
+    const inputValorReais = document.getElementById("editValorInput");
+    if (inputValorReais) {
+      inputValorReais.value = valorCalculadoReais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+  }
+}
+
 function adicionarVenda() {
   if (typeof limparReservasExpiradas === 'function') limparReservasExpiradas();
   
@@ -301,7 +345,7 @@ function dispararEnvioItemAvulso(i) {
 
   const vbucksItemInput = parseInt(document.getElementById(`itemVbucksInput_${i}`)?.value, 10) || 0;
   if (quantidade >= 2 && (!vbucksItemInput || vbucksItemInput <= 0)) {
-    mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${i + 1} (obrigatório para 2 ou mais itens)!`, "erro");
+    mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${idx + 1} (obrigatório para 2 ou mais itens)!`, "erro");
     return;
   }
 
@@ -500,12 +544,12 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
       <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
           <label style="font-size:12px;">Item ${idx + 1}</label>
-          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove()">✕</button>` : ""}
+          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
         </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
           <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
-          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;">
+          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;" oninput="atualizarCalculoEdicaoAutomatico()">
           <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="flex: 1.5; min-width: 110px; padding: 10px;">
         </div>
       </div>`;
