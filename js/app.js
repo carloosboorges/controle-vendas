@@ -16,7 +16,7 @@ function parseValorMonetario(valorStr) {
 }
 
 // NOVO: Atualiza o input de valor em Reais e a badge automaticamente ao mexer nos V-Bucks
-// Agora com suporte ao cálculo por Item Individual ou Soma Acumulada!
+// CORREÇÃO: Faz o cálculo matemático linha a linha se o desconto for Por Item Individual!
 function atualizarCalculoEdicaoAutomatico() {
   const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
   let somaVbucks = 0;
@@ -28,29 +28,29 @@ function atualizarCalculoEdicaoAutomatico() {
   const metaVolume = state.volumeMeta || 1500;
   const baseNormal = state.volumeBaseNormal || 2.5;
   const basePromo = state.volumeBasePromo || 2.0;
-  
-  // Tenta detetar a chave exata onde está salva a configuração do dropdown do desconto
-  const configAplicacao = state.volumeModoAplicacao || state.volumeModoDesconto || state.modoAplicacaoVolume || 'total';
-  const isDescontoPorItem = configAplicacao === 'item' || configAplicacao === 'individual' || String(configAplicacao).includes('Item');
+
+  // Busca a configuração do modo de desconto salva no state
+  const modoDesc = state.modoAplicacaoDesconto || state.volumeModoAplicacao || state.tipoDescontoVolume || 'individual';
+  const isDescontoPorItem = String(modoDesc).toLowerCase().includes('indivi') || String(modoDesc).toLowerCase().includes('item');
 
   itemBoxes.forEach(box => {
     const vb = parseInt(box.querySelector(".edit-modal-item-vbucks")?.value, 10) || 0;
     somaVbucks += vb;
     
-    // Se o desconto for POR ITEM INDIVIDUAL, calcula linha por linha
+    // Se for Promoção por Volume E configurado "Por Item Individual", calcula a linha isolada
     if (modo === 'volume_promo' && isDescontoPorItem) {
-        const baseAplicarItem = vb >= metaVolume ? basePromo : baseNormal;
-        valorCalculadoReais += (vb / 100) * baseAplicarItem;
+        const baseItem = vb >= metaVolume ? basePromo : baseNormal;
+        valorCalculadoReais += (vb / 100) * baseItem;
     }
   });
 
-  // Se o desconto for GLOBAL ou ACUMULADO TOTAL, calcula com base na soma final
+  // Se NÃO for desconto por item individual, calcula no final sobre a soma de tudo
   if (modo === 'global_promo') {
     const baseGlobal = state.valorBaseGlobal || basePadrao;
     valorCalculadoReais = (somaVbucks / 100) * baseGlobal;
   } else if (modo === 'volume_promo' && !isDescontoPorItem) {
-    const baseAplicarTotal = somaVbucks >= metaVolume ? basePromo : baseNormal;
-    valorCalculadoReais = (somaVbucks / 100) * baseAplicarTotal;
+    const baseTotal = somaVbucks >= metaVolume ? basePromo : baseNormal;
+    valorCalculadoReais = (somaVbucks / 100) * baseTotal;
   } else if (modo !== 'volume_promo') {
     valorCalculadoReais = (somaVbucks / 100) * basePadrao;
   }
@@ -349,7 +349,7 @@ function dispararEnvioItemAvulso(i) {
 
   const vbucksItemInput = parseInt(document.getElementById(`itemVbucksInput_${i}`)?.value, 10) || 0;
   if (quantidade >= 2 && (!vbucksItemInput || vbucksItemInput <= 0)) {
-    mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${idx + 1} (obrigatório para 2 ou mais itens)!`, "erro");
+    mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${i + 1} (obrigatório para 2 ou mais itens)!`, "erro");
     return;
   }
 
@@ -524,7 +524,10 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
   }
 
   const valorEditNum = Number(venda.valor || 0);
-  document.getElementById("editValorInput").value = valorEditNum.toFixed(2);
+  const editValorInputEl = document.getElementById("editValorInput");
+  if (editValorInputEl) {
+    editValorInputEl.value = valorEditNum.toFixed(2);
+  }
   
   const elDataEnvioContainer = document.getElementById("editDataEnvioContainer");
   if (elDataEnvioContainer) elDataEnvioContainer.style.display = "none";
@@ -1025,9 +1028,6 @@ async function inicializar() {
 let ultimaDataHojeConhecida = typeof obterDataHojeFormatada === 'function' ? obterDataHojeFormatada() : new Date().toLocaleDateString('pt-BR');
 inicializar();
 
-// =============================================================
-// O "CORAÇÃO" DO SISTEMA - RODA A CADA 1 SEGUNDO
-// =============================================================
 setInterval(() => {
   if (typeof state !== 'undefined' && state) {
       if (typeof atualizarRelogios === 'function') {
