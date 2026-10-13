@@ -6,23 +6,20 @@ let clienteOrigemEdicao = null; // Guarda o ID e Nome do cliente se a edição f
 
 // Função auxiliar robusta para normalizar valores em formato brasileiro (ex: "62,50", "6.250,00" -> float correto)
 function parseValorMonetario(valorStr) {
-    if (!valorStr) return 0;
-    if (typeof valorStr === 'number') return valorStr;
-    
-    let limpo = valorStr.toString().trim();
-    // Se tiver vírgula, assume que o ponto é separador de milhar e a vírgula é decimal
-    if (limpo.includes(',')) {
-        limpo = limpo.replace(/\./g, '').replace(',', '.');
-    }
-    return parseFloat(limpo) || 0;
+  if (!valorStr) return 0;
+  if (typeof valorStr === 'number') return valorStr;
+  
+  let limpo = valorStr.toString().trim();
+  // Se tiver vírgula, assume que o ponto é separador de milhar e a vírgula é decimal
+  if (limpo.includes(',')) {
+      limpo = limpo.replace(/\./g, '').replace(',', '.');
+  }
+  return parseFloat(limpo) || 0;
 }
 
-// ---------------------------------------------------------
 // NOVO: Função para calcular o valor em Reais com base nos V-Bucks e no modo de preço ativo
-// ---------------------------------------------------------
 function calcularValorReaisPorVbucksEdicao(vbucksTotal) {
   if (!vbucksTotal || vbucksTotal <= 0) return 0;
-  
   const modo = state.modoPrecificacao || 'padrao';
   const basePadrao = state.valorBase100 || 2.5;
 
@@ -40,9 +37,7 @@ function calcularValorReaisPorVbucksEdicao(vbucksTotal) {
   }
 }
 
-// ---------------------------------------------------------
 // NOVO: Atualiza o input de valor em Reais automaticamente ao mexer nos V-Bucks dos itens
-// ---------------------------------------------------------
 function atualizarCalculoEdicaoAutomatico() {
   const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
   let somaVbucks = 0;
@@ -52,13 +47,19 @@ function atualizarCalculoEdicaoAutomatico() {
     somaVbucks += vb;
   });
 
-  if (somaVbucks > 0) {
-    const valorCalculadoReais = calcularValorReaisPorVbucksEdicao(somaVbucks);
-    const inputValorReais = document.getElementById("editValorInput");
-    if (inputValorReais) {
-      inputValorReais.value = valorCalculadoReais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
+  const valorCalculadoReais = calcularValorReaisPorVbucksEdicao(somaVbucks);
+  const inputValorReais = document.getElementById("editValorInput");
+  if (inputValorReais && somaVbucks > 0) {
+    inputValorReais.value = valorCalculadoReais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
+
+  // Atualiza o texto de V-Bucks no topo do modal de edição
+  const spans = document.querySelectorAll("#editSaleModal span");
+  spans.forEach(el => {
+    if (el.textContent.includes("V-Bucks") || el.textContent.includes("VB")) {
+      el.textContent = `${somaVbucks.toLocaleString('pt-BR')} V-Bucks`;
+    }
+  });
 }
 
 function adicionarVenda() {
@@ -89,7 +90,6 @@ function adicionarVenda() {
     }
   }
 
-  // VALIDAÇÕES ESPECÍFICAS CAMPO A CAMPO
   if (!cliente) { mostrarNotificacao("⚠️ Por favor, informe o Nome do Cliente!", "erro"); return; }
   if (!nickCliente) { mostrarNotificacao("⚠️ Por favor, informe o Nick do Cliente!", "erro"); return; }
   if (!primeiroItem) { mostrarNotificacao("⚠️ Por favor, informe o nome do Item!", "erro"); return; }
@@ -97,7 +97,6 @@ function adicionarVenda() {
   if (!conta) { mostrarNotificacao("⚠️ Por favor, selecione uma Conta!", "erro"); return; }
   if (itens.length < quantidade) { mostrarNotificacao("⚠️ Por favor, preencha o nome de todos os itens extras!", "erro"); return; }
 
-  // REGRA: Se tiver 2 ou mais itens, exige obrigatoriamente o V-Bucks de cada um
   if (quantidade >= 2) {
     for (let idx = 0; idx < itens.length; idx++) {
       if (!itens[idx].vbucks || Number(itens[idx].vbucks) <= 0) {
@@ -115,9 +114,6 @@ function adicionarVenda() {
     return;
   }
 
-  // =========================================================
-  // ALERTA 1: PREVISÃO DE VAGAS PARA RESERVAS DE HOJE
-  // =========================================================
   if (!window.ignorarAvisoReserva) {
     const hojeObj = new Date(); 
     hojeObj.setHours(0,0,0,0);
@@ -196,7 +192,6 @@ function adicionarVenda() {
     }
   }
   window.ignorarAvisoReserva = false; 
-  // =========================================================
 
   const somaVbucksItens = itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
   const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : (typeof valorParaVBucks === 'function' ? valorParaVBucks(valorDigitado) : Math.round((valorDigitado / baseAtual) * 100));
@@ -345,7 +340,7 @@ function dispararEnvioItemAvulso(i) {
 
   const vbucksItemInput = parseInt(document.getElementById(`itemVbucksInput_${i}`)?.value, 10) || 0;
   if (quantidade >= 2 && (!vbucksItemInput || vbucksItemInput <= 0)) {
-    mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${idx + 1} (obrigatório para 2 ou mais itens)!`, "erro");
+    mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${i + 1} (obrigatório para 2 ou mais itens)!`, "erro");
     return;
   }
 
@@ -519,7 +514,6 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
     inputHoraCriacao.style.cursor = "text";
   }
 
-  // CORREÇÃO: Formata com toLocaleString para exibir corretamente com vírgula no input de edição
   const valorEditNum = Number(venda.valor || 0);
   document.getElementById("editValorInput").value = valorEditNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   
@@ -555,6 +549,7 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
       </div>`;
   }).join("");
 
+  atualizarCalculoEdicaoAutomatico();
   document.getElementById("editSaleModal").style.display = "flex";
 }
 
@@ -602,7 +597,6 @@ function salvarEdicaoVenda() {
     }
   }
 
-  // CORREÇÃO: Utiliza a função segura de conversão de moeda no campo de edição
   const valorEditInputEl = document.getElementById("editValorInput");
   const novoValorEmReais = parseValorMonetario(valorEditInputEl ? valorEditInputEl.value : 0);
 

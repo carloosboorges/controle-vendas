@@ -9,11 +9,9 @@ let editAgendaViewMes = new Date().getMonth();
 let editAgendaViewAno = new Date().getFullYear(); 
 let editAgendaPopoverAberto = false;
 
-// Função auxiliar para normalizar valores em formato brasileiro (ex: "62,50", "6.250,00" -> float correto)
 function parseValorMonetario(valorStr) {
     if (!valorStr) return 0;
     if (typeof valorStr === 'number') return valorStr;
-    
     let limpo = valorStr.toString().trim();
     if (limpo.includes(',')) {
         limpo = limpo.replace(/\./g, '').replace(',', '.');
@@ -21,10 +19,8 @@ function parseValorMonetario(valorStr) {
     return parseFloat(limpo) || 0;
 }
 
-// Função para calcular o valor em Reais com base nos V-Bucks e no modo de preço ativo
 function calcularValorReaisPorVbucks(vbucksTotal) {
   if (!vbucksTotal || vbucksTotal <= 0) return 0;
-  
   const modo = state.modoPrecificacao || 'padrao';
   const basePadrao = state.valorBase100 || 2.5;
 
@@ -42,7 +38,6 @@ function calcularValorReaisPorVbucks(vbucksTotal) {
   }
 }
 
-// Atualiza o valor sugerido ou o input automaticamente no modal de edição
 function atualizarCalculoEdicaoAutomatico() {
   const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
   let somaVbucks = 0;
@@ -54,14 +49,18 @@ function atualizarCalculoEdicaoAutomatico() {
 
   const valorCalculadoReais = calcularValorReaisPorVbucks(somaVbucks);
   const inputValorReais = document.getElementById("editValorInput");
-  
-  // Atualiza o campo de V-Bucks no topo se existir
-  const badgeVb = document.querySelector("#editSaleModal .v-bucks-badge, #editSaleModal [style*='V-Bucks']");
-  
   if (inputValorReais && somaVbucks > 0) {
-    // Preenche o valor automaticamente caso esteja vazio ou se desejar sincronizar
     inputValorReais.value = valorCalculadoReais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
+
+  // Atualiza o badge/texto de V-Bucks no modal de edição
+  const badgeVb = document.querySelector("#editSaleModal [id*='V-Bucks'], #editSaleModal .v-bucks-badge, #editSaleModal span");
+  const spans = document.querySelectorAll("#editSaleModal span");
+  spans.forEach(el => {
+    if (el.textContent.includes("V-Bucks")) {
+      el.textContent = `${somaVbucks.toLocaleString('pt-BR')} V-Bucks`;
+    }
+  });
 }
 
 function toggleAgendaCalendario(e) { 
@@ -597,6 +596,7 @@ function abrirModalEdicaoAgendamento(id) {
       </div>`; 
   }).join("");
   
+  atualizarCalculoEdicaoAutomatico();
   document.getElementById("editSaleModal").style.display = "flex";
 }
 
