@@ -2,9 +2,8 @@
 // MÓDULO DE VENDAS E INTERFACE PRINCIPAL
 // ==========================================
 
-let clienteOrigemEdicao = null; // Guarda o ID e Nome do cliente se a edição foi aberta a partir do perfil dele
+let clienteOrigemEdicao = null;
 
-// Função auxiliar robusta para normalizar valores em formato brasileiro
 function parseValorMonetario(valorStr) {
   if (!valorStr) return 0;
   if (typeof valorStr === 'number') return valorStr;
@@ -16,42 +15,51 @@ function parseValorMonetario(valorStr) {
   return parseFloat(limpo) || 0;
 }
 
-// NOVO: Função para calcular o valor em Reais com base nos V-Bucks e no modo de preço ativo
-function calcularValorReaisPorVbucksEdicao(vbucksTotal) {
-  if (!vbucksTotal || vbucksTotal <= 0) return 0;
-  const modo = state.modoPrecificacao || 'padrao';
-  const basePadrao = state.valorBase100 || 2.5;
-
-  if (modo === 'global_promo') {
-    const baseGlobal = state.valorBaseGlobal || basePadrao;
-    return (vbucksTotal / 100) * baseGlobal;
-  } else if (modo === 'volume_promo') {
-    const metaVolume = state.volumeMeta || 1500;
-    const baseNormal = state.volumeBaseNormal || 2.5;
-    const basePromo = state.volumeBasePromo || 2.0;
-    const baseAplicar = vbucksTotal >= metaVolume ? basePromo : baseNormal;
-    return (vbucksTotal / 100) * baseAplicar;
-  } else {
-    return (vbucksTotal / 100) * basePadrao;
-  }
-}
-
 // NOVO: Atualiza o input de valor em Reais e a badge automaticamente ao mexer nos V-Bucks
+// Agora com suporte ao cálculo por Item Individual ou Soma Acumulada!
 function atualizarCalculoEdicaoAutomatico() {
   const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
   let somaVbucks = 0;
+  let valorCalculadoReais = 0;
+
+  const modo = state.modoPrecificacao || 'padrao';
+  const basePadrao = state.valorBase100 || 2.5;
+  
+  const metaVolume = state.volumeMeta || 1500;
+  const baseNormal = state.volumeBaseNormal || 2.5;
+  const basePromo = state.volumeBasePromo || 2.0;
+  
+  // Tenta detetar a chave exata onde está salva a configuração do dropdown do desconto
+  const configAplicacao = state.volumeModoAplicacao || state.volumeModoDesconto || state.modoAplicacaoVolume || 'total';
+  const isDescontoPorItem = configAplicacao === 'item' || configAplicacao === 'individual' || String(configAplicacao).includes('Item');
 
   itemBoxes.forEach(box => {
     const vb = parseInt(box.querySelector(".edit-modal-item-vbucks")?.value, 10) || 0;
     somaVbucks += vb;
+    
+    // Se o desconto for POR ITEM INDIVIDUAL, calcula linha por linha
+    if (modo === 'volume_promo' && isDescontoPorItem) {
+        const baseAplicarItem = vb >= metaVolume ? basePromo : baseNormal;
+        valorCalculadoReais += (vb / 100) * baseAplicarItem;
+    }
   });
 
-  const valorCalculadoReais = calcularValorReaisPorVbucksEdicao(somaVbucks);
+  // Se o desconto for GLOBAL ou ACUMULADO TOTAL, calcula com base na soma final
+  if (modo === 'global_promo') {
+    const baseGlobal = state.valorBaseGlobal || basePadrao;
+    valorCalculadoReais = (somaVbucks / 100) * baseGlobal;
+  } else if (modo === 'volume_promo' && !isDescontoPorItem) {
+    const baseAplicarTotal = somaVbucks >= metaVolume ? basePromo : baseNormal;
+    valorCalculadoReais = (somaVbucks / 100) * baseAplicarTotal;
+  } else if (modo !== 'volume_promo') {
+    valorCalculadoReais = (somaVbucks / 100) * basePadrao;
+  }
+
   const inputValorReais = document.getElementById("editValorInput");
-  
   if (inputValorReais && somaVbucks > 0) {
-    // FIX: Usar toFixed(2) impede que o campo type="number" fique em branco!
     inputValorReais.value = valorCalculadoReais.toFixed(2);
+  } else if (inputValorReais && somaVbucks === 0) {
+    inputValorReais.value = "";
   }
 
   // Atualiza as badges de V-Bucks espalhadas pelo modal
@@ -352,6 +360,7 @@ function dispararEnvioItemAvulso(i) {
   }
 
   const agora = Date.now();
+
   if (inputEnviado) inputEnviado.value = "true";
   
   if (!state.reservas) state.reservas = [];
@@ -514,12 +523,8 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
     inputHoraCriacao.style.cursor = "text";
   }
 
-  // FIX: Usa toFixed(2) para impedir bugs visuais no input type="number"
   const valorEditNum = Number(venda.valor || 0);
-  const editValorInputEl = document.getElementById("editValorInput");
-  if (editValorInputEl) {
-    editValorInputEl.value = valorEditNum.toFixed(2);
-  }
+  document.getElementById("editValorInput").value = valorEditNum.toFixed(2);
   
   const elDataEnvioContainer = document.getElementById("editDataEnvioContainer");
   if (elDataEnvioContainer) elDataEnvioContainer.style.display = "none";
@@ -538,25 +543,22 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
     }
     const cats = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
     const optionsHtml = cats.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join("");
-    
     return `
       <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
           <label style="font-size:12px;">Item ${idx + 1}</label>
-          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
+          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
         </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
           <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
-          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;" oninput="if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico()">
+          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;" oninput="atualizarCalculoEdicaoAutomatico()">
           <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="flex: 1.5; min-width: 110px; padding: 10px;">
         </div>
       </div>`;
   }).join("");
 
-  if (typeof atualizarCalculoEdicaoAutomatico === 'function') {
-      atualizarCalculoEdicaoAutomatico();
-  }
+  atualizarCalculoEdicaoAutomatico();
   document.getElementById("editSaleModal").style.display = "flex";
 }
 
