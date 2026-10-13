@@ -4,13 +4,12 @@
 
 let clienteOrigemEdicao = null; // Guarda o ID e Nome do cliente se a edição foi aberta a partir do perfil dele
 
-// Função auxiliar robusta para normalizar valores em formato brasileiro (ex: "62,50", "6.250,00" -> float correto)
+// Função auxiliar robusta para normalizar valores em formato brasileiro
 function parseValorMonetario(valorStr) {
   if (!valorStr) return 0;
   if (typeof valorStr === 'number') return valorStr;
   
   let limpo = valorStr.toString().trim();
-  // Se tiver vírgula, assume que o ponto é separador de milhar e a vírgula é decimal
   if (limpo.includes(',')) {
       limpo = limpo.replace(/\./g, '').replace(',', '.');
   }
@@ -37,7 +36,7 @@ function calcularValorReaisPorVbucksEdicao(vbucksTotal) {
   }
 }
 
-// NOVO: Atualiza o input de valor em Reais automaticamente ao mexer nos V-Bucks dos itens
+// NOVO: Atualiza o input de valor em Reais e a badge automaticamente ao mexer nos V-Bucks
 function atualizarCalculoEdicaoAutomatico() {
   const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
   let somaVbucks = 0;
@@ -49,15 +48,17 @@ function atualizarCalculoEdicaoAutomatico() {
 
   const valorCalculadoReais = calcularValorReaisPorVbucksEdicao(somaVbucks);
   const inputValorReais = document.getElementById("editValorInput");
+  
   if (inputValorReais && somaVbucks > 0) {
-    inputValorReais.value = valorCalculadoReais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // FIX: Usar toFixed(2) impede que o campo type="number" fique em branco!
+    inputValorReais.value = valorCalculadoReais.toFixed(2);
   }
 
-  // Atualiza o texto de V-Bucks no topo do modal de edição
+  // Atualiza as badges de V-Bucks espalhadas pelo modal
   const spans = document.querySelectorAll("#editSaleModal span");
   spans.forEach(el => {
     if (el.textContent.includes("V-Bucks") || el.textContent.includes("VB")) {
-      el.textContent = `${somaVbucks.toLocaleString('pt-BR')} V-Bucks`;
+      el.textContent = `🪙 ${somaVbucks.toLocaleString('pt-BR')} V-Bucks`;
     }
   });
 }
@@ -340,7 +341,7 @@ function dispararEnvioItemAvulso(i) {
 
   const vbucksItemInput = parseInt(document.getElementById(`itemVbucksInput_${i}`)?.value, 10) || 0;
   if (quantidade >= 2 && (!vbucksItemInput || vbucksItemInput <= 0)) {
-    mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${i + 1} (obrigatório para 2 ou mais itens)!`, "erro");
+    mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${idx + 1} (obrigatório para 2 ou mais itens)!`, "erro");
     return;
   }
 
@@ -351,7 +352,6 @@ function dispararEnvioItemAvulso(i) {
   }
 
   const agora = Date.now();
-
   if (inputEnviado) inputEnviado.value = "true";
   
   if (!state.reservas) state.reservas = [];
@@ -514,8 +514,12 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
     inputHoraCriacao.style.cursor = "text";
   }
 
+  // FIX: Usa toFixed(2) para impedir bugs visuais no input type="number"
   const valorEditNum = Number(venda.valor || 0);
-  document.getElementById("editValorInput").value = valorEditNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const editValorInputEl = document.getElementById("editValorInput");
+  if (editValorInputEl) {
+    editValorInputEl.value = valorEditNum.toFixed(2);
+  }
   
   const elDataEnvioContainer = document.getElementById("editDataEnvioContainer");
   if (elDataEnvioContainer) elDataEnvioContainer.style.display = "none";
@@ -534,22 +538,25 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
     }
     const cats = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
     const optionsHtml = cats.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join("");
+    
     return `
       <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
           <label style="font-size:12px;">Item ${idx + 1}</label>
-          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
+          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
         </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
           <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
-          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;" oninput="atualizarCalculoEdicaoAutomatico()">
+          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;" oninput="if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico()">
           <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="flex: 1.5; min-width: 110px; padding: 10px;">
         </div>
       </div>`;
   }).join("");
 
-  atualizarCalculoEdicaoAutomatico();
+  if (typeof atualizarCalculoEdicaoAutomatico === 'function') {
+      atualizarCalculoEdicaoAutomatico();
+  }
   document.getElementById("editSaleModal").style.display = "flex";
 }
 

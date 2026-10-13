@@ -9,60 +9,6 @@ let editAgendaViewMes = new Date().getMonth();
 let editAgendaViewAno = new Date().getFullYear(); 
 let editAgendaPopoverAberto = false;
 
-function parseValorMonetario(valorStr) {
-    if (!valorStr) return 0;
-    if (typeof valorStr === 'number') return valorStr;
-    let limpo = valorStr.toString().trim();
-    if (limpo.includes(',')) {
-        limpo = limpo.replace(/\./g, '').replace(',', '.');
-    }
-    return parseFloat(limpo) || 0;
-}
-
-function calcularValorReaisPorVbucks(vbucksTotal) {
-  if (!vbucksTotal || vbucksTotal <= 0) return 0;
-  const modo = state.modoPrecificacao || 'padrao';
-  const basePadrao = state.valorBase100 || 2.5;
-
-  if (modo === 'global_promo') {
-    const baseGlobal = state.valorBaseGlobal || basePadrao;
-    return (vbucksTotal / 100) * baseGlobal;
-  } else if (modo === 'volume_promo') {
-    const metaVolume = state.volumeMeta || 1500;
-    const baseNormal = state.volumeBaseNormal || 2.5;
-    const basePromo = state.volumeBasePromo || 2.0;
-    const baseAplicar = vbucksTotal >= metaVolume ? basePromo : baseNormal;
-    return (vbucksTotal / 100) * baseAplicar;
-  } else {
-    return (vbucksTotal / 100) * basePadrao;
-  }
-}
-
-function atualizarCalculoEdicaoAutomatico() {
-  const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
-  let somaVbucks = 0;
-
-  itemBoxes.forEach(box => {
-    const vb = parseInt(box.querySelector(".edit-modal-item-vbucks")?.value, 10) || 0;
-    somaVbucks += vb;
-  });
-
-  const valorCalculadoReais = calcularValorReaisPorVbucks(somaVbucks);
-  const inputValorReais = document.getElementById("editValorInput");
-  if (inputValorReais && somaVbucks > 0) {
-    inputValorReais.value = valorCalculadoReais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
-  // Atualiza o badge/texto de V-Bucks no modal de edição
-  const badgeVb = document.querySelector("#editSaleModal [id*='V-Bucks'], #editSaleModal .v-bucks-badge, #editSaleModal span");
-  const spans = document.querySelectorAll("#editSaleModal span");
-  spans.forEach(el => {
-    if (el.textContent.includes("V-Bucks")) {
-      el.textContent = `${somaVbucks.toLocaleString('pt-BR')} V-Bucks`;
-    }
-  });
-}
-
 function toggleAgendaCalendario(e) { 
   if (e) e.stopPropagation(); 
   agendaPopoverAberto = !agendaPopoverAberto; 
@@ -216,18 +162,23 @@ function renderEditAgendaCalendario() {
 }
 
 function agendarVenda() {
-  limparReservasExpiradas();
-  const conta = document.getElementById("contaSelect").value;
-  const valor = parseValorMonetario(document.getElementById("valorInput").value);
-  const cliente = document.getElementById("clienteInput").value.trim();
-  const nickCliente = document.getElementById("nickClienteInput").value.trim();
+  if (typeof limparReservasExpiradas === 'function') limparReservasExpiradas();
+  
+  const conta = document.getElementById("contaSelect")?.value;
+  const valorInputEl = document.getElementById("valorInput");
+  const valorDigitado = typeof parseValorMonetario === 'function' ? parseValorMonetario(valorInputEl ? valorInputEl.value : 0) : parseFloat(valorInputEl ? valorInputEl.value : 0);
+  const cliente = document.getElementById("clienteInput")?.value.trim();
+  const nickCliente = document.getElementById("nickClienteInput")?.value.trim();
   const whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
   const tiktok = document.getElementById("tiktokInput")?.value.trim() || "";
   const observacao = document.getElementById("observacaoInput")?.value.trim() || "";
-  const quantidade = parseInt(document.getElementById("quantidadeInput").value, 10) || 1;
-  const itens = obterItensDaVenda();
+  const dataEnvioCrua = document.getElementById("dataEnvioInput")?.value.trim();
+  
+  const inputQtd = document.getElementById("quantidadeInput");
+  const quantidade = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
+  const itens = typeof obterItensDaVenda === 'function' ? obterItensDaVenda() : [];
   const baseAtual = state.valorBase100 || 2.5;
-
+  const primeiroItem = document.getElementById("itemNameInput_0")?.value?.trim();
   let clienteId = document.getElementById("clienteIdInput")?.value;
 
   if (window.ignorarChecagemDuplicacao) {
@@ -238,18 +189,18 @@ function agendarVenda() {
     }
   }
 
-  const dataEnvioCrua = document.getElementById("dataEnvioInput")?.value; 
-  let dataEnvioFormatada = obterDataHojeFormatada(); 
-  
-  if (dataEnvioCrua) { 
-    const [ano, mes, dia] = dataEnvioCrua.split("-"); 
-    const dataEscolhida = new Date(ano, mes - 1, dia); 
-    const hoje = new Date(); hoje.setHours(0, 0, 0, 0); 
-    if (dataEscolhida < hoje) { 
-      mostrarNotificacao("Erro: Não é possível agendar para o passado!", "erro"); 
-      return; 
-    } 
-    dataEnvioFormatada = `${dia}/${mes}/${ano}`; 
+  let dataEnvioFormatada = "Imediato";
+  if (dataEnvioCrua) {
+    const p = dataEnvioCrua.split("-");
+    if (p.length === 3) {
+      const dataEscolhida = new Date(p[0], p[1] - 1, p[2]);
+      const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+      if (dataEscolhida < hoje) {
+        mostrarNotificacao("Erro: Não é possível agendar para o passado!", "erro");
+        return;
+      }
+      dataEnvioFormatada = `${p[2]}/${p[1]}/${p[0]}`;
+    }
   }
 
   if (!window.ignorarAvisoLimiteAgendamento) {
@@ -296,13 +247,13 @@ function agendarVenda() {
   }
   window.ignorarAvisoLimiteAgendamento = false;
 
-  if (!conta || !valor || !cliente || !nickCliente || itens.length < quantidade) { 
+  if (!conta || !valorDigitado || !cliente || !nickCliente || itens.length < quantidade) { 
     mostrarNotificacao("Preencha todos os campos obrigatórios.", "erro"); 
     return; 
   }
 
   const somaVbucksItens = itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
-  const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : Math.round((valor / baseAtual) * 100);
+  const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : Math.round((valorDigitado / baseAtual) * 100);
   const contaObj = (state.contas || []).find(c => c.nome === conta);
   
   if (Number(contaObj?.vbucks) < vbucksNecessarios) { 
@@ -317,7 +268,7 @@ function agendarVenda() {
   const novoAgendamento = { 
     id: `agenda-${Date.now()}`, 
     clienteId: clienteId, 
-    conta, valor: Number(valor), 
+    conta, valor: Number(valorDigitado), 
     vbucks: vbucksNecessarios, 
     valorBaseMomento: baseAtual, 
     quantidade, cliente, nickCliente, 
@@ -332,21 +283,25 @@ function agendarVenda() {
   if (!state.agendamentos) state.agendamentos = []; 
   state.agendamentos.unshift(novoAgendamento);
 
-  sincronizarDadosCliente(clienteId, cliente, whatsapp, tiktok);
+  if (typeof sincronizarDadosCliente === 'function') sincronizarDadosCliente(clienteId, cliente, whatsapp, tiktok);
   
-  ["valorInput", "clienteInput", "clienteIdInput", "nickClienteInput", "whatsappInput", "tiktokInput", "observacaoInput"].forEach(id => {
+  ["valorInput", "clienteInput", "clienteIdInput", "nickClienteInput", "whatsappInput", "tiktokInput", "observacaoInput", "dataEnvioInput"].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = "";
   });
   if (document.getElementById("quantidadeInput")) document.getElementById("quantidadeInput").value = "1";
-  if (document.getElementById("dataEnvioInput")) document.getElementById("dataEnvioInput").value = "";
   if (document.getElementById("labelAgendaData")) document.getElementById("labelAgendaData").textContent = "Hoje";
   
-  atualizarCamposItens(); 
-  atualizarPreviewVBucks(); 
-  verificarObservacaoCliente("");
+  if (typeof atualizarCamposItensComDados === 'function') {
+    atualizarCamposItensComDados([{ tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false }]);
+  } else if (typeof atualizarCamposItens === 'function') {
+    atualizarCamposItens(false);
+  }
+  
+  if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks(); 
+  if (typeof verificarObservacaoCliente === 'function') verificarObservacaoCliente("");
 
-  render();
-  save(); 
+  if (typeof render === 'function') render();
+  if (typeof save === 'function') save(); 
   mostrarNotificacao("⏳ Pré-venda agendada com sucesso!", "sucesso");
 }
 
@@ -374,10 +329,7 @@ function renderizarAgendamentos() {
     }
     const timeA = getTempo(a.dataEnvio);
     const timeB = getTempo(b.dataEnvio);
-    
-    if (timeA === timeB) {
-      return (a.criadoEmMs || 0) - (b.criadoEmMs || 0);
-    }
+    if (timeA === timeB) return (a.criadoEmMs || 0) - (b.criadoEmMs || 0);
     return timeA - timeB;
   });
   
@@ -385,7 +337,7 @@ function renderizarAgendamentos() {
     if (a.dataRegistro === "28/09/2026" && a.horaRegistro === "23:18") {
       a.dataRegistro = "27/09/2026";
     }
-    const vb = a.vbucks !== undefined ? Number(a.vbucks) : valorParaVBucks(a.valor, a.valorBaseMomento);
+    const vb = a.vbucks !== undefined ? Number(a.vbucks) : (typeof valorParaVBucks === 'function' ? valorParaVBucks(a.valor, a.valorBaseMomento) : 0);
     
     const dataEnvioTime = (!a.dataEnvio || a.dataEnvio === "Imediato") ? hojeTime : (() => {
         const p = a.dataEnvio.split("/");
@@ -449,7 +401,7 @@ function renderizarAgendamentos() {
                 ${a.tiktok ? `<span>${TIKTOK_ICON} <span class="copyable-text" onclick="copiarTexto('${esc(a.tiktok)}', 'TikTok', event)">${esc(a.tiktok)}</span></span>` : `<span>${TIKTOK_ICON} —</span>`}
               </div>
             </div>
-            <div class="history-item" style="margin-top: 8px;">${renderizarListaItensHtml(a.itens || [a.item])}</div>
+            <div class="history-item" style="margin-top: 8px;">${typeof renderizarListaItensHtml === 'function' ? renderizarListaItensHtml(a.itens || [a.item]) : esc(a.item)}</div>
             <div class="history-date">📅 Criado em: ${esc(a.dataRegistro)} às ${esc(a.horaRegistro)}</div>
             ${obsHtml}
             <div style="font-size: 12px; font-weight: bold; margin-top: 8px; padding: 4px 8px; border-radius: 6px; display: inline-block; ${badgeEnvioEstilo}">🚀 Enviar no dia: ${esc(a.dataEnvio || "Imediato")}</div>
@@ -501,8 +453,12 @@ function abrirModalEdicaoAgendamento(id) {
   document.getElementById("editTiktokInput").value = agendamento.tiktok || ""; 
   document.getElementById("editObservacaoInput").value = agendamento.observacao || ""; 
   
+  // FIX: Usa toFixed(2) para que os inputs type="number" consigam ler o valor e não fiquem em branco!
   const valorEditNum = Number(agendamento.valor || 0);
-  document.getElementById("editValorInput").value = valorEditNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const editValorInputEl = document.getElementById("editValorInput");
+  if (editValorInputEl) {
+    editValorInputEl.value = valorEditNum.toFixed(2);
+  }
   
   const inputDataCriacao = document.getElementById("editDataInput");
   const inputHoraCriacao = document.getElementById("editHoraInput");
@@ -570,7 +526,7 @@ function abrirModalEdicaoAgendamento(id) {
     let tipo = "Outro", nome = "", presente = "", vbucks = ""; 
     
     if (typeof itemObj === "string") { 
-      const parsed = parseItemString(itemObj); 
+      const parsed = typeof parseItemString === 'function' ? parseItemString(itemObj) : {tipo: "Outro", nome: itemObj};
       tipo = parsed.tipo; nome = parsed.nome; 
     } else if (itemObj) { 
       tipo = itemObj.tipo || "Outro"; 
@@ -579,24 +535,27 @@ function abrirModalEdicaoAgendamento(id) {
       vbucks = itemObj.vbucks || "";
     } 
     
-    const optionsHtml = CATEGORIAS_ITENS.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join(""); 
+    const cats = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
+    const optionsHtml = cats.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join(""); 
     
     return `
       <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
           <label style="font-size:12px;">Item ${idx + 1}</label>
-          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
+          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
         </div>
         <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
           <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
           <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
-          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;" oninput="atualizarCalculoEdicaoAutomatico()">
+          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;" oninput="if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico()">
           <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="flex: 1.5; min-width: 110px; padding: 10px;">
         </div>
       </div>`; 
   }).join("");
   
-  atualizarCalculoEdicaoAutomatico();
+  if (typeof atualizarCalculoEdicaoAutomatico === 'function') {
+      atualizarCalculoEdicaoAutomatico();
+  }
   document.getElementById("editSaleModal").style.display = "flex";
 }
 
@@ -605,7 +564,7 @@ function efetivarAgendamento(id) {
   if (currentIdx < 0) return; 
   
   const agendamento = state.agendamentos[currentIdx];
-  const usadas = usadasDaConta(agendamento.conta); 
+  const usadas = typeof usadasDaConta === 'function' ? usadasDaConta(agendamento.conta) : 0; 
   
   if (usadas + agendamento.quantidade > 5) { 
     mostrarNotificacao(`Sem vagas livres na conta ${agendamento.conta} agora.`, "erro"); 
@@ -638,7 +597,10 @@ function efetivarAgendamento(id) {
     state.historicoVendas.push(JSON.parse(JSON.stringify(novaVenda)));
     
     for (let n = 0; n < agendamento.quantidade; n++) { 
-      state.reservas.push(criarTimerReserva(agendamento.conta, vendaId)); 
+      state.reservas.push(typeof criarTimerReserva === 'function' ? criarTimerReserva(agendamento.conta, vendaId) : {
+          id: `timer-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          conta: agendamento.conta, vendaId: vendaId, expiresAt: Date.now() + 86400000 + 120000
+      }); 
     }
     
     state.agendamentos.splice(currentIdx, 1); 
