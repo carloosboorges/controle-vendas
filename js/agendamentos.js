@@ -9,6 +9,19 @@ let editAgendaViewMes = new Date().getMonth();
 let editAgendaViewAno = new Date().getFullYear(); 
 let editAgendaPopoverAberto = false;
 
+// Função auxiliar para normalizar valores em formato brasileiro (ex: "62,50", "6.250,00" -> float correto)
+function parseValorMonetario(valorStr) {
+    if (!valorStr) return 0;
+    if (typeof valorStr === 'number') return valorStr;
+    
+    let limpo = valorStr.toString().trim();
+    // Se tiver vírgula, assume que o ponto é separador de milhar e a vírgula é decimal
+    if (limpo.includes(',')) {
+        limpo = limpo.replace(/\./g, '').replace(',', '.');
+    }
+    return parseFloat(limpo) || 0;
+}
+
 function toggleAgendaCalendario(e) { 
   if (e) e.stopPropagation(); 
   agendaPopoverAberto = !agendaPopoverAberto; 
@@ -164,7 +177,7 @@ function renderEditAgendaCalendario() {
 function agendarVenda() {
   limparReservasExpiradas();
   const conta = document.getElementById("contaSelect").value;
-  const valor = parseFloat(document.getElementById("valorInput").value);
+  const valor = parseValorMonetario(document.getElementById("valorInput").value);
   const cliente = document.getElementById("clienteInput").value.trim();
   const nickCliente = document.getElementById("nickClienteInput").value.trim();
   const whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
@@ -198,15 +211,11 @@ function agendarVenda() {
     dataEnvioFormatada = `${dia}/${mes}/${ano}`; 
   }
 
-  // =========================================================
-  // ALERTA: RADAR INTELIGENTE DE LOTAÇÃO (Passado, Presente e Futuro)
-  // =========================================================
   if (!window.ignorarAvisoLimiteAgendamento) {
     let vagasOcupadas = 0;
     const dataVerificar = dataEnvioFormatada === "Imediato" ? obterDataHojeFormatada() : dataEnvioFormatada;
     const isAgendamentoParaHoje = dataVerificar === obterDataHojeFormatada();
 
-    // 1. Conta agendamentos daquela data
     (state.agendamentos || []).forEach(a => {
         if (a.conta === conta) {
             const dEnvio = (a.dataEnvio && a.dataEnvio !== "Imediato") ? a.dataEnvio : obterDataHojeFormatada();
@@ -216,7 +225,6 @@ function agendarVenda() {
         }
     });
 
-    // 2. Se for para HOJE, conta os timers que cruzam a meia noite (que só acabam amanhã)
     if (isAgendamentoParaHoje) {
         const fimDoDia = new Date();
         fimDoDia.setHours(23, 59, 59, 999);
@@ -246,7 +254,6 @@ function agendarVenda() {
     }
   }
   window.ignorarAvisoLimiteAgendamento = false;
-  // =========================================================
 
   if (!conta || !valor || !cliente || !nickCliente || itens.length < quantidade) { 
     mostrarNotificacao("Preencha todos os campos obrigatórios.", "erro"); 
@@ -352,7 +359,6 @@ function renderizarAgendamentos() {
 
     const obsHtml = a.observacao ? `<div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--accent); white-space: pre-wrap; word-break: break-word;">💬 <b>Observação:</b> ${esc(a.observacao)}</div>` : "";
 
-    // GERAÇÃO DOS SUBTOTAIS E DESCONTO PARA O CARD DE AGENDAMENTO
     let breakdownHtmlAgenda = "";
     const listaItensBreakdown = Array.isArray(a.itens) && a.itens.length > 0 ? a.itens : (a.item ? [{ tipo: "Outro", nome: a.item }] : []);
     
@@ -453,7 +459,10 @@ function abrirModalEdicaoAgendamento(id) {
   document.getElementById("editWhatsappInput").value = agendamento.whatsapp || ""; 
   document.getElementById("editTiktokInput").value = agendamento.tiktok || ""; 
   document.getElementById("editObservacaoInput").value = agendamento.observacao || ""; 
-  document.getElementById("editValorInput").value = Number(agendamento.valor || 0).toFixed(2);
+  
+  // CORREÇÃO: Formata com toLocaleString para exibir corretamente com vírgula no input
+  const valorEditNum = Number(agendamento.valor || 0);
+  document.getElementById("editValorInput").value = valorEditNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   
   const inputDataCriacao = document.getElementById("editDataInput");
   const inputHoraCriacao = document.getElementById("editHoraInput");

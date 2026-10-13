@@ -4,12 +4,25 @@
 
 let clienteOrigemEdicao = null; // Guarda o ID e Nome do cliente se a edição foi aberta a partir do perfil dele
 
+// Função auxiliar robusta para normalizar valores em formato brasileiro (ex: "62,50", "6.250,00" -> float correto)
+function parseValorMonetario(valorStr) {
+    if (!valorStr) return 0;
+    if (typeof valorStr === 'number') return valorStr;
+    
+    let limpo = valorStr.toString().trim();
+    // Se tiver vírgula, assume que o ponto é separador de milhar e a vírgula é decimal
+    if (limpo.includes(',')) {
+        limpo = limpo.replace(/\./g, '').replace(',', '.');
+    }
+    return parseFloat(limpo) || 0;
+}
+
 function adicionarVenda() {
   if (typeof limparReservasExpiradas === 'function') limparReservasExpiradas();
   
   const conta = document.getElementById("contaSelect")?.value;
   const valorInputEl = document.getElementById("valorInput");
-  const valorDigitado = parseFloat(valorInputEl ? valorInputEl.value : 0);
+  const valorDigitado = parseValorMonetario(valorInputEl ? valorInputEl.value : 0);
   const cliente = document.getElementById("clienteInput")?.value.trim();
   const nickCliente = document.getElementById("nickClienteInput")?.value.trim();
   let whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
@@ -129,7 +142,7 @@ function adicionarVenda() {
             if (typeof abrirModalConfirmacao === 'function') {
                 const mensagemModal = `A conta <b>${conta}</b> possui ${txtPreVenda} para enviar HOJE.<br><br>Se registrar essa venda agora, ${txtVagaLivre}<br>${txtProximoTimer}<br><br>Deseja confirmar a venda e ocupar o timer mesmo assim?`;
                 
-                abrirModalConfirmacao("⚠️ Atenção com las Reservas", mensagemModal, () => {
+                abrirModalConfirmacao("⚠️ Atenção com as Reservas", mensagemModal, () => {
                     window.ignorarAvisoReserva = true;
                     adicionarVenda(); 
                 });
@@ -194,17 +207,14 @@ function adicionarVenda() {
   state.vendas.push(novaVenda);
   state.historicoVendas.push({ ...novaVenda, itens: [...itens] });
   
-  // GERAÇÃO INTELIGENTE DE TIMERS (Evita duplicidade pegando o timer órfão)
   if (!state.reservas) state.reservas = [];
   
   itens.forEach(it => {
     if (it.enviadoAvulso) {
-      // Procura a reserva que criamos avulsa (está sem vendaId) e vincula à venda
       const reservaOrfa = state.reservas.find(r => r.conta === conta && r.vendaId === null);
       if (reservaOrfa) {
         reservaOrfa.vendaId = vendaId; 
       } else {
-        // Fallback de segurança (caso não ache)
         state.reservas.push({
           id: `timer-${agora}-${Math.random().toString(36).substr(2, 5)}`,
           conta: conta,
@@ -229,7 +239,6 @@ function adicionarVenda() {
   if (document.getElementById("dataEnvioInput")) document.getElementById("dataEnvioInput").value = "";
   if (document.getElementById("labelAgendaData")) document.getElementById("labelAgendaData").textContent = "Hoje";
   
-  // LIMPEZA TOTAL DOS ITENS
   if (typeof atualizarCamposItensComDados === 'function') {
     atualizarCamposItensComDados([{ tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false }]);
   } else if (typeof atualizarCamposItens === 'function') {
@@ -249,7 +258,7 @@ function dispararEnvioItemAvulso(i) {
   const conta = document.getElementById("contaSelect")?.value;
   const cliente = document.getElementById("clienteInput")?.value.trim();
   const nickCliente = document.getElementById("nickClienteInput")?.value.trim();
-  const valorDigitado = parseFloat(document.getElementById("valorInput")?.value || 0);
+  const valorDigitado = parseValorMonetario(document.getElementById("valorInput")?.value || 0);
   const nomeItem = document.getElementById(`itemNameInput_${i}`)?.value.trim();
   
   const inputQtd = document.getElementById("quantidadeInput");
@@ -258,14 +267,12 @@ function dispararEnvioItemAvulso(i) {
   const inputEnviado = document.getElementById(`itemEnviadoAvulso_${i}`);
   const btnEnvio = document.getElementById(`btnEnvioAvulso_${i}`);
 
-  // Se já estava enviado, o clique funciona como CANCELAR com confirmação
   if (inputEnviado && inputEnviado.value === "true") {
     if (typeof abrirModalConfirmacao === 'function') {
       abrirModalConfirmacao(
         "🔄 Cancelar Envio deste Item",
         `Deseja cancelar o envio do item ${i + 1} (${nomeItem || 'Sem nome'})? O timer criado será removido e o status voltará a pendente.`,
         () => {
-          // Remove exatamente um timer órfão (vendaId === null) dessa conta
           const idxOrfao = (state.reservas || []).findIndex(r => r.conta === conta && r.vendaId === null);
           if (idxOrfao !== -1) {
             state.reservas.splice(idxOrfao, 1);
@@ -286,14 +293,12 @@ function dispararEnvioItemAvulso(i) {
     return;
   }
 
-  // VALIDAÇÕES ESPECÍFICAS PARA O ENVIO AVULSO
   if (!cliente) { mostrarNotificacao("⚠️ Por favor, informe o Nome do Cliente antes de enviar!", "erro"); return; }
   if (!nickCliente) { mostrarNotificacao("⚠️ Por favor, informe o Nick do Cliente antes de enviar!", "erro"); return; }
   if (!nomeItem) { mostrarNotificacao("⚠️ Por favor, preencha o nome do item antes de disparar o envio!", "erro"); return; }
   if (!valorDigitado || isNaN(valorDigitado)) { mostrarNotificacao("⚠️ Por favor, informe o Valor da venda antes de enviar o item!", "erro"); return; }
   if (!conta) { mostrarNotificacao("⚠️ Por favor, selecione uma Conta!", "erro"); return; }
 
-  // REGRA: Se tiver 2 ou mais itens, exige o V-Bucks também no envio avulso
   const vbucksItemInput = parseInt(document.getElementById(`itemVbucksInput_${i}`)?.value, 10) || 0;
   if (quantidade >= 2 && (!vbucksItemInput || vbucksItemInput <= 0)) {
     mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${i + 1} (obrigatório para 2 ou mais itens)!`, "erro");
@@ -310,13 +315,12 @@ function dispararEnvioItemAvulso(i) {
 
   if (inputEnviado) inputEnviado.value = "true";
   
-  // CRIA O TIMER IMEDIATAMENTE NA HORA DO CLIQUE COM 24H + 2 MIN DE MARGEM
   if (!state.reservas) state.reservas = [];
   state.reservas.push({
     id: `timer-${agora}-${Math.random().toString(36).substr(2, 5)}`,
     conta: conta,
-    vendaId: null, // Deixamos "órfão" para vincular no clique de Registrar
-    expiresAt: agora + 86400000 + 120000 // 24 horas + 2 minutos
+    vendaId: null,
+    expiresAt: agora + 86400000 + 120000
   });
 
   if (btnEnvio) {
@@ -352,7 +356,7 @@ function agendarVenda() {
   
   const conta = document.getElementById("contaSelect")?.value;
   const valorInputEl = document.getElementById("valorInput");
-  const valorDigitado = parseFloat(valorInputEl ? valorInputEl.value : 0);
+  const valorDigitado = parseValorMonetario(valorInputEl ? valorInputEl.value : 0);
   const cliente = document.getElementById("clienteInput")?.value.trim();
   const nickCliente = document.getElementById("nickClienteInput")?.value.trim();
   let whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
@@ -415,7 +419,6 @@ function agendarVenda() {
   if (document.getElementById("quantidadeInput")) document.getElementById("quantidadeInput").value = "1";
   if (document.getElementById("labelAgendaData")) document.getElementById("labelAgendaData").textContent = "Hoje";
   
-  // LIMPEZA TOTAL DOS ITENS
   if (typeof atualizarCamposItensComDados === 'function') {
     atualizarCamposItensComDados([{ tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false }]);
   } else if (typeof atualizarCamposItens === 'function') {
@@ -472,7 +475,9 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
     inputHoraCriacao.style.cursor = "text";
   }
 
-  document.getElementById("editValorInput").value = Number(venda.valor || 0).toFixed(2);
+  // CORREÇÃO: Formata com toLocaleString para exibir corretamente com vírgula no input de edição
+  const valorEditNum = Number(venda.valor || 0);
+  document.getElementById("editValorInput").value = valorEditNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   
   const elDataEnvioContainer = document.getElementById("editDataEnvioContainer");
   if (elDataEnvioContainer) elDataEnvioContainer.style.display = "none";
@@ -553,9 +558,9 @@ function salvarEdicaoVenda() {
     }
   }
 
-  // Lógica corrigida: Assumir sempre o valor que o usuário digitou no campo (não forçar recálculo de V-Bucks)
-  const stringValorEditado = String(document.getElementById("editValorInput")?.value || "0").replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
-  const novoValorEmReais = parseFloat(stringValorEditado) || 0;
+  // CORREÇÃO: Utiliza a função segura de conversão de moeda no campo de edição
+  const valorEditInputEl = document.getElementById("editValorInput");
+  const novoValorEmReais = parseValorMonetario(valorEditInputEl ? valorEditInputEl.value : 0);
 
   const somaVbucksNovos = novosItens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
   const baseMomento = venda.valorBaseMomento || state.valorBase100 || 2.5;
@@ -577,7 +582,7 @@ function salvarEdicaoVenda() {
   venda.tiktok = tiktok;
   venda.nickPresente = "";
   venda.observacao = observacao;
-  venda.valor = novoValorEmReais; // Garante que o valor salvo é o que estava escrito no input!
+  venda.valor = Number(novoValorEmReais);
   venda.vbucks = novoVbucks;
   
   if (novosItens.length > 0) {
@@ -606,7 +611,7 @@ function salvarEdicaoVenda() {
     if (sessaoVenda) {
       Object.assign(sessaoVenda, {
         conta: novaConta, cliente, nickCliente: nick, whatsapp, tiktok,
-        observacao, data: novaData, hora: novaHora, valor: novoValorEmReais,
+        observacao, data: novaData, hora: novaHora, valor: Number(novoValorEmReais),
         vbucks: novoVbucks, itens: novosItens.length ? novosItens : sessaoVenda.itens,
         item: novosItens.length ? novosItens[0] : sessaoVenda.item,
         quantidade: novosItens.length ? novosItens.length : sessaoVenda.quantidade
@@ -657,11 +662,9 @@ function excluirHistoricoPorId(vendaId) {
       const conta = (state.contas || []).find(c => c.nome === venda.conta);
       if (conta) conta.vbucks += (venda.vbucks || 0);
       
-      // GUARDA OS TIMERS NA VENDA ANTES DE APAGAR (Para poder restaurar invisivelmente depois)
       const timersDaVenda = (state.reservas || []).filter(r => r.vendaId === venda.id);
       venda.timersSalvos = JSON.parse(JSON.stringify(timersDaVenda));
       
-      // REMOVE DEFINITIVAMENTE TODOS OS TIMERS VINCULADOS A ESTE VENDAID DA TELA
       state.reservas = (state.reservas || []).filter(r => r.vendaId !== venda.id);
       
       state.vendas = (state.vendas || []).filter(v => v.id !== venda.id);
@@ -691,7 +694,6 @@ function excluirCliente(clienteId, nomeCliente) {
         const vendasDoCliente = (state.historicoVendas || []).filter(ehEsteCliente);
         
         vendasDoCliente.forEach(venda => {
-          // Salva os timers para possível restauração futura
           const timersDaVenda = (state.reservas || []).filter(r => r.vendaId === venda.id);
           venda.timersSalvos = JSON.parse(JSON.stringify(timersDaVenda));
           
@@ -721,20 +723,17 @@ function restaurarVenda(idx) {
   const venda = (state.lixeiraVendas || [])[idx];
   if (!venda) return;
   
-  // DEBITA OS V-BUCKS NOVAMENTE DA CONTA (já que eles foram devolvidos ao excluir)
   const contaObj = (state.contas || []).find(c => c.nome === venda.conta);
   if (contaObj) {
     contaObj.vbucks = Math.max(0, contaObj.vbucks - (Number(venda.vbucks) || 0));
   }
 
-  // RESTAURA OS TIMERS ("rodando invisível" porque o timestamp final continua o mesmo da época)
   if (venda.timersSalvos && venda.timersSalvos.length > 0) {
     if (!state.reservas) state.reservas = [];
     state.reservas.push(...venda.timersSalvos);
-    delete venda.timersSalvos; // Limpa o cache para não pesar
+    delete venda.timersSalvos;
   }
 
-  // Devolve para a sessão se a venda for de hoje (da sessão atual)
   if (venda.criadoEmMs && state.sessaoIniciadaEm && venda.criadoEmMs >= state.sessaoIniciadaEm) {
     if (!state.vendas) state.vendas = [];
     state.vendas.push(venda);
@@ -796,7 +795,7 @@ function fecharModalLixeira() {
 function valorRapido(v) {
   const input = document.getElementById("valorInput");
   if (!input) return;
-  let valorAtual = input.valueAsNumber;
+  let valorAtual = parseValorMonetario(input.value);
   if (isNaN(valorAtual)) valorAtual = 0;
   input.value = Math.round((valorAtual + Number(v)) * 100) / 100;
   if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
@@ -901,7 +900,6 @@ if (elLimparTudo) {
     if (document.getElementById("dataEnvioInput")) document.getElementById("dataEnvioInput").value = "";
     if (document.getElementById("labelAgendaData")) document.getElementById("labelAgendaData").textContent = "Hoje";
     
-    // LIMPEZA TOTAL NO BOTÃO LIMPAR TUDO TAMBÉM
     if (typeof atualizarCamposItensComDados === 'function') {
       atualizarCamposItensComDados([{ tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false }]);
     } else if (typeof atualizarCamposItens === 'function') {
