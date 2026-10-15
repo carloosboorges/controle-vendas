@@ -70,7 +70,8 @@ function removerItemEspecifico(indexParaRemover) {
         nome: document.getElementById(`itemNameInput_${i}`)?.value || "",
         vbucks: document.getElementById(`itemVbucksInput_${i}`)?.value || "",
         presente: document.getElementById(`itemPresenteInput_${i}`)?.value || "",
-        enviadoAvulso: document.getElementById(`itemEnviadoAvulso_${i}`)?.value === "true"
+        enviadoAvulso: document.getElementById(`itemEnviadoAvulso_${i}`)?.value === "true",
+        contaEnvio: document.getElementById(`itemContaSelect_${i}`)?.value || "" 
       });
     }
   }
@@ -259,7 +260,7 @@ function renderizarListaItensHtml(itens, vObj = null) {
   if (!Array.isArray(itens) || itens.length === 0) return "🎁 —";
   
   return itens.map((itemObj, n) => {
-    let itemText = "", presenteText = "", copyText = "", priceText = "";
+    let itemText = "", presenteText = "", copyText = "", priceText = "", linhaSubordinada = "";
     
     if (typeof itemObj === "string") {
       itemText = itemObj; copyText = typeof extrairApenasNomeItem === 'function' ? extrairApenasNomeItem(itemObj) : itemObj;
@@ -275,13 +276,20 @@ function renderizarListaItensHtml(itens, vObj = null) {
       if (itemVb > 0) {
          priceText = `<span style="color:#ffb74d; font-size:11px; margin-left:6px; background: rgba(255, 183, 77, 0.15); padding: 2px 6px; border-radius: 6px; font-weight:700; white-space:nowrap;">🪙 ${formatVBucks(itemVb)} VB</span>`;
       }
+
+      if (itemObj.contaEnvio && itemObj.contaEnvio !== "") {
+          linhaSubordinada = `<div style="font-size: 11.5px; color: var(--muted); margin-top: 3px; margin-left: 20px; font-style: italic;">↳ Enviado por: <span style="font-weight: 700; color: var(--accent-light);">${esc(itemObj.contaEnvio)}</span></div>`;
+      }
     }
     
     return `
-      <div style="margin-bottom: 6px; display: flex; align-items: center; flex-wrap: wrap; line-height: 1.4;">
-        <span style="white-space: nowrap;">🎁 ${n + 1}. </span>
-        <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" style="margin-left: 4px; white-space: nowrap; font-weight: 600;">${esc(itemText)}</span>
-        ${priceText}${presenteText}
+      <div style="margin-bottom: 8px; display: flex; flex-direction: column; line-height: 1.4;">
+        <div style="display: flex; align-items: center; flex-wrap: wrap;">
+          <span style="white-space: nowrap;">🎁 ${n + 1}. </span>
+          <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" style="margin-left: 4px; white-space: nowrap; font-weight: 600;">${esc(itemText)}</span>
+          ${priceText}${presenteText}
+        </div>
+        ${linhaSubordinada}
       </div>`;
   }).join("");
 }
@@ -408,50 +416,6 @@ function recalcularValorSugeridoPorItem() {
   }
 }
 
-function dispararEnvioItemAvulso(i) {
-  const conta = document.getElementById("contaSelect")?.value;
-  const nomeItem = document.getElementById(`itemNameInput_${i}`)?.value.trim();
-  const inputEnviado = document.getElementById(`itemEnviadoAvulso_${i}`);
-  const btnEnvio = document.getElementById(`btnEnvioAvulso_${i}`);
-
-  if (!conta) {
-    mostrarNotificacao("⚠️ Selecione uma conta primeiro!", "erro");
-    return;
-  }
-  if (!nomeItem) {
-    mostrarNotificacao("⚠️ Preencha o nome do item antes de disparar o envio!", "erro");
-    return;
-  }
-
-  const usadas = typeof usadasDaConta === 'function' ? usadasDaConta(conta) : 0;
-  if (usadas >= 5) {
-    mostrarNotificacao(`⚠️ A conta ${conta} já atingiu o limite de 5 envios!`, "erro");
-    return;
-  }
-
-  if (inputEnviado && inputEnviado.value === "true") {
-    mostrarNotificacao("ℹ️ Este item já teve o timer disparado.", "info");
-    return;
-  }
-
-  // Cria o timer imediatamente na conta
-  if (typeof criarTimerReserva === 'function') {
-    state.reservas.push(criarTimerReserva(conta, 'avulso-' + Date.now()));
-  }
-
-  if (inputEnviado) inputEnviado.value = "true";
-  if (btnEnvio) {
-    btnEnvio.textContent = "🚀 Enviado!";
-    btnEnvio.style.background = "var(--green)";
-    btnEnvio.style.borderColor = "var(--green)";
-    btnEnvio.disabled = true;
-  }
-
-  if (typeof save === 'function') save();
-  if (typeof render === 'function') render();
-  mostrarNotificacao(`🚀 Timer do item ${i + 1} disparado na conta${conta}!`, "sucesso");
-}
-
 function atualizarCamposItens(preserveValues = false) {
   const inputQtd = document.getElementById("quantidadeInput");
   const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
@@ -467,13 +431,14 @@ function atualizarCamposItens(preserveValues = false) {
         nome: document.getElementById(`itemNameInput_${i}`)?.value || "",
         vbucks: document.getElementById(`itemVbucksInput_${i}`)?.value || "",
         presente: document.getElementById(`itemPresenteInput_${i}`)?.value || "",
-        enviadoAvulso: document.getElementById(`itemEnviadoAvulso_${i}`)?.value === "true"
+        enviadoAvulso: document.getElementById(`itemEnviadoAvulso_${i}`)?.value === "true",
+        contaEnvio: document.getElementById(`itemContaSelect_${i}`)?.value || "" 
       });
     }
   }
   
   while (valoresSalvos.length < qtd) {
-    valoresSalvos.push({ tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false });
+    valoresSalvos.push({ tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false, contaEnvio: "" });
   }
   
   if (valoresSalvos.length > qtd) {
@@ -494,23 +459,38 @@ function atualizarCamposItensComDados(valoresSalvos) {
   const categoriasArray = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
   
   container.innerHTML = Array.from({ length: qtd }, (_, i) => {
-    const saved = valoresSalvos[i] || { tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false };
+    const saved = valoresSalvos[i] || { tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false, contaEnvio: "" };
     const optionsHtml = categoriasArray.map(c => `<option value="${c}" ${c === saved.tipo ? "selected" : ""}>${c}</option>`).join("");
     
+    const contasOptions = (state?.contas || []).filter(c => c.ativa).map(c => `<option value="${esc(c.nome)}" ${c.nome === saved.contaEnvio ? "selected" : ""}>${esc(c.nome)}</option>`).join("");
+    const seletorContaHtml = qtd >= 2 
+      ? `<select id="itemContaSelect_${i}" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; background: rgba(0,0,0,0.2); color: var(--accent-light); border: 1px solid rgba(142,68,255,0.3); outline: none; cursor: pointer; margin-left: 8px;" title="Selecione se este item for enviado de uma conta diferente">
+           <option value="">Seguir Conta Principal</option>
+           ${contasOptions}
+         </select>`
+      : `<input type="hidden" id="itemContaSelect_${i}" value="">`;
+
     const botaoExcluirHtml = qtd > 1 
       ? `<button type="button" class="btn-danger" style="padding: 0; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0;" onclick="removerItemEspecifico(${i})" title="Remover este item">✕</button>` 
       : ``;
 
-    // CORREÇÃO: O botão "Enviar" só aparece se a quantidade de itens for 2 ou mais (qtd >= 2)
     const botaoEnvioHtml = qtd >= 2 
       ? `
         <input type="hidden" id="itemEnviadoAvulso_${i}" value="${saved.enviadoAvulso ? "true" : "false"}">
-        <button type="button" class="btn-gray" id="btnEnvioAvulso_${i}" style="padding: 0 10px; height: 42px; font-size: 11px; font-weight: 700; border-radius: 8px; white-space: nowrap; flex-shrink: 0; ${saved.enviadoAvulso ? "background: var(--green); border-color: var(--green); color: #fff;" : "background: rgba(142,68,255,0.2); border-color: rgba(142,68,255,0.4); color: var(--accent-light);"}" onclick="dispararEnvioItemAvulso(${i})" ${saved.enviadoAvulso ? "disabled" : ""} title="Disparar timer apenas deste item agora">${saved.enviadoAvulso ? "🚀 Enviado!" : "🚀 Enviar"}</button>
+        <button type="button" class="btn-gray" id="btnEnvioAvulso_${i}" style="padding: 0 10px; height: 42px; font-size: 11px; font-weight: 700; border-radius: 8px; white-space: nowrap; flex-shrink: 0; ${saved.enviadoAvulso ? "background: var(--green); border-color: var(--green); color: #fff;" : "background: rgba(142,68,255,0.2); border-color: rgba(142,68,255,0.4); color: var(--accent-light);"}" onclick="typeof dispararEnvioItemAvulso === 'function' ? dispararEnvioItemAvulso(${i}) : null" ${saved.enviadoAvulso ? "disabled" : ""} title="Disparar timer apenas deste item agora">${saved.enviadoAvulso ? "🚀 Enviado!" : "🚀 Enviar"}</button>
       ` 
       : `<input type="hidden" id="itemEnviadoAvulso_${i}" value="false">`;
     
     return `
     <div class="item-picker-box" style="margin-bottom: 8px; width: 100%;">
+      
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+        <div style="display:flex; align-items:center;">
+          <label style="font-size:12px; font-weight:bold; margin:0;">Item ${i + 1}</label>
+          ${seletorContaHtml}
+        </div>
+      </div>
+
       <div class="item-picker-row" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
         <select class="item-type-select" id="itemTypeSelect_${i}" style="flex: 1.1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
         
@@ -536,6 +516,58 @@ function atualizarCamposItensComDados(valoresSalvos) {
 
   recalcularValorSugeridoPorItem();
   atualizarPreviewVBucks();
+}
+
+// ========================================================
+// SISTEMA DE DRAG & DROP (REORDENAR CONTAS)
+// ========================================================
+let contaSendoArrastadaIndex = null;
+
+function iniciarArrasteConta(e, index) {
+  contaSendoArrastadaIndex = index;
+  e.dataTransfer.effectAllowed = "move";
+  // Hack visual para o item a ser arrastado
+  setTimeout(() => {
+    e.target.style.opacity = "0.4";
+    e.target.style.border = "1px dashed var(--accent-light)";
+  }, 0);
+}
+
+function permitirSoltarConta(e) {
+  e.preventDefault(); 
+  e.dataTransfer.dropEffect = "move";
+  e.currentTarget.style.transform = "scale(1.01) translateY(-2px)";
+  e.currentTarget.style.background = "rgba(142,68,255,0.15)";
+}
+
+function sairAreaSoltoConta(e) {
+  e.currentTarget.style.transform = "";
+  e.currentTarget.style.background = "";
+}
+
+function soltarConta(e, dropIndex) {
+  e.preventDefault();
+  e.currentTarget.style.transform = "";
+  e.currentTarget.style.background = "";
+
+  const dragIndex = contaSendoArrastadaIndex;
+  if (dragIndex === null || dragIndex === dropIndex) return;
+
+  // Altera a ordem base da raiz (state)
+  const arr = state.contas;
+  const [itemRemovido] = arr.splice(dragIndex, 1);
+  arr.splice(dropIndex, 0, itemRemovido);
+
+  if (typeof save === 'function') save();
+  if (typeof render === 'function') render();
+  mostrarNotificacao("Ordem das contas atualizada!", "sucesso");
+}
+
+function fimArrasteConta(e) {
+  e.target.style.opacity = "1";
+  e.target.style.border = "";
+  contaSendoArrastadaIndex = null;
+  if (typeof render === 'function') render(); 
 }
 
 function render() {
@@ -604,8 +636,18 @@ function render() {
   
   if (document.getElementById("contas")) {
     document.getElementById("contas").innerHTML = (state.contas || []).map((c, i) => `
-      <div class="account-row">
-        <div class="account-info">
+      <div class="account-row" 
+           draggable="true" 
+           ondragstart="iniciarArrasteConta(event, ${i})"
+           ondragover="permitirSoltarConta(event)"
+           ondragleave="sairAreaSoltoConta(event)"
+           ondrop="soltarConta(event, ${i})"
+           ondragend="fimArrasteConta(event)"
+           style="display: flex; align-items: center; transition: all 0.2s ease;">
+           
+        <div style="cursor: grab; color: var(--muted); font-size: 22px; padding: 0 12px 0 4px; display: flex; align-items: center; user-select: none;" title="Pressione e arraste para reordenar a conta">⋮⋮</div>
+        
+        <div class="account-info" style="flex: 1;">
           <div class="account-header-line">
             <div class="account-name">${esc(c.nome)}</div>
             <span class="badge ${c.ativa ? "" : "off"}">${c.ativa ? "🟢 ATIVA" : "⚫ DESATIVADA"}</span>
@@ -613,9 +655,9 @@ function render() {
           <div class="small">${c.ativa ? `Saldo: ${formatVBucks(c.vbucks)} V-Bucks` : "Desativada"}</div>
         </div>
         <div class="account-actions">
-          <button type="button" class="btn-gray" onclick="abrirModalEditConta(${i})">✏️ Editar</button>
-          <button type="button" class="${c.ativa ? "btn-gray" : "btn-green"}" onclick="toggleConta(${i})">${c.ativa ? "Desativar" : "Ativar"}</button>
-          <button type="button" class="btn-danger" onclick="removerConta(${i})">🗑️ Remover</button>
+          <button type="button" class="btn-gray" onclick="typeof abrirModalEditConta === 'function' ? abrirModalEditConta(${i}) : null">✏️ Editar</button>
+          <button type="button" class="${c.ativa ? "btn-gray" : "btn-green"}" onclick="typeof toggleConta === 'function' ? toggleConta(${i}) : null">${c.ativa ? "Desativar" : "Ativar"}</button>
+          <button type="button" class="btn-danger" onclick="typeof removerConta === 'function' ? removerConta(${i}) : null">🗑️ Remover</button>
         </div>
       </div>`).join("");
   }
@@ -705,9 +747,9 @@ function render() {
 setInterval(() => {
   if (typeof state !== 'undefined' && state) {
       if (typeof atualizarRelogios === 'function') {
-          atualizarRelogios(); // Atualiza SÓ o texto dos relógios! Não pisca os botões.
+          atualizarRelogios(); 
       } else if (typeof renderContasCards === 'function') {
-          renderContasCards(); // Sistema antigo de emergência
+          renderContasCards(); 
       }
   }
   

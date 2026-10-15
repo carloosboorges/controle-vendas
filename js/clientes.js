@@ -43,7 +43,7 @@ function abrirModalDetalhesCliente(id, nome) {
   let wpp = "—";
   let tk = "—";
 
-  // 1. Tenta buscar das vendas do cliente (garantindo que se parecer nome no campo de wpp, a gente ignora)
+  // 1. Tenta buscar das vendas do cliente
   for (let i = 0; i < clientePedidos.length; i++) {
     const v = clientePedidos[i];
     const wVal = String(v.whatsapp || "").trim();
@@ -96,10 +96,10 @@ function abrirModalDetalhesCliente(id, nome) {
           </div>
           
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
-            <button type="button" class="btn-green" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="document.getElementById('clienteIdInput').value='${esc(id).replace(/'/g, "\\'")}'; preencherNovaVendaModal('${esc(nome).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>
-            <button type="button" class="btn-gray" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="abrirModalEdicaoCliente('${esc(id).replace(/'/g, "\\'")}','${esc(nome).replace(/'/g, "\\'")}')">✏️ Editar Perfil</button>
-            <button type="button" class="btn-gray" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="abrirModalMesclar('${esc(id).replace(/'/g, "\\'")}', '${esc(nome).replace(/'/g, "\\'")}')">🔗 Mesclar</button>
-            <button type="button" class="btn-danger" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="excluirCliente('${esc(id).replace(/'/g, "\\'")}', '${esc(nome).replace(/'/g, "\\'")}'); fecharModalDetalhesCliente();">🗑️ Excluir</button>
+            <button type="button" class="btn-green" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="document.getElementById('clienteIdInput').value='${esc(id).replace(/'/g, "\\'") }'; preencherNovaVendaModal('${esc(nome).replace(/'/g, "\\'")}', '${esc(ultimoNick).replace(/'/g, "\\'")}')">🛒 Nova Venda</button>
+            <button type="button" class="btn-gray" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="abrirModalEdicaoCliente('${esc(id).replace(/'/g, "\\'") }','${esc(nome).replace(/'/g, "\\'")}')">✏️ Editar Perfil</button>
+            <button type="button" class="btn-gray" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="abrirModalMesclar('${esc(id).replace(/'/g, "\\'") }', '${esc(nome).replace(/'/g, "\\'")}')">🔗 Mesclar</button>
+            <button type="button" class="btn-danger" style="height: 36px; padding: 0 16px; font-size: 12px; font-weight: bold; border-radius: 8px; white-space: nowrap;" onclick="excluirCliente('${esc(id).replace(/'/g, "\\'") }', '${esc(nome).replace(/'/g, "\\'") }'); fecharModalDetalhesCliente();">🗑️ Excluir</button>
           </div>
 
         </div>
@@ -331,6 +331,7 @@ function renderizarHistoricoClientesCompleto() {
       <table class="financial-table" style="width:100%; border-collapse:collapse;">
         <thead>
           <tr>
+            <th style="padding:12px; text-align:left; border-bottom:1px solid var(--border);">Posição</th>
             <th style="padding:12px; text-align:left; border-bottom:1px solid var(--border);">Nome do Cliente</th>
             <th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">Total de Pedidos</th>
             <th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">V-Bucks Acumulados</th>
@@ -338,11 +339,19 @@ function renderizarHistoricoClientesCompleto() {
           </tr>
         </thead>
         <tbody>
-          ${clientesPagina.map(c => {
+          ${clientesPagina.map((c, index) => {
             const hasObs = state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao;
             const obsIcon = hasObs ? ' <span style="font-size:12px;" title="Possui observação">📌</span>' : '';
+            
+            // Calcula o índice global baseado na página
+            const posicaoGlobal = (clientesPaginaAtual - 1) * ITENS_POR_PAGINA + index + 1;
+            
+            // Visual idêntico e limpo para TODOS os números
+            const trofeuHtml = `<span style="font-size: 13px; font-weight:700; color:var(--muted);">#${posicaoGlobal}</span>`;
+
             return `
               <tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesCliente('${esc(c.id).replace(/'/g, "\\'")}', '${esc(c.nome).replace(/'/g, "\\'")}')">
+                <td style="padding:12px; border-bottom:1px solid var(--border); text-align:left;">${trofeuHtml}</td>
                 <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">👤 ${esc(c.nome)}${obsIcon} 🔍</td>
                 <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--muted); font-weight:700;">${c.totalPedidos}</td>
                 <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">🪙 ${formatVBucks(c.totalVbucks)} VB</td>
@@ -383,6 +392,13 @@ function excluirCliente(clienteId, nomeCliente) {
         };
 
         const vendasDoCliente = (state.historicoVendas || []).filter(ehEsteCliente);
+        
+        vendasDoCliente.forEach(venda => {
+          const timersDaVenda = (state.reservas || []).filter(r => r.vendaId === venda.id);
+          venda.timersSalvos = JSON.parse(JSON.stringify(timersDaVenda));
+          
+          state.reservas = (state.reservas || []).filter(r => r.vendaId !== venda.id);
+        });
         
         if (!state.lixeiraVendas) state.lixeiraVendas = [];
         state.lixeiraVendas.unshift(...vendasDoCliente);

@@ -283,7 +283,8 @@ function agendarVenda() {
   if (!state.agendamentos) state.agendamentos = []; 
   state.agendamentos.unshift(novoAgendamento);
 
-  if (typeof sincronizarDadosCliente === 'function') sincronizarDadosCliente(clienteId, cliente, whatsapp, tiktok);
+  // CORREÇÃO: Passando apenas os 3 parâmetros originais!
+  if (typeof sincronizarDadosCliente === 'function') sincronizarDadosCliente(clienteId, whatsapp, tiktok);
   
   ["valorInput", "clienteInput", "clienteIdInput", "nickClienteInput", "whatsappInput", "tiktokInput", "observacaoInput", "dataEnvioInput"].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = "";
@@ -303,6 +304,70 @@ function agendarVenda() {
   if (typeof render === 'function') render();
   if (typeof save === 'function') save(); 
   mostrarNotificacao("⏳ Pré-venda agendada com sucesso!", "sucesso");
+}
+
+function dispararEnvioItemAgendado(agendamentoId, itemIdx) {
+  const agendamento = (state.agendamentos || []).find(a => a.id === agendamentoId);
+  if (!agendamento) return;
+  
+  const item = agendamento.itens[itemIdx];
+  if (item.enviadoAvulso) return; 
+
+  const contaSugerida = item.contaEnvio || agendamento.conta;
+
+  let selectHtml = `<div style="margin-top: 15px; text-align: left;">
+      <label style="font-size: 12px; color: var(--accent-light); font-weight: bold;">Escolha a conta de envio:</label>
+      <select id="selectContaEnvioRapido" style="margin-top: 4px; width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid var(--accent); outline: none; font-size: 13px; cursor: pointer;">`;
+  
+  (state.contas || []).filter(c => c.ativa).forEach(c => {
+     const isSelected = c.nome === contaSugerida ? "selected" : "";
+     selectHtml += `<option value="${esc(c.nome)}" ${isSelected}>${esc(c.nome)} (Saldo: ${formatVBucks(c.vbucks)} VB)</option>`;
+  });
+  selectHtml += `</select></div>`;
+
+  const descricaoHtml = `Você está prestes a iniciar o timer deste item antecipadamente.<br><br>Item: <b style="color:var(--accent-light);">${esc(item.nome)}</b>${selectHtml}`;
+
+  if (typeof abrirModalConfirmacao === 'function') {
+    abrirModalConfirmacao(
+      "🚀 Enviar Item Agora",
+      descricaoHtml,
+      () => {
+        const contaEscolhida = document.getElementById("selectContaEnvioRapido")?.value || contaSugerida;
+        
+        const usadas = typeof usadasDaConta === 'function' ? usadasDaConta(contaEscolhida) : 0;
+        if (usadas >= 5) {
+          mostrarNotificacao(`A conta ${contaEscolhida} já atingiu o limite de 5 envios!`, "erro");
+          return;
+        }
+
+        const cObj = (state.contas || []).find(c => c.nome === contaEscolhida);
+        const vbNecessario = Number(item.vbucks) || 0;
+        
+        if (!cObj || Number(cObj.vbucks) < vbNecessario) {
+          mostrarNotificacao(`Saldo de V-Bucks insuficiente na conta ${contaEscolhida}.`, "erro");
+          return;
+        }
+
+        cObj.vbucks = Math.max(0, Number(cObj.vbucks) - vbNecessario);
+        item.enviadoAvulso = true; 
+        item.contaEnvio = contaEscolhida; 
+
+        if (!state.reservas) state.reservas = [];
+        const agora = Date.now();
+        state.reservas.push({
+          id: `timer-${agora}-${Math.random().toString(36).substr(2, 5)}`,
+          conta: contaEscolhida,
+          vendaId: agendamento.id, 
+          expiresAt: agora + 86400000 + 120000
+        });
+
+        if (typeof save === 'function') save();
+        if (typeof render === 'function') render();
+        renderizarAgendamentos();
+        mostrarNotificacao(`🚀 Timer iniciado na conta ${contaEscolhida}!`, "sucesso");
+      }
+    );
+  }
 }
 
 function renderizarAgendamentos() {
@@ -352,12 +417,44 @@ function renderizarAgendamentos() {
 
     const obsHtml = a.observacao ? `<div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--accent); white-space: pre-wrap; word-break: break-word;">💬 <b>Observação:</b> ${esc(a.observacao)}</div>` : "";
 
+    const itensArray = Array.isArray(a.itens) && a.itens.length > 0 ? a.itens : [{ tipo: "Outro", nome: a.item, vbucks: a.vbucks, enviadoAvulso: false }];
+
+    const listaItensHtml = itensArray.map((it, idx) => {
+      let itemText = typeof it === 'string' ? it : (typeof formatItemString === 'function' ? formatItemString(it.tipo, it.nome) : it.nome);
+      let itemVb = typeof it === 'string' ? 0 : (Number(it.vbucks) || 0);
+      let cNome = it.contaEnvio || a.conta;
+
+      let precoText = itemVb > 0 ? `<span style="color:#ffb74d; font-size:11px; margin-left:6px; background: rgba(255, 183, 77, 0.15); padding: 2px 6px; border-radius: 6px; font-weight:700;">🪙 ${typeof formatVBucks === 'function' ? formatVBucks(itemVb) : itemVb} VB</span>` : '';
+      
+      let linhaSubordinada = "";
+      if (cNome !== a.conta && cNome !== "") {
+          linhaSubordinada = `<div style="font-size: 11.5px; color: var(--muted); margin-top: 3px; margin-left: 20px; font-style: italic;">↳ Sairá de: <span style="font-weight: 700; color: var(--accent-light);">${esc(cNome)}</span></div>`;
+      }
+
+      let presenteText = it.presente ? `<span style="color:var(--accent-light); font-size:12px; margin-left:8px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px;">➡️ 🎁 Para: <b>${esc(it.presente)}</b></span>` : '';
+
+      let acaoHtml = "";
+      if (it.enviadoAvulso) {
+        acaoHtml = `<span style="color: var(--green); font-size: 11px; font-weight: bold; margin-left: auto;">✅ Enviado por ${esc(cNome)}</span>`;
+      } else {
+        acaoHtml = `<button type="button" class="btn-gray" style="padding: 2px 8px; font-size: 10px; height: 24px; margin-left: auto; border-radius: 6px; background: rgba(142,68,255,0.2); color: var(--accent-light); border: 1px solid rgba(142,68,255,0.4);" onclick="dispararEnvioItemAgendado('${a.id}', ${idx})">🚀 Enviar Agora</button>`;
+      }
+
+      return `<div style="display: flex; flex-direction: column; margin-bottom: 6px; padding: 6px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                <div style="display: flex; align-items: center; flex-wrap: wrap;">
+                  <span style="white-space: nowrap;">🎁 ${idx + 1}. </span>
+                  <span style="margin-left: 4px; font-weight: 600;">${esc(itemText)}</span>
+                  ${precoText}${presenteText}
+                  ${acaoHtml}
+                </div>
+                ${linhaSubordinada}
+              </div>`;
+    }).join("");
+
     let breakdownHtmlAgenda = "";
-    const listaItensBreakdown = Array.isArray(a.itens) && a.itens.length > 0 ? a.itens : (a.item ? [{ tipo: "Outro", nome: a.item }] : []);
-    
-    if (listaItensBreakdown.length > 1) {
+    if (itensArray.length > 1) {
         let linhasSubtotais = "";
-        listaItensBreakdown.forEach(it => {
+        itensArray.forEach(it => {
             let itName = typeof it === 'string' ? it : (it.nome || "");
             let itVb = typeof it === 'string' ? 0 : (Number(it.vbucks) || 0);
             
@@ -401,7 +498,11 @@ function renderizarAgendamentos() {
                 ${a.tiktok ? `<span>${TIKTOK_ICON} <span class="copyable-text" onclick="copiarTexto('${esc(a.tiktok)}', 'TikTok', event)">${esc(a.tiktok)}</span></span>` : `<span>${TIKTOK_ICON} —</span>`}
               </div>
             </div>
-            <div class="history-item" style="margin-top: 8px;">${typeof renderizarListaItensHtml === 'function' ? renderizarListaItensHtml(a.itens || [a.item]) : esc(a.item)}</div>
+            
+            <div class="history-item" style="margin-top: 8px;">
+              ${listaItensHtml}
+            </div>
+
             <div class="history-date">📅 Criado em: ${esc(a.dataRegistro)} às ${esc(a.horaRegistro)}</div>
             ${obsHtml}
             <div style="font-size: 12px; font-weight: bold; margin-top: 8px; padding: 4px 8px; border-radius: 6px; display: inline-block; ${badgeEnvioEstilo}">🚀 Enviar no dia: ${esc(a.dataEnvio || "Imediato")}</div>
@@ -419,7 +520,7 @@ function renderizarAgendamentos() {
         <div class="history-details">
           <span>🪙 ${formatVBucks(vb)} V-Bucks exigidos</span>
           <div class="history-actions">
-            <button type="button" class="btn-green" style="padding:6px 12px; font-weight: bold;" onclick="efetivarAgendamento('${esc(a.id)}')">✅ Efetivar Venda</button>
+            <button type="button" class="btn-green" style="padding:6px 12px; font-weight: bold;" onclick="efetivarAgendamento('${esc(a.id)}')">✅ Efetivar Restante</button>
             <button type="button" class="btn-gray" onclick="abrirModalEdicaoAgendamento('${esc(a.id)}')">✏️ Editar</button>
             <button type="button" class="btn-danger" onclick="excluirAgendamento('${esc(a.id)}')">🗑️ Cancelar</button>
           </div>
@@ -453,7 +554,6 @@ function abrirModalEdicaoAgendamento(id) {
   document.getElementById("editTiktokInput").value = agendamento.tiktok || ""; 
   document.getElementById("editObservacaoInput").value = agendamento.observacao || ""; 
   
-  // FIX: Usa toFixed(2) para que os inputs type="number" consigam ler o valor e não fiquem em branco!
   const valorEditNum = Number(agendamento.valor || 0);
   const editValorInputEl = document.getElementById("editValorInput");
   if (editValorInputEl) {
@@ -523,7 +623,8 @@ function abrirModalEdicaoAgendamento(id) {
   const itens = Array.isArray(agendamento.itens) && agendamento.itens.length ? agendamento.itens : [agendamento.item || ""];
   
   container.innerHTML = itens.map((itemObj, idx) => { 
-    let tipo = "Outro", nome = "", presente = "", vbucks = ""; 
+    let tipo = "Outro", nome = "", presente = "", vbucks = "", contaEnvio = ""; 
+    let isEnviado = false;
     
     if (typeof itemObj === "string") { 
       const parsed = typeof parseItemString === 'function' ? parseItemString(itemObj) : {tipo: "Outro", nome: itemObj};
@@ -533,21 +634,41 @@ function abrirModalEdicaoAgendamento(id) {
       nome = itemObj.nome || ""; 
       presente = itemObj.presente || ""; 
       vbucks = itemObj.vbucks || "";
+      contaEnvio = itemObj.contaEnvio || "";
+      isEnviado = itemObj.enviadoAvulso === true;
     } 
+    
+    const travaEdicao = isEnviado ? "pointer-events: none; opacity: 0.6;" : "";
     
     const cats = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
     const optionsHtml = cats.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join(""); 
     
+    const contasOptions = (state.contas || []).filter(c => c.ativa).map(c => `<option value="${esc(c.nome)}" ${c.nome === contaEnvio ? "selected" : ""}>${esc(c.nome)}</option>`).join("");
+    
+    const tagEnviadoHtml = isEnviado ? `<span style="color:var(--green); font-size:10px; margin-left:8px; border:1px solid var(--green); padding: 2px 4px; border-radius: 4px;">✅ Já Enviado</span>` : "";
+
+    const seletorContaHtml = itens.length >= 2 
+      ? `<select class="edit-modal-item-conta" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; background: rgba(0,0,0,0.2); color: var(--accent-light); border: 1px solid rgba(142,68,255,0.3); outline: none; cursor: pointer; margin-left: 8px; ${travaEdicao}">
+           <option value="">Seguir Conta Principal</option>
+           ${contasOptions}
+         </select>`
+      : `<input type="hidden" class="edit-modal-item-conta" value="${esc(contaEnvio)}">`;
+
     return `
       <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-          <label style="font-size:12px;">Item ${idx + 1}</label>
-          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
+          <div style="display:flex; align-items:center;">
+            <label style="font-size:12px;">Item ${idx + 1}</label>
+            ${seletorContaHtml}
+            ${tagEnviadoHtml}
+          </div>
+          ${itens.length > 1 && !isEnviado ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
         </div>
         <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <input type="hidden" class="edit-modal-item-enviado" value="${isEnviado ? "true" : "false"}">
           <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
           <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
-          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;" oninput="if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico()">
+          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center; ${travaEdicao}" ${isEnviado ? "readonly" : ""} oninput="if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico()">
           <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="flex: 1.5; min-width: 110px; padding: 10px;">
         </div>
       </div>`; 
@@ -564,50 +685,91 @@ function efetivarAgendamento(id) {
   if (currentIdx < 0) return; 
   
   const agendamento = state.agendamentos[currentIdx];
-  const usadas = typeof usadasDaConta === 'function' ? usadasDaConta(agendamento.conta) : 0; 
-  
-  if (usadas + agendamento.quantidade > 5) { 
-    mostrarNotificacao(`Sem vagas livres na conta ${agendamento.conta} agora.`, "erro"); 
-    return; 
+  const itens = Array.isArray(agendamento.itens) && agendamento.itens.length > 0 ? agendamento.itens : [{ tipo: "Outro", nome: agendamento.item, vbucks: agendamento.vbucks, enviadoAvulso: false }];
+
+  const limitesPendentes = {};
+  const descontosPorConta = {};
+  let precisaEfetivar = false;
+
+  itens.forEach(it => {
+     if (!it.enviadoAvulso) {
+         precisaEfetivar = true;
+         const c = it.contaEnvio || agendamento.conta;
+         limitesPendentes[c] = (limitesPendentes[c] || 0) + 1;
+         descontosPorConta[c] = (descontosPorConta[c] || 0) + (Number(it.vbucks) || 0);
+     }
+  });
+
+  if (precisaEfetivar) {
+      for (const [nomeConta, qtdPendentes] of Object.entries(limitesPendentes)) {
+          const u = typeof usadasDaConta === 'function' ? usadasDaConta(nomeConta) : 0;
+          if (u + qtdPendentes > 5) {
+             mostrarNotificacao(`Sem vagas livres na conta ${nomeConta} agora.`, "erro");
+             return;
+          }
+      }
+
+      for (const [nomeConta, vbReq] of Object.entries(descontosPorConta)) {
+          const cObj = (state.contas || []).find(c => c.nome === nomeConta);
+          if (!cObj || Number(cObj.vbucks) < vbReq) {
+              mostrarNotificacao(`Saldo de V-Bucks insuficiente na conta ${nomeConta}.`, "erro");
+              return;
+          }
+      }
   }
-  
-  const contaObj = (state.contas || []).find(c => c.nome === agendamento.conta); 
-  if (!contaObj || Number(contaObj.vbucks) < agendamento.vbucks) { 
-    mostrarNotificacao(`Saldo de V-Bucks insuficiente.`, "erro"); 
-    return; 
-  }
-  
-  abrirModalConfirmacao("✅ Efetivar Pré-venda", `Confirmar o envio para ${agendamento.cliente}? O timer vai começar.`, () => {
-    contaObj.vbucks = Math.max(0, Number(contaObj.vbucks) - agendamento.vbucks);
-    const vendaId = `venda-${Date.now()}`;
+
+  abrirModalConfirmacao("✅ Efetivar Pré-venda", `Confirmar o envio final para ${agendamento.cliente}?`, () => {
+    const agora = Date.now();
+    if (!state.reservas) state.reservas = [];
+
+    if (precisaEfetivar) {
+        for (const [nomeConta, vbReq] of Object.entries(descontosPorConta)) {
+            const cObj = (state.contas || []).find(c => c.nome === nomeConta);
+            if (cObj) cObj.vbucks = Math.max(0, Number(cObj.vbucks) - vbReq);
+        }
+
+        itens.forEach(it => {
+            if (!it.enviadoAvulso) {
+                const c = it.contaEnvio || agendamento.conta;
+                state.reservas.push(typeof criarTimerReserva === 'function' ? criarTimerReserva(c, agendamento.id) : {
+                    id: `timer-${agora}-${Math.random().toString(36).substr(2, 5)}`,
+                    conta: c, vendaId: agendamento.id, expiresAt: agora + 86400000 + 120000
+                });
+                it.enviadoAvulso = true; 
+            }
+        });
+    }
+
+    const vendaId = `venda-${agora}`;
     
     const novaVenda = { 
       ...agendamento, 
       id: vendaId, 
+      itens: itens,
       data: new Date().toLocaleDateString("pt-BR"), 
       hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), 
-      criadoEmMs: Date.now() 
+      criadoEmMs: agora 
     };
     
     delete novaVenda.dataRegistro; 
     delete novaVenda.horaRegistro; 
     delete novaVenda.dataEnvio; 
     
+    if (!state.vendas) state.vendas = [];
+    if (!state.historicoVendas) state.historicoVendas = [];
+
     state.vendas.push(novaVenda); 
     state.historicoVendas.push(JSON.parse(JSON.stringify(novaVenda)));
     
-    for (let n = 0; n < agendamento.quantidade; n++) { 
-      state.reservas.push(typeof criarTimerReserva === 'function' ? criarTimerReserva(agendamento.conta, vendaId) : {
-          id: `timer-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          conta: agendamento.conta, vendaId: vendaId, expiresAt: Date.now() + 86400000 + 120000
-      }); 
-    }
-    
+    state.reservas.forEach(r => {
+        if (r.vendaId === agendamento.id) r.vendaId = vendaId;
+    });
+
     state.agendamentos.splice(currentIdx, 1); 
     
-    render();
-    save(); 
-    mostrarNotificacao("Venda efetivada com sucesso! O Timer começou a rodar.", "sucesso");
+    if (typeof render === 'function') render();
+    if (typeof save === 'function') save(); 
+    mostrarNotificacao("Venda efetivada com sucesso! Todos os timers estão a rodar.", "sucesso");
   });
 }
 
@@ -621,8 +783,8 @@ function excluirAgendamento(id) {
     const idx = (state.agendamentos || []).findIndex(a => a.id === id); 
     if (idx > -1) { 
       state.agendamentos.splice(idx, 1); 
-      render();
-      save(); 
+      if (typeof render === 'function') render();
+      if (typeof save === 'function') save(); 
       mostrarNotificacao("Agendamento cancelado.", "info"); 
     } 
   });

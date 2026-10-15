@@ -15,8 +15,63 @@ function parseValorMonetario(valorStr) {
   return parseFloat(limpo) || 0;
 }
 
-// NOVO: Atualiza o input de valor em Reais e a badge automaticamente ao mexer nos V-Bucks
-// CORREÇÃO: Faz o cálculo matemático linha a linha se o desconto for Por Item Individual!
+// 🧹 VASSOURA AUTOMÁTICA: Limpa o lixo deixado pelo erro de variáveis no histórico
+function limparLixoTelefone() {
+  if (!state) return;
+  let alterou = false;
+
+  const limparLista = (lista) => {
+    if (!lista) return;
+    lista.forEach(v => {
+      const nome = String(v.cliente || "").trim().toLowerCase();
+      const nick = String(v.nickCliente || "").trim().toLowerCase();
+      const wpp = String(v.whatsapp || "").trim().toLowerCase();
+      const tk = String(v.tiktok || "").trim().toLowerCase();
+
+      // Se o whatsapp está com o nome ou nick
+      if ((nome && wpp === nome) || (nick && wpp === nick)) {
+        const tkOriginal = String(v.tiktok || "").trim();
+        // Tenta recuperar o WhatsApp se ele foi empurrado para o TikTok
+        if (tkOriginal && tkOriginal.toLowerCase() !== nome && tkOriginal.toLowerCase() !== nick) {
+          v.whatsapp = tkOriginal; 
+        } else {
+          v.whatsapp = "";
+        }
+        v.tiktok = "";
+        alterou = true;
+      }
+
+      // Se o tiktok também ficou com lixo
+      const tkNovo = String(v.tiktok || "").trim().toLowerCase();
+      if ((nome && tkNovo === nome) || (nick && tkNovo === nick)) {
+        v.tiktok = "";
+        alterou = true;
+      }
+    });
+  };
+
+  limparLista(state.historicoVendas);
+  limparLista(state.vendas);
+  limparLista(state.agendamentos);
+  limparLista(state.lixeiraVendas);
+
+  // Limpa a memória base dos clientes
+  if (state.clientesInfo) {
+    Object.keys(state.clientesInfo).forEach(k => {
+      const info = state.clientesInfo[k];
+      if (info.whatsapp && !info.whatsapp.match(/[0-9]/)) { 
+        info.whatsapp = "";
+        alterou = true;
+      }
+    });
+  }
+
+  if (alterou && typeof save === 'function') {
+    save();
+    console.log("🧹 Histórico limpo: Variáveis de Nome removidas do WhatsApp/TikTok!");
+  }
+}
+
 function atualizarCalculoEdicaoAutomatico() {
   const itemBoxes = document.querySelectorAll("#editItensListContainer .item-picker-box");
   let somaVbucks = 0;
@@ -29,7 +84,6 @@ function atualizarCalculoEdicaoAutomatico() {
   const baseNormal = state.volumeBaseNormal || 2.5;
   const basePromo = state.volumeBasePromo || 2.0;
 
-  // Busca a configuração do modo de desconto salva no state
   const modoDesc = state.modoAplicacaoDesconto || state.volumeModoAplicacao || state.tipoDescontoVolume || 'individual';
   const isDescontoPorItem = String(modoDesc).toLowerCase().includes('indivi') || String(modoDesc).toLowerCase().includes('item');
 
@@ -37,14 +91,12 @@ function atualizarCalculoEdicaoAutomatico() {
     const vb = parseInt(box.querySelector(".edit-modal-item-vbucks")?.value, 10) || 0;
     somaVbucks += vb;
     
-    // Se for Promoção por Volume E configurado "Por Item Individual", calcula a linha isolada
     if (modo === 'volume_promo' && isDescontoPorItem) {
         const baseItem = vb >= metaVolume ? basePromo : baseNormal;
         valorCalculadoReais += (vb / 100) * baseItem;
     }
   });
 
-  // Se NÃO for desconto por item individual, calcula no final sobre a soma de tudo
   if (modo === 'global_promo') {
     const baseGlobal = state.valorBaseGlobal || basePadrao;
     valorCalculadoReais = (somaVbucks / 100) * baseGlobal;
@@ -62,7 +114,6 @@ function atualizarCalculoEdicaoAutomatico() {
     inputValorReais.value = "";
   }
 
-  // Atualiza as badges de V-Bucks espalhadas pelo modal
   const spans = document.querySelectorAll("#editSaleModal span");
   spans.forEach(el => {
     if (el.textContent.includes("V-Bucks") || el.textContent.includes("VB")) {
@@ -85,7 +136,7 @@ function adicionarVenda() {
   
   const inputQtd = document.getElementById("quantidadeInput");
   const quantidade = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
-  const itens = obterItensDaVenda();
+  const itens = obterItensDaVenda(); 
   const baseAtual = state.valorBase100 || 2.5;
 
   const primeiroItem = document.getElementById("itemNameInput_0")?.value?.trim();
@@ -115,103 +166,45 @@ function adicionarVenda() {
     }
   }
 
-  const usadas = typeof usadasDaConta === 'function' ? usadasDaConta(conta) : 0;
-  const itensPendentesEnvio = itens.filter(it => !it.enviadoAvulso).length;
+  const limitesPendentes = {};
+  const descontosPorConta = {};
+  
+  itens.forEach(it => {
+     const c = it.contaEnvio || conta; 
+     if (!it.enviadoAvulso) {
+         limitesPendentes[c] = (limitesPendentes[c] || 0) + 1;
+     }
+     descontosPorConta[c] = (descontosPorConta[c] || 0) + (Number(it.vbucks) || 0);
+  });
 
-  if (usadas + itensPendentesEnvio > 5) {
-    mostrarNotificacao(`Limite excedido na conta ${conta}.`, "erro");
-    return;
+  for (const [nomeConta, qtdPendentes] of Object.entries(limitesPendentes)) {
+      const u = typeof usadasDaConta === 'function' ? usadasDaConta(nomeConta) : 0;
+      if (u + qtdPendentes > 5) {
+         mostrarNotificacao(`Limite de vagas excedido! A conta ${nomeConta} não tem espaço.`, "erro");
+         return;
+      }
   }
-
-  if (!window.ignorarAvisoReserva) {
-    const hojeObj = new Date(); 
-    hojeObj.setHours(0,0,0,0);
-    const hojeTime = hojeObj.getTime();
-    
-    const agendamentosPendentes = (state.agendamentos || []).filter(a => {
-        if (a.conta !== conta) return false;
-        if (!a.dataEnvio || a.dataEnvio === "Imediato") return true;
-        const p = a.dataEnvio.split("/");
-        if (p.length === 3) {
-            const dataAg = new Date(p[2], p[1] - 1, p[0]);
-            return dataAg.getTime() <= hojeTime;
-        }
-        return true;
-    });
-    
-    const qtdReservadaHoje = agendamentosPendentes.reduce((acc, a) => acc + (Number(a.quantidade) || 1), 0);
-    
-    if (qtdReservadaHoje > 0) {
-        const vagasLivresAgora = Math.max(0, 5 - usadas);
-        
-        let timersExpiraHoje = 0;
-        let proximoTimer = null;
-        const fimDoDia = new Date();
-        fimDoDia.setHours(23, 59, 59, 999);
-        
-        const timersConta = (state.reservas || []).filter(r => r.conta === conta);
-        timersConta.forEach(t => {
-            const timeFim = t.expiresAt || t.expiraEm || t.fim || t.tempoFim || (t.criadoEmMs ? t.criadoEmMs + 86400000 + 120000 : null);
-            if (timeFim) {
-                if (timeFim <= fimDoDia.getTime()) {
-                    timersExpiraHoje++;
-                }
-                if (!proximoTimer || timeFim < proximoTimer) {
-                    proximoTimer = timeFim;
-                }
-            }
-        });
-
-        const vagasProjetadasHoje = vagasLivresAgora - itensPendentesEnvio + timersExpiraHoje;
-
-        if (vagasProjetadasHoje < qtdReservadaHoje) {
-            const displayVagas = Math.max(0, vagasProjetadasHoje);
-            const txtPreVenda = qtdReservadaHoje === 1 ? "<b>1 pré-venda</b>" : `<b>${qtdReservadaHoje} pré-vendas</b>`;
-            
-            let txtVagaLivre = "";
-            if (displayVagas === 0) {
-                txtVagaLivre = "você ficará <b>sem nenhuma vaga livre</b> até as 23:59.";
-            } else if (displayVagas === 1) {
-                txtVagaLivre = "sobrará apenas <b>1 vaga livre</b> até as 23:59.";
-            } else {
-                txtVagaLivre = `sobrarão apenas <b>${displayVagas} livres</b> até as 23:59.`;
-            }
-            
-            let txtProximoTimer = "";
-            if (proximoTimer) {
-                const proximoObj = new Date(proximoTimer);
-                const hh = String(proximoObj.getHours()).padStart(2, '0');
-                const mm = String(proximoObj.getMinutes()).padStart(2, '0');
-                const isAmanha = proximoObj.getTime() > fimDoDia.getTime();
-                txtProximoTimer = `A próxima vaga só será liberada às <b>${hh}:${mm}${isAmanha ? ' (de amanhã)' : ''}</b>.`;
-            } else {
-                txtProximoTimer = `<b>Nenhuma vaga será liberada hoje.</b>`;
-            }
-
-            if (typeof abrirModalConfirmacao === 'function') {
-                const mensagemModal = `A conta <b>${conta}</b> possui ${txtPreVenda} para enviar HOJE.<br><br>Se registrar essa venda agora, ${txtVagaLivre}<br>${txtProximoTimer}<br><br>Deseja confirmar a venda e ocupar o timer mesmo assim?`;
-                
-                abrirModalConfirmacao("⚠️ Atenção com as Reservas", mensagemModal, () => {
-                    window.ignorarAvisoReserva = true;
-                    adicionarVenda(); 
-                });
-                return; 
-            }
-        }
-    }
-  }
-  window.ignorarAvisoReserva = false; 
 
   const somaVbucksItens = itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
   const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : (typeof valorParaVBucks === 'function' ? valorParaVBucks(valorDigitado) : Math.round((valorDigitado / baseAtual) * 100));
 
-  const contaObj = (state.contas || []).find(c => c.nome === conta);
-  if (Number(contaObj?.vbucks) < vbucksNecessarios) {
-    mostrarNotificacao("Saldo de V-Bucks insuficiente.", "erro");
-    return;
+  if (Object.keys(descontosPorConta).length === 0 || somaVbucksItens === 0) {
+      descontosPorConta[conta] = vbucksNecessarios;
   }
 
-  contaObj.vbucks = Math.max(0, Number(contaObj.vbucks) - vbucksNecessarios);
+  for (const [nomeConta, vbReq] of Object.entries(descontosPorConta)) {
+      const cObj = (state.contas || []).find(c => c.nome === nomeConta);
+      if (!cObj || Number(cObj.vbucks) < vbReq) {
+          mostrarNotificacao(`Saldo de V-Bucks insuficiente na conta ${nomeConta}.`, "erro");
+          return;
+      }
+  }
+
+  for (const [nomeConta, vbReq] of Object.entries(descontosPorConta)) {
+      const cObj = (state.contas || []).find(c => c.nome === nomeConta);
+      if (cObj) cObj.vbucks = Math.max(0, Number(cObj.vbucks) - vbReq);
+  }
+
   const agora = Date.now(), d = new Date(), vendaId = `venda-${agora}`;
 
   if (!clienteId) {
@@ -258,26 +251,28 @@ function adicionarVenda() {
   if (!state.reservas) state.reservas = [];
   
   itens.forEach(it => {
+    const contaItem = it.contaEnvio || conta;
     if (it.enviadoAvulso) {
-      const reservaOrfa = state.reservas.find(r => r.conta === conta && r.vendaId === null);
+      const reservaOrfa = state.reservas.find(r => r.conta === contaItem && r.vendaId === null);
       if (reservaOrfa) {
         reservaOrfa.vendaId = vendaId; 
       } else {
         state.reservas.push({
           id: `timer-${agora}-${Math.random().toString(36).substr(2, 5)}`,
-          conta: conta,
+          conta: contaItem,
           vendaId: vendaId,
           expiresAt: agora + 86400000 + 120000
         });
       }
     } else {
       if (typeof criarTimerReserva === 'function') {
-        state.reservas.push(criarTimerReserva(conta, vendaId));
+        state.reservas.push(criarTimerReserva(contaItem, vendaId));
       }
     }
   });
 
-  if (typeof sincronizarDadosCliente === 'function') sincronizarDadosCliente(clienteId, cliente, whatsapp, tiktok);
+  // CORREÇÃO: Passando apenas os 3 parâmetros originais!
+  if (typeof sincronizarDadosCliente === 'function') sincronizarDadosCliente(clienteId, whatsapp, tiktok);
   
   ["valorInput", "clienteInput", "clienteIdInput", "nickClienteInput", "whatsappInput", "tiktokInput", "observacaoInput"].forEach(id => {
     const el = document.getElementById(id);
@@ -303,15 +298,11 @@ function adicionarVenda() {
 }
 
 function dispararEnvioItemAvulso(i) {
-  const conta = document.getElementById("contaSelect")?.value;
-  const cliente = document.getElementById("clienteInput")?.value.trim();
-  const nickCliente = document.getElementById("nickClienteInput")?.value.trim();
-  const valorDigitado = parseValorMonetario(document.getElementById("valorInput")?.value || 0);
-  const nomeItem = document.getElementById(`itemNameInput_${i}`)?.value.trim();
-  
-  const inputQtd = document.getElementById("quantidadeInput");
-  const quantidade = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
+  const contaSeletorItem = document.getElementById(`itemContaSelect_${i}`)?.value;
+  const contaPrincipal = document.getElementById("contaSelect")?.value;
+  const contaSugerida = contaSeletorItem || contaPrincipal;
 
+  const nomeItem = document.getElementById(`itemNameInput_${i}`)?.value.trim();
   const inputEnviado = document.getElementById(`itemEnviadoAvulso_${i}`);
   const btnEnvio = document.getElementById(`btnEnvioAvulso_${i}`);
 
@@ -319,9 +310,9 @@ function dispararEnvioItemAvulso(i) {
     if (typeof abrirModalConfirmacao === 'function') {
       abrirModalConfirmacao(
         "🔄 Cancelar Envio deste Item",
-        `Deseja cancelar o envio do item ${i + 1} (${nomeItem || 'Sem nome'})? O timer criado será removido e o status voltará a pendente.`,
+        `Deseja cancelar o envio do item ${i + 1} (${nomeItem || 'Sem nome'}) da conta ${contaSugerida}? O timer criado será removido e o status voltará a pendente.`,
         () => {
-          const idxOrfao = (state.reservas || []).findIndex(r => r.conta === conta && r.vendaId === null);
+          const idxOrfao = (state.reservas || []).findIndex(r => r.conta === contaSugerida && r.vendaId === null);
           if (idxOrfao !== -1) {
             state.reservas.splice(idxOrfao, 1);
           }
@@ -341,47 +332,59 @@ function dispararEnvioItemAvulso(i) {
     return;
   }
 
-  if (!cliente) { mostrarNotificacao("⚠️ Por favor, informe o Nome do Cliente antes de enviar!", "erro"); return; }
-  if (!nickCliente) { mostrarNotificacao("⚠️ Por favor, informe o Nick do Cliente antes de enviar!", "erro"); return; }
-  if (!nomeItem) { mostrarNotificacao("⚠️ Por favor, preencha o nome do item antes de disparar o envio!", "erro"); return; }
-  if (!valorDigitado || isNaN(valorDigitado)) { mostrarNotificacao("⚠️ Por favor, informe o Valor da venda antes de enviar o item!", "erro"); return; }
-  if (!conta) { mostrarNotificacao("⚠️ Por favor, selecione uma Conta!", "erro"); return; }
+  if (!nomeItem) { mostrarNotificacao("⚠️ Preencha o nome do item antes de disparar o envio!", "erro"); return; }
 
-  const vbucksItemInput = parseInt(document.getElementById(`itemVbucksInput_${i}`)?.value, 10) || 0;
-  if (quantidade >= 2 && (!vbucksItemInput || vbucksItemInput <= 0)) {
-    mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${i + 1} (obrigatório para 2 ou mais itens)!`, "erro");
-    return;
-  }
-
-  const usadas = typeof usadasDaConta === 'function' ? usadasDaConta(conta) : 0;
-  if (usadas >= 5) {
-    mostrarNotificacao(`⚠️ A conta ${conta} já atingiu o limite máximo de 5 envios!`, "erro");
-    return;
-  }
-
-  const agora = Date.now();
-
-  if (inputEnviado) inputEnviado.value = "true";
+  let selectHtml = `<div style="margin-top: 15px; text-align: left;">
+      <label style="font-size: 12px; color: var(--accent-light); font-weight: bold;">Escolha a conta de envio:</label>
+      <select id="selectContaEnvioModal" style="margin-top: 4px; width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.5); color: #fff; border: 1px solid var(--accent); outline: none; font-size: 13px; cursor: pointer;">`;
   
-  if (!state.reservas) state.reservas = [];
-  state.reservas.push({
-    id: `timer-${agora}-${Math.random().toString(36).substr(2, 5)}`,
-    conta: conta,
-    vendaId: null,
-    expiresAt: agora + 86400000 + 120000
+  (state.contas || []).filter(c => c.ativa).forEach(c => {
+     const isSelected = c.nome === contaSugerida ? "selected" : "";
+     selectHtml += `<option value="${esc(c.nome)}" ${isSelected}>${esc(c.nome)} (Saldo: ${formatVBucks(c.vbucks)} VB)</option>`;
   });
+  selectHtml += `</select></div>`;
 
-  if (btnEnvio) {
-    btnEnvio.textContent = "🚀 Enviado!";
-    btnEnvio.style.background = "var(--green)";
-    btnEnvio.style.borderColor = "var(--green)";
-    btnEnvio.style.color = "#fff";
+  if (typeof abrirModalConfirmacao === 'function') {
+    abrirModalConfirmacao(
+      "🚀 Enviar Item Agora",
+      `Você está prestes a iniciar o timer deste item.<br><br>Item: <b style="color:var(--accent-light);">${esc(nomeItem)}</b>${selectHtml}`,
+      () => {
+        const contaEscolhida = document.getElementById("selectContaEnvioModal")?.value || contaSugerida;
+        
+        const usadas = typeof usadasDaConta === 'function' ? usadasDaConta(contaEscolhida) : 0;
+        if (usadas >= 5) {
+          mostrarNotificacao(`A conta ${contaEscolhida} já atingiu o limite de 5 envios!`, "erro");
+          return;
+        }
+
+        const inputSeletor = document.getElementById(`itemContaSelect_${i}`);
+        if(inputSeletor) inputSeletor.value = contaEscolhida;
+
+        const agora = Date.now();
+        if (inputEnviado) inputEnviado.value = "true";
+        
+        if (!state.reservas) state.reservas = [];
+        state.reservas.push({
+          id: `timer-${agora}-${Math.random().toString(36).substr(2, 5)}`,
+          conta: contaEscolhida,
+          vendaId: null,
+          expiresAt: agora + 86400000 + 120000
+        });
+
+        if (btnEnvio) {
+          btnEnvio.textContent = "🚀 Enviado!";
+          btnEnvio.style.background = "var(--green)";
+          btnEnvio.style.borderColor = "var(--green)";
+          btnEnvio.style.color = "#fff";
+        }
+
+        if (typeof render === 'function') render();
+        if (typeof save === 'function') save();
+
+        mostrarNotificacao(`🚀 Timer disparado na conta ${contaEscolhida}!`, "sucesso");
+      }
+    );
   }
-
-  if (typeof render === 'function') render();
-  if (typeof save === 'function') save();
-
-  mostrarNotificacao(`🚀 Item ${i + 1} enviado! O timer começou a contar agora mesmo.`, "sucesso");
 }
 
 function obterItensDaVenda() {
@@ -394,88 +397,11 @@ function obterItensDaVenda() {
     const vbucks = parseInt(document.getElementById(`itemVbucksInput_${i}`)?.value, 10) || 0;
     const presente = document.getElementById(`itemPresenteInput_${i}`)?.value.trim() || "";
     const enviadoAvulso = document.getElementById(`itemEnviadoAvulso_${i}`)?.value === "true";
-    if (nome) lista.push({ tipo, nome, vbucks, presente, enviadoAvulso });
+    const contaEnvio = document.getElementById(`itemContaSelect_${i}`)?.value || ""; 
+    
+    if (nome) lista.push({ tipo, nome, vbucks, presente, enviadoAvulso, contaEnvio });
   }
   return lista;
-}
-
-function agendarVenda() {
-  if (typeof limparReservasExpiradas === 'function') limparReservasExpiradas();
-  
-  const conta = document.getElementById("contaSelect")?.value;
-  const valorInputEl = document.getElementById("valorInput");
-  const valorDigitado = parseValorMonetario(valorInputEl ? valorInputEl.value : 0);
-  const cliente = document.getElementById("clienteInput")?.value.trim();
-  const nickCliente = document.getElementById("nickClienteInput")?.value.trim();
-  let whatsapp = document.getElementById("whatsappInput")?.value.trim() || "";
-  let tiktok = document.getElementById("tiktokInput")?.value.trim() || "";
-  const observacao = document.getElementById("observacaoInput")?.value.trim() || "";
-  const dataEnvioCrua = document.getElementById("dataEnvioInput")?.value.trim();
-  
-  const inputQtd = document.getElementById("quantidadeInput");
-  const quantidade = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
-  const itens = obterItensDaVenda();
-  const baseAtual = state.valorBase100 || 2.5;
-  const primeiroItem = document.getElementById("itemNameInput_0")?.value?.trim();
-  let clienteId = document.getElementById("clienteIdInput")?.value;
-
-  if (!cliente) { mostrarNotificacao("⚠️ Por favor, informe o Nome do Cliente para a pré-venda!", "erro"); return; }
-  if (!nickCliente) { mostrarNotificacao("⚠️ Por favor, informe o Nick do Cliente para a pré-venda!", "erro"); return; }
-  if (!primeiroItem) { mostrarNotificacao("⚠️ Por favor, informe o nome do Item da pré-venda!", "erro"); return; }
-  if (!valorDigitado || isNaN(valorDigitado)) { mostrarNotificacao("⚠️ Por favor, informe o Valor da pré-venda!", "erro"); return; }
-  if (!conta) { mostrarNotificacao("⚠️ Por favor, selecione uma Conta!", "erro"); return; }
-  if (itens.length < quantidade) { mostrarNotificacao("⚠️ Por favor, preencha o nome de todos os itens extras!", "erro"); return; }
-
-  if (quantidade >= 2) {
-    for (let idx = 0; idx < itens.length; idx++) {
-      if (!itens[idx].vbucks || Number(itens[idx].vbucks) <= 0) {
-        mostrarNotificacao(`⚠️ Por favor, informe a quantidade em V-Bucks do Item ${idx + 1} (obrigatório para 2 ou mais itens)!`, "erro");
-        return;
-      }
-    }
-  }
-
-  const somaVbucksItens = itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
-  const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : (typeof valorParaVBucks === 'function' ? valorParaVBucks(valorDigitado) : Math.round((valorDigitado / baseAtual) * 100));
-
-  const agora = Date.now(), d = new Date(), agendamentoId = `agendamento-${agora}`;
-  if (!clienteId) clienteId = "cli-" + agora + "-" + Math.random().toString(36).substr(2, 4);
-
-  let dataEnvioFormatada = "Imediato";
-  if (dataEnvioCrua) {
-    const p = dataEnvioCrua.split("-");
-    if (p.length === 3) dataEnvioFormatada = `${p[2]}/${p[1]}/${p[0]}`;
-  }
-
-  const novoAgendamento = {
-    id: agendamentoId, clienteId, conta, valor: Number(valorDigitado), vbucks: vbucksNecessarios,
-    quantidade, cliente, nickCliente, observacao, item: itens[0] || "", itens, whatsapp, tiktok,
-    dataRegistro: d.toLocaleDateString("pt-BR"),
-    horaRegistro: d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-    dataEnvio: dataEnvioFormatada, criadoEmMs: agora
-  };
-
-  if (!state.agendamentos) state.agendamentos = [];
-  state.agendamentos.push(novoAgendamento);
-
-  if (typeof sincronizarDadosCliente === 'function') sincronizarDadosCliente(clienteId, cliente, whatsapp, tiktok);
-
-  ["valorInput", "clienteInput", "clienteIdInput", "nickClienteInput", "whatsappInput", "tiktokInput", "observacaoInput", "dataEnvioInput"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = "";
-  });
-  if (document.getElementById("quantidadeInput")) document.getElementById("quantidadeInput").value = "1";
-  if (document.getElementById("labelAgendaData")) document.getElementById("labelAgendaData").textContent = "Hoje";
-  
-  if (typeof atualizarCamposItensComDados === 'function') {
-    atualizarCamposItensComDados([{ tipo: "Traje", nome: "", vbucks: "", presente: "", enviadoAvulso: false }]);
-  } else if (typeof atualizarCamposItens === 'function') {
-    atualizarCamposItens(false);
-  }
-
-  if (typeof render === 'function') render();
-  if (typeof save === 'function') save();
-  mostrarNotificacao("⏳ Pré-venda agendada com sucesso!", "sucesso");
 }
 
 function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNome = null) {
@@ -537,22 +463,36 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
   const itens = Array.isArray(venda.itens) && venda.itens.length ? venda.itens : [venda.item || ""];
 
   container.innerHTML = itens.map((itemObj, idx) => {
-    let tipo = "Outro", nome = "", presente = "", vbucks = "";
+    let tipo = "Outro", nome = "", presente = "", vbucks = "", contaEnvio = "";
+    let isEnviado = false;
     if (typeof itemObj === "string") {
       const parsed = typeof parseItemString === 'function' ? parseItemString(itemObj) : {tipo: "Outro", nome: itemObj};
       tipo = parsed.tipo; nome = parsed.nome;
     } else if (itemObj) {
-      tipo = itemObj.tipo || "Outro"; nome = itemObj.nome || ""; presente = itemObj.presente || ""; vbucks = itemObj.vbucks || "";
+      tipo = itemObj.tipo || "Outro"; nome = itemObj.nome || ""; presente = itemObj.presente || ""; vbucks = itemObj.vbucks || ""; contaEnvio = itemObj.contaEnvio || ""; isEnviado = itemObj.enviadoAvulso === true;
     }
     const cats = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
     const optionsHtml = cats.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join("");
+    
+    const contasOptions = (state.contas || []).filter(c => c.ativa).map(c => `<option value="${esc(c.nome)}" ${c.nome === contaEnvio ? "selected" : ""}>${esc(c.nome)}</option>`).join("");
+    const seletorContaHtml = itens.length >= 2 
+      ? `<select class="edit-modal-item-conta" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; background: rgba(0,0,0,0.2); color: var(--accent-light); border: 1px solid rgba(142,68,255,0.3); outline: none; cursor: pointer; margin-left: 8px;">
+           <option value="">Seguir Conta Principal</option>
+           ${contasOptions}
+         </select>`
+      : `<input type="hidden" class="edit-modal-item-conta" value="">`;
+
     return `
       <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-          <label style="font-size:12px;">Item ${idx + 1}</label>
+          <div style="display:flex; align-items:center;">
+            <label style="font-size:12px;">Item ${idx + 1}</label>
+            ${seletorContaHtml}
+          </div>
           ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
         </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <input type="hidden" class="edit-modal-item-enviado" value="${isEnviado ? "true" : "false"}">
           <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
           <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
           <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;" oninput="atualizarCalculoEdicaoAutomatico()">
@@ -592,7 +532,9 @@ function salvarEdicaoVenda() {
     const nome = box.querySelector(".edit-modal-item-name")?.value.trim() || "";
     const vbucks = parseInt(box.querySelector(".edit-modal-item-vbucks")?.value, 10) || 0;
     const presente = box.querySelector(".edit-modal-item-presente")?.value.trim() || "";
-    if (nome) novosItens.push({ tipo, nome, vbucks, presente });
+    const contaEnvio = box.querySelector(".edit-modal-item-conta")?.value || "";
+    const enviadoAvulso = box.querySelector(".edit-modal-item-enviado")?.value === "true";
+    if (nome) novosItens.push({ tipo, nome, vbucks, presente, contaEnvio, enviadoAvulso });
   });
 
   if (novosItens.length < itemBoxes.length) {
@@ -609,20 +551,59 @@ function salvarEdicaoVenda() {
     }
   }
 
+  if (!isAgendamento) {
+      if (venda.itens && venda.itens.length > 0) {
+          venda.itens.forEach(it => {
+              let cNome = it.contaEnvio || venda.conta;
+              let cObj = state.contas.find(c => c.nome === cNome);
+              if (cObj) cObj.vbucks += (Number(it.vbucks) || 0);
+          });
+      } else {
+          let cObj = state.contas.find(c => c.nome === venda.conta);
+          if (cObj) cObj.vbucks += (Number(venda.vbucks) || 0);
+      }
+  }
+
   const valorEditInputEl = document.getElementById("editValorInput");
   const novoValorEmReais = parseValorMonetario(valorEditInputEl ? valorEditInputEl.value : 0);
-
-  const somaVbucksNovos = novosItens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
   const baseMomento = venda.valorBaseMomento || state.valorBase100 || 2.5;
-  const novoVbucks = somaVbucksNovos > 0 ? somaVbucksNovos : (typeof valorParaVBucks === 'function' ? valorParaVBucks(novoValorEmReais, baseMomento) : Math.round((novoValorEmReais / baseMomento) * 100));
-  
-  const vbucksAntigo = venda.vbucks !== undefined ? Number(venda.vbucks) : (typeof valorParaVBucks === 'function' ? valorParaVBucks(venda.valor, venda.valorBaseMomento) : 0);
 
-  if (!isAgendamento && (venda.conta !== novaConta || venda.vbucks !== novoVbucks)) {
-    const cAntiga = state.contas.find(c => c.nome === venda.conta);
-    if (cAntiga) cAntiga.vbucks += vbucksAntigo;
-    const cNova = state.contas.find(c => c.nome === novaConta);
-    if (cNova) cNova.vbucks = Math.max(0, cNova.vbucks - novoVbucks);
+  const descontosPorContaNovos = {};
+  let somaVbNovos = 0;
+  
+  novosItens.forEach(it => {
+      somaVbNovos += (Number(it.vbucks) || 0);
+      let cNome = it.contaEnvio || novaConta; 
+      descontosPorContaNovos[cNome] = (descontosPorContaNovos[cNome] || 0) + (Number(it.vbucks) || 0);
+  });
+
+  const novoVbucks = somaVbNovos > 0 ? somaVbNovos : (typeof valorParaVBucks === 'function' ? valorParaVBucks(novoValorEmReais, baseMomento) : Math.round((novoValorEmReais / baseMomento) * 100));
+
+  if (somaVbNovos === 0) {
+      descontosPorContaNovos[novaConta] = novoVbucks;
+  }
+
+  if (!isAgendamento) {
+      for (const [nC, vBReq] of Object.entries(descontosPorContaNovos)) {
+          let cObj = state.contas.find(c => c.nome === nC);
+          if (cObj) {
+              cObj.vbucks = Math.max(0, cObj.vbucks - vBReq);
+          }
+      }
+      
+      if (state.reservas) {
+          let timersDaVenda = state.reservas.filter(r => r.vendaId === venda.id);
+          for (let idx = 0; idx < novosItens.length; idx++) {
+              if (timersDaVenda[idx]) {
+                  timersDaVenda[idx].conta = novosItens[idx].contaEnvio || novaConta;
+              }
+          }
+          timersDaVenda.forEach((t, idx) => {
+             if (idx >= novosItens.length) {
+                 t.conta = novaConta;
+             }
+          });
+      }
   }
 
   venda.conta = novaConta;
@@ -667,13 +648,11 @@ function salvarEdicaoVenda() {
         quantidade: novosItens.length ? novosItens.length : sessaoVenda.quantidade
       });
     }
-    if (state.reservas) {
-      state.reservas.forEach(r => { if (r.vendaId === venda.id) r.conta = novaConta; });
-    }
   }
 
   const idDoCliente = venda.clienteId || venda.cliente;
-  if (typeof sincronizarDadosCliente === 'function') sincronizarDadosCliente(idDoCliente, cliente, whatsapp, tiktok);
+  // CORREÇÃO: Usando a estrutura de parâmetros original
+  if (typeof sincronizarDadosCliente === 'function') sincronizarDadosCliente(idDoCliente, whatsapp, tiktok);
   if (typeof save === 'function') save();
   fecharModalEdicao();
   
@@ -709,8 +688,17 @@ function excluirHistoricoPorId(vendaId) {
       const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
       if (i < 0) return;
       const venda = state.historicoVendas[i];
-      const conta = (state.contas || []).find(c => c.nome === venda.conta);
-      if (conta) conta.vbucks += (venda.vbucks || 0);
+      
+      if (venda.itens && venda.itens.length > 0) {
+          venda.itens.forEach(it => {
+              let cNome = it.contaEnvio || venda.conta;
+              let cObj = (state.contas || []).find(c => c.nome === cNome);
+              if (cObj) cObj.vbucks += (Number(it.vbucks) || 0);
+          });
+      } else {
+          let conta = (state.contas || []).find(c => c.nome === venda.conta);
+          if (conta) conta.vbucks += (venda.vbucks || 0);
+      }
       
       const timersDaVenda = (state.reservas || []).filter(r => r.vendaId === venda.id);
       venda.timersSalvos = JSON.parse(JSON.stringify(timersDaVenda));
@@ -773,9 +761,15 @@ function restaurarVenda(idx) {
   const venda = (state.lixeiraVendas || [])[idx];
   if (!venda) return;
   
-  const contaObj = (state.contas || []).find(c => c.nome === venda.conta);
-  if (contaObj) {
-    contaObj.vbucks = Math.max(0, contaObj.vbucks - (Number(venda.vbucks) || 0));
+  if (venda.itens && venda.itens.length > 0) {
+      venda.itens.forEach(it => {
+          let cNome = it.contaEnvio || venda.conta;
+          let cObj = (state.contas || []).find(c => c.nome === cNome);
+          if (cObj) cObj.vbucks = Math.max(0, cObj.vbucks - (Number(it.vbucks) || 0));
+      });
+  } else {
+      let contaObj = (state.contas || []).find(c => c.nome === venda.conta);
+      if (contaObj) contaObj.vbucks = Math.max(0, contaObj.vbucks - (Number(venda.vbucks) || 0));
   }
 
   if (venda.timersSalvos && venda.timersSalvos.length > 0) {
@@ -1013,7 +1007,11 @@ async function inicializar() {
     });
     const rows = await res.json();
     state = (Array.isArray(rows) && rows.length > 0 && rows[0].data) ? rows[0].data : JSON.parse(JSON.stringify(typeof DADOS_DEMO !== 'undefined' ? DADOS_DEMO : {}));
+    
     if (typeof sanitizarDados === 'function') sanitizarDados();
+
+    // 🧹 ATIVA A LIMPEZA AUTOMÁTICA DE VARIÁVEIS AQUI
+    limparLixoTelefone(); 
     
     if (footer && typeof currentUser !== 'undefined' && currentUser) footer.textContent = `🟢 Conectado à Nuvem (Admin: ${currentUser.email})`;
     if (typeof render === 'function') render();
@@ -1021,6 +1019,10 @@ async function inicializar() {
     if (footer) footer.textContent = "⚠️ Erro ao sincronizar com banco";
     if (typeof DADOS_DEMO !== 'undefined') state = JSON.parse(JSON.stringify(DADOS_DEMO));
     if (typeof sanitizarDados === 'function') sanitizarDados();
+    
+    // 🧹 ATIVA A LIMPEZA AUTOMÁTICA DE VARIÁVEIS AQUI TAMBÉM EM MODO OFFLINE
+    limparLixoTelefone();
+
     if (typeof render === 'function') render();
   }
 }
@@ -1038,7 +1040,7 @@ setInterval(() => {
   }
   
   const dataAtual = typeof obterDataHojeFormatada === 'function' ? obterDataHojeFormatada() : new Date().toLocaleDateString('pt-BR');
-  if (typeof ultimaDataHojeConhecida !== 'undefined' && ultimaDataHojeConhecida !== dataAtual) {
+  if (ultimaDataHojeConhecida !== dataAtual) {
     ultimaDataHojeConhecida = dataAtual;
     if (typeof render === 'function') render();
     if (typeof mostrarNotificacao === 'function') mostrarNotificacao("📅 Novo dia iniciado! Painel atualizado.", "info");

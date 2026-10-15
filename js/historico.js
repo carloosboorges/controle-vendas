@@ -206,7 +206,47 @@ function renderizarListaHistorico() {
 
       const obsHtml = v.observacao ? `<div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--accent); white-space: pre-wrap; word-break: break-word;">💬 <b>Observação:</b> ${esc(v.observacao)}</div>` : "";
       
-      const itensHtml = typeof renderizarListaItensHtml === 'function' ? renderizarListaItensHtml(v.itens || [v.item]) : esc(v.item);
+      // Renderiza itens individuais
+      let itensHtml = "";
+      const listaItensHtml = Array.isArray(v.itens) && v.itens.length > 0 ? v.itens : (v.item ? [{ tipo: "Outro", nome: v.item }] : []);
+      if (!Array.isArray(listaItensHtml) || listaItensHtml.length === 0) {
+        itensHtml = "🎁 —";
+      } else {
+        itensHtml = listaItensHtml.map((itemObj, n) => {
+          let itemText = "", presenteText = "", copyText = "", priceText = "", linhaSubordinada = "";
+          
+          if (typeof itemObj === "string") {
+            itemText = itemObj; copyText = typeof extrairApenasNomeItem === 'function' ? extrairApenasNomeItem(itemObj) : itemObj;
+          } else if (itemObj) {
+            itemText = typeof formatItemString === 'function' ? formatItemString(itemObj.tipo, itemObj.nome) : itemObj.nome;
+            copyText = itemObj.nome;
+            
+            if (itemObj.presente) {
+              presenteText = `<span style="color:var(--accent-light); font-size:12px; margin-left:8px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-flex; align-items:center; white-space:nowrap;">➡️ 🎁 Para: <span class="copyable-text" onclick="copiarTexto('${esc(itemObj.presente)}', 'Nick Presente', event)" style="margin:0 0 0 4px; padding:0; white-space:nowrap;">${esc(itemObj.presente)}</span></span>`;
+            }
+            
+            let itemVb = Number(itemObj.vbucks) || 0;
+            if (itemVb > 0) {
+               priceText = `<span style="color:#ffb74d; font-size:11px; margin-left:6px; background: rgba(255, 183, 77, 0.15); padding: 2px 6px; border-radius: 6px; font-weight:700; white-space:nowrap;">🪙 ${formatVBucks(itemVb)} VB</span>`;
+            }
+      
+            // Verifica se a contaEnvio é diferente da conta principal da venda
+            if (itemObj.contaEnvio && itemObj.contaEnvio !== "" && itemObj.contaEnvio !== v.conta) {
+                linhaSubordinada = `<div style="font-size: 11.5px; color: var(--muted); margin-top: 3px; margin-left: 20px; font-style: italic;">↳ Enviado por: <span style="font-weight: 700; color: var(--accent-light);">${esc(itemObj.contaEnvio)}</span></div>`;
+            }
+          }
+          
+          return `
+            <div style="margin-bottom: 8px; display: flex; flex-direction: column; line-height: 1.4;">
+              <div style="display: flex; align-items: center; flex-wrap: wrap;">
+                <span style="white-space: nowrap;">🎁 ${n + 1}. </span>
+                <span class="copyable-text" onclick="copiarTexto('${esc(copyText)}', 'Item', event)" style="margin-left: 4px; white-space: nowrap; font-weight: 600;">${esc(itemText)}</span>
+                ${priceText}${presenteText}
+              </div>
+              ${linhaSubordinada}
+            </div>`;
+        }).join("");
+      }
 
       // --- LOGICA DO RECIBO DE SUBTOTAL ---
       let breakdownHtml = "";
@@ -341,13 +381,39 @@ function renderizarBalancoFinanceiro() {
     balancoContas[c.nome] = { totalVbucks: 0, totalValor: 0 };
   });
 
+  // NOVA LÓGICA DE RATEIO DO BALANÇO FINANCEIRO
   historico.forEach(v => {
-    const nomeConta = v.conta;
-    if (!balancoContas[nomeConta]) {
-      balancoContas[nomeConta] = { totalVbucks: 0, totalValor: 0 };
+    const valorVenda = Number(v.valor || 0);
+    const vbVenda = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+    
+    // Se for uma venda simples sem múltiplos itens definidos
+    if (!v.itens || v.itens.length === 0) {
+      if (!balancoContas[v.conta]) balancoContas[v.conta] = { totalVbucks: 0, totalValor: 0 };
+      balancoContas[v.conta].totalValor += valorVenda;
+      balancoContas[v.conta].totalVbucks += vbVenda;
+      return;
     }
-    balancoContas[nomeConta].totalValor += Number(v.valor || 0);
-    balancoContas[nomeConta].totalVbucks += v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+
+    // Se tiver itens, faz o rateio para cada conta que enviou
+    v.itens.forEach(item => {
+      const contaEnvioItem = item.contaEnvio || v.conta;
+      if (!balancoContas[contaEnvioItem]) {
+        balancoContas[contaEnvioItem] = { totalVbucks: 0, totalValor: 0 };
+      }
+
+      const vbItem = Number(item.vbucks) || 0;
+      let valorRateadoItem = 0;
+      
+      if (vbItem > 0 && vbVenda > 0) {
+        valorRateadoItem = (vbItem / vbVenda) * valorVenda;
+      } else if (vbItem === 0 && v.itens.length > 0) {
+        // Fallback: se os V-Bucks do item vieram zerados, divide o valor igual pelos itens
+        valorRateadoItem = valorVenda / v.itens.length;
+      }
+
+      balancoContas[contaEnvioItem].totalVbucks += vbItem;
+      balancoContas[contaEnvioItem].totalValor += valorRateadoItem;
+    });
   });
 
   const arrayBalanco = Object.keys(balancoContas).map(nome => {
