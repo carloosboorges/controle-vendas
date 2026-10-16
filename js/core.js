@@ -8,18 +8,10 @@ const CATEGORIAS_ITENS = ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pa
 const MARGEM_LUCRO = 100 / 310;
 const MARGEM_CUSTO = 210 / 310;
 
-let ultimoValorSugeridoAuto = 0; // Escudo protetor de descontos manuais
+let ultimoValorSugeridoAuto = 0; 
 
-// Tabela Oficial de Preços Especiais (A partir de 2.000 V-Bucks) - Mapeada da arte oficial
-const TABELA_PRECOS_ESPECIAIS = {
-  2000: 48.00,  2200: 52.50,  2400: 57.00,  2500: 59.00,  2600: 61.00,
-  2800: 65.50,  3000: 70.00,  3200: 75.00,  3400: 80.00,  3500: 82.50,
-  3600: 85.00,  3800: 90.00,  4000: 95.00,  4200: 100.00, 4400: 105.00,
-  4500: 107.50, 4600: 110.00, 4800: 115.00, 5000: 120.00, 5500: 130.00,
-  6000: 140.00, 6500: 150.00, 7000: 160.00, 7500: 170.00, 8000: 180.00,
-  8500: 190.00, 9000: 200.00, 9500: 210.00, 10000: 220.00, 10500: 230.00,
-  11000: 240.00, 11500: 250.00, 12000: 260.00, 12500: 270.00
-};
+// 🚀 A TABELA VICIADA FOI MORTA AQUI! Agora o sistema é obrigado a fazer matemática exata!
+const TABELA_PRECOS_ESPECIAIS = {};
 
 const DADOS_DEMO = {
   contas: [
@@ -28,11 +20,11 @@ const DADOS_DEMO = {
   ],
   vendas: [],
   reservas: [],
-  valorBase100: 2.5,          // Valor base normal padrão (ex: R$ 2,50)
-  valorBasePromo: 2.00,       // Valor base promocional de volume (ex: R$ 2,00)
-  modoPrecificacao: "padrao",   // "padrao", "global_promo", "volume_promo"
-  limiteVolumePromo: 1500,     // Limite mínimo em V-Bucks para ativar a promoção por volume
-  modoVolumeRegra: "individual", // "individual" (cada item tem de atingir a meta) ou "acumulado" (soma tudo)
+  valorBase100: 2.5,          
+  valorBasePromo: 2.00,       
+  modoPrecificacao: "padrao",   
+  limiteVolumePromo: 1500,     
+  modoVolumeRegra: "individual", 
   historicoVendas: [],
   lixeiraVendas: [],
   apoiadorRegistros: {},
@@ -106,9 +98,6 @@ function mostrarNotificacao(msg, tipo = "info") {
   }, 3500);
 }
 
-// ==========================================
-// FUNÇÃO DE CÓPIA BLINDADA (Anti-falhas)
-// ==========================================
 async function copiarTexto(texto, tipoLabel = "Texto", evento = null) {
   if (evento) {
       evento.preventDefault();
@@ -448,9 +437,7 @@ function alterarModoRegraVolume(novoModo) {
   mostrarNotificacao(`Modo de volume alterado para: ${novoModo === 'individual' ? 'Por Item Individual' : 'Soma Acumulada'}`, "sucesso");
 }
 
-// -------------------------------------------------------------
-// MOTOR DE CÁLCULO INTELIGENTE DE PREÇOS E V-BUCKS (COM SUPORTE A 2 MODOS DE VOLUME)
-// -------------------------------------------------------------
+// 🚀 MATEMÁTICA PURA GARANTIDA: Ignora 100% as antigas tabelas
 function calcularPrecoInteligente(vbucks) {
   const inputQtd = document.getElementById("quantidadeInput");
   const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
@@ -475,11 +462,8 @@ function calcularPrecoInteligente(vbucks) {
 
   let precoCalculado = 0;
 
-  if (modo === 'global_promo') {
-    precoCalculado = (vb / 100) * baseNormal;
-  } else if (modo === 'volume_promo') {
+  if (modo === 'volume_promo') {
     if (modoRegraVolume === 'individual' && itensVbList.length > 0) {
-      // MODO INDIVIDUAL: Cada item avaliado separadamente. Atingiu a meta? Preço promo. Senão, preço normal.
       itensVbList.forEach(itemVb => {
         if (itemVb >= limiteVolume) {
           precoCalculado += (itemVb / 100) * basePromo;
@@ -488,58 +472,29 @@ function calcularPrecoInteligente(vbucks) {
         }
       });
     } else {
-      // MODO ACUMULADO: Se o total da venda atingir a meta, tudo ganha o preço promo
       if (vb >= limiteVolume) {
         precoCalculado = (vb / 100) * basePromo;
       } else {
-        if (vb < 2000) {
-          precoCalculado = (vb / 100) * baseNormal;
-        } else if (TABELA_PRECOS_ESPECIAIS[vb]) {
-          precoCalculado = TABELA_PRECOS_ESPECIAIS[vb];
-        } else {
-          precoCalculado = (vb / 100) * baseNormal;
-        }
+        precoCalculado = (vb / 100) * baseNormal;
       }
     }
   } else {
-    if (vb < 2000) {
-      precoCalculado = (vb / 100) * baseNormal; 
-    } else if (TABELA_PRECOS_ESPECIAIS[vb]) {
-      precoCalculado = TABELA_PRECOS_ESPECIAIS[vb];
-    } else {
-      const chaves = Object.keys(TABELA_PRECOS_ESPECIAIS).map(Number).sort((a, b) => a - b);
-      if (vb > chaves[chaves.length - 1]) {
-        const ultimoVb = chaves[chaves.length - 1];
-        const ultimoPreco = TABELA_PRECOS_ESPECIAIS[ultimoVb];
-        precoCalculado = (vb / ultimoVb) * ultimoPreco;
-      } else {
-        let menor = chaves[0];
-        let maior = chaves[chaves.length - 1];
-        for (let i = 0; i < chaves.length - 1; i++) {
-          if (vb > chaves[i] && vb < chaves[i + 1]) {
-            menor = chaves[i];
-            maior = chaves[i + 1];
-            break;
-          }
-        }
-        const precoMenor = TABELA_PRECOS_ESPECIAIS[menor];
-        const precoMaior = TABELA_PRECOS_ESPECIAIS[maior];
-        const proporcao = (vb - menor) / (maior - menor);
-        precoCalculado = precoMenor + (proporcao * (precoMaior - precoMenor));
-      }
-    }
+    // PADRÃO OU GLOBAL: MATEMÁTICA EXATA SEMPRE
+    precoCalculado = (vb / 100) * baseNormal; 
   }
 
   const finalValor = Number(precoCalculado.toFixed(2));
   const valorInput = document.getElementById("valorInput");
 
   if (valorInput) {
-    const stringAtual = String(valorInput.value).replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
-    const valorAtual = parseFloat(stringAtual) || 0;
+    let limpo = String(valorInput.value).replace('R$', '').trim();
+    if (limpo.includes(',')) {
+        limpo = limpo.replace(/\./g, '').replace(',', '.');
+    }
+    const valorAtual = parseFloat(limpo) || 0;
 
-    // ESCUDO PROTETOR: Só altera o preço se o campo estiver vazio ou se corresponder à última sugestão automática.
     if (valorAtual === 0 || Math.abs(valorAtual - ultimoValorSugeridoAuto) < 0.02) {
-      valorInput.value = finalValor.toFixed(2);
+      valorInput.value = finalValor.toFixed(2).replace('.', ',');
       ultimoValorSugeridoAuto = finalValor;
     }
   }
@@ -547,6 +502,7 @@ function calcularPrecoInteligente(vbucks) {
   return finalValor;
 }
 
+// 🚀 MATEMÁTICA PURA GARANTIDA AQUI TAMBÉM (Transforma R$ em V-Bucks)
 function valorParaVBucks(valor, baseCustom) {
   const val = Number(valor) || 0;
   if (val <= 0) return 0;
@@ -554,16 +510,6 @@ function valorParaVBucks(valor, baseCustom) {
   const modo = state?.modoPrecificacao || 'padrao';
   const baseNormal = Number(baseCustom || state?.valorBase100 || 2.5);
   const basePromo = Number(state?.valorBasePromo || 2.00);
-
-  for (let [vb, preco] of Object.entries(TABELA_PRECOS_ESPECIAIS)) {
-    if (Math.abs(Number(preco) - val) <= 0.20) {
-      return Number(vb);
-    }
-  }
-
-  if (modo === 'global_promo') {
-    return Math.round((val / baseNormal) * 100);
-  }
 
   if (modo === 'volume_promo') {
     const limiteVolume = Number(state?.limiteVolumePromo || 1500);
@@ -573,6 +519,7 @@ function valorParaVBucks(valor, baseCustom) {
     }
   }
 
+  // CÁLCULO EXATO! 90 reais -> 3600 VB. Nunca mais dará 3800.
   return Math.round((val / baseNormal) * 100);
 }
 

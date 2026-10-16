@@ -307,6 +307,7 @@ function toggleBalancoFinanceiro() {
   }
 }
 
+// 🚀 CORREÇÃO 4: Lê o valor perfeitamente, com ou sem vírgula, e não multiplica os números mais!
 function atualizarPreviewVBucks() {
   const badge = document.getElementById("valorVbucksPreview");
   if (!badge) return;
@@ -328,7 +329,15 @@ function atualizarPreviewVBucks() {
   }
 
   const input = document.getElementById("valorInput");
-  const val = parseFloat(input?.value) || 0;
+  let val = 0;
+  if (input && input.value) {
+      let limpo = String(input.value).replace('R$', '').trim();
+      if (limpo.includes(',')) {
+          limpo = limpo.replace(/\./g, '').replace(',', '.');
+      }
+      val = parseFloat(limpo) || 0;
+  }
+  
   const vb = val > 0 && typeof valorParaVBucks === 'function' ? valorParaVBucks(val) : 0;
   badge.textContent = `🪙 ${vb.toLocaleString("pt-BR")} V-Bucks`;
 }
@@ -337,7 +346,16 @@ function atualizarPreviewVBucksEdicao() {
   const input = document.getElementById("editValorInput");
   const badge = document.getElementById("editVbucksPreview");
   if (!badge) return;
-  const val = parseFloat(input?.value) || 0;
+  
+  let val = 0;
+  if (input && input.value) {
+      let limpo = String(input.value).replace('R$', '').trim();
+      if (limpo.includes(',')) {
+          limpo = limpo.replace(/\./g, '').replace(',', '.');
+      }
+      val = parseFloat(limpo) || 0;
+  }
+  
   const vb = val > 0 && typeof valorParaVBucks === 'function' ? valorParaVBucks(val) : 0;
   badge.textContent = `🪙 ${vb.toLocaleString("pt-BR")} V-Bucks`;
 }
@@ -526,7 +544,6 @@ let contaSendoArrastadaIndex = null;
 function iniciarArrasteConta(e, index) {
   contaSendoArrastadaIndex = index;
   e.dataTransfer.effectAllowed = "move";
-  // Hack visual para o item a ser arrastado
   setTimeout(() => {
     e.target.style.opacity = "0.4";
     e.target.style.border = "1px dashed var(--accent-light)";
@@ -553,7 +570,6 @@ function soltarConta(e, dropIndex) {
   const dragIndex = contaSendoArrastadaIndex;
   if (dragIndex === null || dragIndex === dropIndex) return;
 
-  // Altera a ordem base da raiz (state)
   const arr = state.contas;
   const [itemRemovido] = arr.splice(dragIndex, 1);
   arr.splice(dropIndex, 0, itemRemovido);

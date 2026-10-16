@@ -470,9 +470,18 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
           "
         >
-          <h2 style="margin: 0">💰 Total por Conta & Status de Envios</h2>
+          <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+            <h2 style="margin: 0">💰 Total por Conta</h2>
+            <!-- NOVAS ABAS DE NAVEGAÇÃO DOS CARDS -->
+            <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 10px; border: 1px solid var(--border);">
+              <button type="button" id="tabContasGeral" style="padding: 6px 14px; font-size: 12px; border-radius: 8px; font-weight: bold; background: rgba(142,68,255,0.2); border: 1px solid var(--accent-light); color: #fff; cursor: pointer; outline: none; transition: all 0.2s;" onclick="typeof mudarAbaContas === 'function' && mudarAbaContas('geral')">Visão Geral</button>
+              <button type="button" id="tabContasAcessos" style="padding: 6px 14px; font-size: 12px; border-radius: 8px; font-weight: bold; background: transparent; border: 1px solid transparent; color: var(--muted); cursor: pointer; outline: none; transition: all 0.2s;" onclick="typeof mudarAbaContas === 'function' && mudarAbaContas('acessos')">🗄️ Acessos</button>
+            </div>
+          </div>
           <button
             type="button"
             class="btn-danger btn-compact"
@@ -536,6 +545,7 @@
         </div>
       </section>
 
+      <!-- BOTÕES DE ABAS GERAIS -->
       <section class="panel">
         <div class="history-top-bar" style="margin-bottom: 15px">
           <div

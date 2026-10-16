@@ -195,10 +195,22 @@ function renderizarListaHistorico() {
     historicoContainer.innerHTML = `<div class="empty">Nenhuma venda encontrada.</div>`;
   } else {
     historicoContainer.innerHTML = itensPagina.map(v => {
-      const vb = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
+      
+      // --- CORREÇÃO DO CÁLCULO DE DESCONTO PARA NÃO MOSTRAR ETIQUETA ERRADA ---
+      let diferencaDesconto = 0;
+      let vb = 0;
       const baseMomento = Number(v.valorBaseMomento || state.valorBase100 || 2.5);
-      const valorIdealSemDesconto = (vb / 100) * baseMomento;
-      const diferencaDesconto = valorIdealSemDesconto - Number(v.valor || 0);
+
+      if (v.vbucks !== undefined && Number(v.vbucks) > 0) {
+        vb = Number(v.vbucks);
+        const valorIdealSemDesconto = (vb / 100) * baseMomento;
+        diferencaDesconto = valorIdealSemDesconto - Number(v.valor || 0);
+      } else {
+        vb = typeof valorParaVBucks === 'function' ? valorParaVBucks(v.valor, baseMomento) : Math.round((Number(v.valor || 0) / baseMomento) * 100);
+        diferencaDesconto = 0; 
+      }
+
+      if (Math.abs(diferencaDesconto) < 0.1) diferencaDesconto = 0;
 
       const descontoHtml = diferencaDesconto > 0.01 
         ? `<div style="margin-top: 4px; font-size: 11px; color: #ffb74d; font-weight: 700;">🏷️ Desconto aplicado: -${money(diferencaDesconto)}</div>` 
@@ -230,7 +242,6 @@ function renderizarListaHistorico() {
                priceText = `<span style="color:#ffb74d; font-size:11px; margin-left:6px; background: rgba(255, 183, 77, 0.15); padding: 2px 6px; border-radius: 6px; font-weight:700; white-space:nowrap;">🪙 ${formatVBucks(itemVb)} VB</span>`;
             }
       
-            // Verifica se a contaEnvio é diferente da conta principal da venda
             if (itemObj.contaEnvio && itemObj.contaEnvio !== "" && itemObj.contaEnvio !== v.conta) {
                 linhaSubordinada = `<div style="font-size: 11.5px; color: var(--muted); margin-top: 3px; margin-left: 20px; font-style: italic;">↳ Enviado por: <span style="font-weight: 700; color: var(--accent-light);">${esc(itemObj.contaEnvio)}</span></div>`;
             }
@@ -261,7 +272,6 @@ function renderizarListaHistorico() {
               let itName = typeof it === 'string' ? it : (it.nome || "");
               let itVb = typeof it === 'string' ? 0 : (Number(it.vbucks) || 0);
               
-              // O Rateio perfeito acontece aqui:
               if (itVb > 0 && vbTotal > 0) {
                   let calcRs = (itVb / vbTotal) * valorTotal;
                   let nLimpo = itName.length > 18 ? itName.substring(0, 18) + "..." : itName;
@@ -381,12 +391,10 @@ function renderizarBalancoFinanceiro() {
     balancoContas[c.nome] = { totalVbucks: 0, totalValor: 0 };
   });
 
-  // NOVA LÓGICA DE RATEIO DO BALANÇO FINANCEIRO
   historico.forEach(v => {
     const valorVenda = Number(v.valor || 0);
     const vbVenda = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
     
-    // Se for uma venda simples sem múltiplos itens definidos
     if (!v.itens || v.itens.length === 0) {
       if (!balancoContas[v.conta]) balancoContas[v.conta] = { totalVbucks: 0, totalValor: 0 };
       balancoContas[v.conta].totalValor += valorVenda;
@@ -394,7 +402,6 @@ function renderizarBalancoFinanceiro() {
       return;
     }
 
-    // Se tiver itens, faz o rateio para cada conta que enviou
     v.itens.forEach(item => {
       const contaEnvioItem = item.contaEnvio || v.conta;
       if (!balancoContas[contaEnvioItem]) {
@@ -407,7 +414,6 @@ function renderizarBalancoFinanceiro() {
       if (vbItem > 0 && vbVenda > 0) {
         valorRateadoItem = (vbItem / vbVenda) * valorVenda;
       } else if (vbItem === 0 && v.itens.length > 0) {
-        // Fallback: se os V-Bucks do item vieram zerados, divide o valor igual pelos itens
         valorRateadoItem = valorVenda / v.itens.length;
       }
 
@@ -483,4 +489,114 @@ function renderizarBalancoFinanceiro() {
       </table>
     </div>
   `;
+}
+
+function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNome = null) {
+  const i = (state.historicoVendas || []).findIndex(v => v.id === vendaId);
+  if (i < 0) return;
+  const venda = state.historicoVendas[i];
+
+  if (origemClienteId) {
+    clienteOrigemEdicao = { id: origemClienteId, nome: origemClienteNome || venda.cliente };
+  }
+
+  const tipoInput = document.getElementById("editTipoRegistro");
+  if (tipoInput) tipoInput.value = "venda";
+  
+  document.getElementById("editSaleTitle").innerHTML = "✏️ Editar Registro de Venda";
+  document.getElementById("editVendaId").value = vendaId;
+  
+  const selectConta = document.getElementById("editContaSelect");
+  if (selectConta) {
+    selectConta.innerHTML = (state.contas || []).map(c => `
+      <option value="${esc(c.nome)}" ${c.nome === venda.conta ? "selected" : ""}>
+        ${esc(c.nome)} (${formatVBucks(c.vbucks)} VB)
+      </option>`).join("");
+    selectConta.value = venda.conta;
+  }
+
+  document.getElementById("editClientInput").value = venda.cliente || "";
+  document.getElementById("editNickInput").value = venda.nickCliente || "";
+  if (document.getElementById("editWhatsappInput")) document.getElementById("editWhatsappInput").value = venda.whatsapp || "";
+  if (document.getElementById("editTiktokInput")) document.getElementById("editTiktokInput").value = venda.tiktok || "";
+  document.getElementById("editObservacaoInput").value = venda.observacao || "";
+  
+  const inputDataCriacao = document.getElementById("editDataInput");
+  const inputHoraCriacao = document.getElementById("editHoraInput");
+  if (inputDataCriacao) {
+    inputDataCriacao.value = venda.data || "";
+    inputDataCriacao.readOnly = false;
+    inputDataCriacao.style.opacity = "1";
+    inputDataCriacao.style.cursor = "text";
+  }
+  if (inputHoraCriacao) {
+    inputHoraCriacao.value = venda.hora || "";
+    inputHoraCriacao.readOnly = false;
+    inputHoraCriacao.style.opacity = "1";
+    inputHoraCriacao.style.cursor = "text";
+  }
+
+  // ==========================================
+  // CORREÇÃO: Trata o valor (seja string com vírgula ou numérico)
+  // ==========================================
+  let valorOriginalStr = String(venda.valor || "0");
+  let valorLimpoParaInput = valorOriginalStr
+    .replace(/[^\d.,]/g, '') 
+    .replace(/\./g, '')      
+    .replace(',', '.');      
+
+  const editValorInputEl = document.getElementById("editValorInput");
+  if (editValorInputEl) {
+    editValorInputEl.value = parseFloat(valorLimpoParaInput).toFixed(2);
+  }
+  // ==========================================
+  
+  const elDataEnvioContainer = document.getElementById("editDataEnvioContainer");
+  if (elDataEnvioContainer) elDataEnvioContainer.style.display = "none";
+  if (typeof atualizarPreviewVBucksEdicao === 'function') atualizarPreviewVBucksEdicao();
+
+  const container = document.getElementById("editItensListContainer");
+  const itens = Array.isArray(venda.itens) && venda.itens.length ? venda.itens : [venda.item || ""];
+
+  container.innerHTML = itens.map((itemObj, idx) => {
+    let tipo = "Outro", nome = "", presente = "", vbucks = "", contaEnvio = "";
+    let isEnviado = false;
+    if (typeof itemObj === "string") {
+      const parsed = typeof parseItemString === 'function' ? parseItemString(itemObj) : {tipo: "Outro", nome: itemObj};
+      tipo = parsed.tipo; nome = parsed.nome;
+    } else if (itemObj) {
+      tipo = itemObj.tipo || "Outro"; nome = itemObj.nome || ""; presente = itemObj.presente || ""; vbucks = itemObj.vbucks || ""; contaEnvio = itemObj.contaEnvio || ""; isEnviado = itemObj.enviadoAvulso === true;
+    }
+    const cats = typeof CATEGORIAS_ITENS !== 'undefined' ? CATEGORIAS_ITENS : ["Traje", "Gesto", "Picareta", "Música", "Pacote", "Pacotão", "Asa-delta", "Envelopamento", "Calçado", "Acessório", "Carro", "Mascote", "Outro"];
+    const optionsHtml = cats.map(c => `<option value="${c}" ${c === tipo ? "selected" : ""}>${c}</option>`).join("");
+    
+    const contasOptions = (state.contas || []).filter(c => c.ativa).map(c => `<option value="${esc(c.nome)}" ${c.nome === contaEnvio ? "selected" : ""}>${esc(c.nome)}</option>`).join("");
+    const seletorContaHtml = itens.length >= 2 
+      ? `<select class="edit-modal-item-conta" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; background: rgba(0,0,0,0.2); color: var(--accent-light); border: 1px solid rgba(142,68,255,0.3); outline: none; cursor: pointer; margin-left: 8px;">
+           <option value="">Seguir Conta Principal</option>
+           ${contasOptions}
+         </select>`
+      : `<input type="hidden" class="edit-modal-item-conta" value="">`;
+
+    return `
+      <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+          <div style="display:flex; align-items:center;">
+            <label style="font-size:12px;">Item ${idx + 1}</label>
+            ${seletorContaHtml}
+          </div>
+          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <input type="hidden" class="edit-modal-item-enviado" value="${isEnviado ? "true" : "false"}">
+          <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
+          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
+          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;" oninput="atualizarCalculoEdicaoAutomatico()">
+          <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="flex: 1.5; min-width: 110px; padding: 10px;">
+        </div>
+      </div>`;
+  }).join("");
+
+  atualizarCalculoEdicaoAutomatico();
+  document.getElementById("editSaleModal").style.display = "flex";
 }
