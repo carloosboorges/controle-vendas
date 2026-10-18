@@ -437,7 +437,6 @@ function alterarModoRegraVolume(novoModo) {
   mostrarNotificacao(`Modo de volume alterado para: ${novoModo === 'individual' ? 'Por Item Individual' : 'Soma Acumulada'}`, "sucesso");
 }
 
-// 🚀 MATEMÁTICA PURA GARANTIDA: Ignora 100% as antigas tabelas
 function calcularPrecoInteligente(vbucks) {
   const inputQtd = document.getElementById("quantidadeInput");
   const qtd = inputQtd ? (parseInt(inputQtd.value, 10) || 1) : 1;
@@ -502,7 +501,6 @@ function calcularPrecoInteligente(vbucks) {
   return finalValor;
 }
 
-// 🚀 MATEMÁTICA PURA GARANTIDA AQUI TAMBÉM (Transforma R$ em V-Bucks)
 function valorParaVBucks(valor, baseCustom) {
   const val = Number(valor) || 0;
   if (val <= 0) return 0;
@@ -523,10 +521,36 @@ function valorParaVBucks(valor, baseCustom) {
   return Math.round((val / baseNormal) * 100);
 }
 
+// 🚀 CÁLCULO JUSTO DAS CONTAS: Divide o dinheiro corretamente se os itens saírem de contas diferentes!
 function totais() {
   let t = {};
+  // Inicializa todas as contas ativas com 0
   (state?.contas || []).forEach(c => (t[c.nome] = 0));
-  (state?.vendas || []).forEach(v => (t[v.conta] = (t[v.conta] || 0) + Number(v.valor || 0)));
+  
+  (state?.vendas || []).forEach(v => {
+    const valorTotalDaVenda = Number(v.valor || 0);
+    
+    // Verifica se a venda tem itens detalhados com V-Bucks
+    if (v.itens && v.itens.length > 0) {
+        const somaVbDosItens = v.itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
+        
+        if (somaVbDosItens > 0) {
+            // Distribui o dinheiro (R$) para cada conta com base no V-Buck que ela enviou
+            v.itens.forEach(it => {
+                const contaDoItem = it.contaEnvio || v.conta; // Usa a conta do item ou a principal
+                const proporcaoEmReais = valorTotalDaVenda * ((Number(it.vbucks) || 0) / somaVbDosItens);
+                t[contaDoItem] = (t[contaDoItem] || 0) + proporcaoEmReais;
+            });
+        } else {
+            // Se os itens não tiverem V-Bucks definidos, vai tudo para a conta principal
+            t[v.conta] = (t[v.conta] || 0) + valorTotalDaVenda;
+        }
+    } else {
+        // Venda simples (sem itens divididos), vai tudo para a conta principal
+        t[v.conta] = (t[v.conta] || 0) + valorTotalDaVenda;
+    }
+  });
+  
   return t;
 }
 

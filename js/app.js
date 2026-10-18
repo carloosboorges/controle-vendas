@@ -174,11 +174,13 @@ function adicionarVenda() {
     }
   }
 
+  // 🚀 ALERTAS DE ERRO ESPECÍFICOS (RESTAURADOS)
+  if (!conta) { mostrarNotificacao("⚠️ Por favor, selecione uma Conta!", "erro"); return; }
+  if (!valorDigitado || isNaN(valorDigitado) || valorDigitado <= 0) { mostrarNotificacao("⚠️ Por favor, informe o Valor da venda!", "erro"); return; }
   if (!cliente) { mostrarNotificacao("⚠️ Por favor, informe o Nome do Cliente!", "erro"); return; }
   if (!nickCliente) { mostrarNotificacao("⚠️ Por favor, informe o Nick do Cliente!", "erro"); return; }
   if (!primeiroItem) { mostrarNotificacao("⚠️ Por favor, informe o nome do Item!", "erro"); return; }
-  if (!valorDigitado || isNaN(valorDigitado)) { mostrarNotificacao("⚠️ Por favor, informe o Valor da venda!", "erro"); return; }
-  if (!conta) { mostrarNotificacao("⚠️ Por favor, selecione uma Conta!", "erro"); return; }
+
   if (itens.length < quantidade) { mostrarNotificacao("⚠️ Por favor, preencha o nome de todos os itens extras!", "erro"); return; }
 
   if (quantidade >= 2) {
@@ -766,9 +768,6 @@ function fecharModalLixeira() {
   if (document.getElementById("trashModal")) document.getElementById("trashModal").style.display = "none";
 }
 
-// 🚀 O BOTÃO RÁPIDO ACUMULATIVO "TECLADO FANTASMA":
-// Pega o valor, soma (ex: 30+30=60) e dispara eventos idênticos ao do seu teclado 
-// para driblar o sistema e ele usar a matemática global certa (90 = 3600).
 // 🚀 O BOTÃO RÁPIDO ACUMULATIVO BLINDADO
 function valorRapido(v) {
   const input = document.getElementById("valorInput");
@@ -781,9 +780,7 @@ function valorRapido(v) {
   // Soma os valores
   let novoValor = valorAtual + Number(v);
   
-  // Aqui está o truque mestre: injetamos o valor formatado.
-  // Como o 'parseValorMonetario' no core.js e a máscara exigem um formato,
-  // vamos entregar exatamente o que eles querem, forçando o cálculo fora da tabela.
+  // Injeta o valor formatado para evitar erros de ponto
   input.value = novoValor.toFixed(2);
   
   // Dispara os eventos essenciais para a máscara e o core.js agirem
@@ -795,8 +792,6 @@ function valorRapido(v) {
       if (typeof atualizarPreviewVBucks === 'function') {
           atualizarPreviewVBucks();
       }
-      // Se houver cálculo inteligente rodando no evento de input,
-      // nós forçamos o valor correto a ficar lá
       input.value = novoValor.toFixed(2); 
   }, 10);
   

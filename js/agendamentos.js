@@ -189,6 +189,7 @@ function agendarVenda() {
     }
   }
 
+  // Se não houver data selecionada, assume "Imediato" (Hoje) automaticamente, como você pediu!
   let dataEnvioFormatada = "Imediato";
   if (dataEnvioCrua) {
     const p = dataEnvioCrua.split("-");
@@ -203,39 +204,79 @@ function agendarVenda() {
     }
   }
 
+  // 🚀 ALERTAS ESPECÍFICOS DE ERRO RESTAURADOS (SEM BLOQUEAR A DATA DE HOJE)
+  if (!conta) { mostrarNotificacao("⚠️ Por favor, selecione uma Conta!", "erro"); return; }
+  if (!valorDigitado || isNaN(valorDigitado) || valorDigitado <= 0) { mostrarNotificacao("⚠️ Por favor, informe o Valor da venda!", "erro"); return; }
+  if (!cliente) { mostrarNotificacao("⚠️ Por favor, informe o Nome do Cliente!", "erro"); return; }
+  if (!nickCliente) { mostrarNotificacao("⚠️ Por favor, informe o Nick do Cliente!", "erro"); return; }
+  if (!primeiroItem) { mostrarNotificacao("⚠️ Por favor, informe o nome do Item!", "erro"); return; }
+  
+  if (itens.length < quantidade) {
+      mostrarNotificacao("⚠️ Por favor, preencha o nome de todos os itens extras!", "erro"); return;
+  }
+
+  // 🚀 VERIFICAÇÃO INTELIGENTE DE LIMITES DE VAGAS POR CONTA INDIVIDUAL DO ITEM
   if (!window.ignorarAvisoLimiteAgendamento) {
-    let vagasOcupadas = 0;
     const dataVerificar = dataEnvioFormatada === "Imediato" ? obterDataHojeFormatada() : dataEnvioFormatada;
     const isAgendamentoParaHoje = dataVerificar === obterDataHojeFormatada();
 
-    (state.agendamentos || []).forEach(a => {
-        if (a.conta === conta) {
-            const dEnvio = (a.dataEnvio && a.dataEnvio !== "Imediato") ? a.dataEnvio : obterDataHojeFormatada();
-            if (dEnvio === dataVerificar) {
-                vagasOcupadas += (Number(a.quantidade) || 1);
-            }
-        }
+    // Mapeia contas e conta os itens que vão ser enviados de cada uma
+    const contasEnvolvidas = {};
+    itens.forEach(it => {
+        const c = it.contaEnvio || conta; // Se o item não tem conta explícita, usa a principal
+        contasEnvolvidas[c] = (contasEnvolvidas[c] || 0) + 1;
     });
 
-    if (isAgendamentoParaHoje) {
-        const fimDoDia = new Date();
-        fimDoDia.setHours(23, 59, 59, 999);
-        const timersConta = (state.reservas || []).filter(r => r.conta === conta);
-        timersConta.forEach(t => {
-            const timeFim = t.expiresAt || t.expiraEm || t.fim || t.tempoFim || (t.criadoEmMs ? t.criadoEmMs + 86400000 : null);
-            if (timeFim && timeFim > fimDoDia.getTime()) {
-                vagasOcupadas++;
+    let contaEstourada = null;
+    let vagasLivresDessaConta = 0;
+    let qtdDessaConta = 0;
+
+    for (const [nomeConta, qtdNecessaria] of Object.entries(contasEnvolvidas)) {
+        let vagasOcupadas = 0;
+
+        // Verifica os outros agendamentos existentes no sistema para aquela conta específica
+        (state.agendamentos || []).forEach(a => {
+            const dEnvio = (a.dataEnvio && a.dataEnvio !== "Imediato") ? a.dataEnvio : obterDataHojeFormatada();
+            if (dEnvio === dataVerificar) {
+                if (a.itens && a.itens.length > 0) {
+                    a.itens.forEach(it => {
+                        const cItem = it.contaEnvio || a.conta;
+                        if (cItem === nomeConta) vagasOcupadas++;
+                    });
+                } else {
+                    if (a.conta === nomeConta) vagasOcupadas += (Number(a.quantidade) || 1);
+                }
             }
         });
+
+        // Se for para hoje, junta à conta dos timers em andamento
+        if (isAgendamentoParaHoje) {
+            const fimDoDia = new Date();
+            fimDoDia.setHours(23, 59, 59, 999);
+            const timersConta = (state.reservas || []).filter(r => r.conta === nomeConta);
+            timersConta.forEach(t => {
+                const timeFim = t.expiresAt || t.expiraEm || t.fim || t.tempoFim || (t.criadoEmMs ? t.criadoEmMs + 86400000 : null);
+                if (timeFim && timeFim > fimDoDia.getTime()) {
+                    vagasOcupadas++;
+                }
+            });
+        }
+
+        const vagasDisponiveis = Math.max(0, 5 - vagasOcupadas);
+
+        if (qtdNecessaria > vagasDisponiveis) {
+            contaEstourada = nomeConta;
+            vagasLivresDessaConta = vagasDisponiveis;
+            qtdDessaConta = qtdNecessaria;
+            break;
+        }
     }
 
-    const vagasDisponiveis = Math.max(0, 5 - vagasOcupadas);
-
-    if (quantidade > vagasDisponiveis) {
+    if (contaEstourada) {
         if (typeof abrirModalConfirmacao === 'function') {
             abrirModalConfirmacao(
                 "⚠️ Cuidado com a Lotação",
-                `Vagas disponíveis para ${dataVerificar}: apenas ${vagasDisponiveis}.\nQuantidade deste agendamento: ${quantidade}.\n\nA conta não terá espaço suficiente para enviar tudo no mesmo dia. Tem certeza que deseja agendar?`,
+                `Vagas disponíveis na conta ${contaEstourada} para ${dataVerificar}: apenas ${vagasLivresDessaConta}.\nItens alocados para esta conta: ${qtdDessaConta}.\n\nA conta não terá espaço suficiente para enviar tudo no mesmo dia. Tem certeza que deseja agendar?`,
                 () => {
                     window.ignorarAvisoLimiteAgendamento = true;
                     agendarVenda();
@@ -247,17 +288,25 @@ function agendarVenda() {
   }
   window.ignorarAvisoLimiteAgendamento = false;
 
-  if (!conta || !valorDigitado || !cliente || !nickCliente || itens.length < quantidade) { 
-    mostrarNotificacao("Preencha todos os campos obrigatórios.", "erro"); 
-    return; 
-  }
-
   const somaVbucksItens = itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
   const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : Math.round((valorDigitado / baseAtual) * 100);
-  const contaObj = (state.contas || []).find(c => c.nome === conta);
   
-  if (Number(contaObj?.vbucks) < vbucksNecessarios) { 
-    mostrarNotificacao("Aviso: Saldo insuficiente, mas agendamento salvo.", "info"); 
+  // VERIFICAÇÃO PROPORCIONAL DO SALDO DE V-BUCKS POR CONTA
+  const descontosPorConta = {};
+  itens.forEach(it => {
+      const c = it.contaEnvio || conta;
+      descontosPorConta[c] = (descontosPorConta[c] || 0) + (Number(it.vbucks) || 0);
+  });
+  
+  if (Object.keys(descontosPorConta).length === 0 || somaVbucksItens === 0) {
+      descontosPorConta[conta] = vbucksNecessarios;
+  }
+  
+  for (const [nomeConta, vbReq] of Object.entries(descontosPorConta)) {
+      const cObjVer = (state.contas || []).find(c => c.nome === nomeConta);
+      if (Number(cObjVer?.vbucks) < vbReq) {
+          mostrarNotificacao(`Aviso: Saldo de V-Bucks insuficiente na conta ${nomeConta}, mas agendamento salvo.`, "info");
+      }
   }
 
   if (!clienteId) {
@@ -283,7 +332,6 @@ function agendarVenda() {
   if (!state.agendamentos) state.agendamentos = []; 
   state.agendamentos.unshift(novoAgendamento);
 
-  // CORREÇÃO: Passando apenas os 3 parâmetros originais!
   if (typeof sincronizarDadosCliente === 'function') sincronizarDadosCliente(clienteId, whatsapp, tiktok);
   
   ["valorInput", "clienteInput", "clienteIdInput", "nickClienteInput", "whatsappInput", "tiktokInput", "observacaoInput", "dataEnvioInput"].forEach(id => {

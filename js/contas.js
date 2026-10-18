@@ -184,7 +184,7 @@ function confirmarRemoverTimerEspecifico(index, numeroVenda, nomeConta) {
 
 function atualizarRelogios() {
   if (!state || !state.contas) return;
-  if (abaContasAtiva === 'acessos') return; // Na aba acessos não tem timer, não roda
+  if (abaContasAtiva === 'acessos') return; 
   
   let precisaAtualizarTudo = false;
   if (typeof limparReservasExpiradas === 'function') {
@@ -226,11 +226,9 @@ function renderContasCards(t) {
     // SE A ABA "ACESSOS" ESTIVER ATIVA
     // ==========================================
     if (abaContasAtiva === 'acessos') {
-       // Botões Epic
        const btnEmailEpic = c.email ? `<button type="button" class="btn-gray btn-copy" style="flex:1; padding: 6px; font-size: 11px; border-radius: 6px;" onclick="copiarTexto('${esc(c.email)}', 'E-mail', event)">📧 E-mail</button>` : `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 6px; opacity: 0.3;" disabled>📧 Vazio</button>`;
        const btnSenhaEpic = c.senha ? `<button type="button" class="btn-gray btn-copy" style="flex:1; padding: 6px; font-size: 11px; border-radius: 6px;" onclick="copiarTexto('${esc(c.senha)}', 'Senha', event)">🔑 Senha</button>` : `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 6px; opacity: 0.3;" disabled>🔑 Vazio</button>`;
 
-       // Botões Xbox
        const btnEmailXbox = c.emailXbox ? `<button type="button" class="btn-gray btn-copy" style="flex:1; padding: 6px; font-size: 11px; border-radius: 6px; border-color: rgba(16,124,16,0.3); color: #fff;" onclick="copiarTexto('${esc(c.emailXbox)}', 'E-mail', event)">📧 E-mail</button>` : `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 6px; opacity: 0.3;" disabled>📧 Vazio</button>`;
        const btnSenhaXbox = c.senhaXbox ? `<button type="button" class="btn-gray btn-copy" style="flex:1; padding: 6px; font-size: 11px; border-radius: 6px; border-color: rgba(16,124,16,0.3); color: #fff;" onclick="copiarTexto('${esc(c.senhaXbox)}', 'Senha', event)">🔑 Senha</button>` : `<button type="button" class="btn-gray" style="flex:1; padding: 6px; font-size: 11px; border-radius: 6px; opacity: 0.3;" disabled>🔑 Vazio</button>`;
 
@@ -267,14 +265,16 @@ function renderContasCards(t) {
     }
 
     // ==========================================
-    // SE A ABA "VISÃO GERAL" ESTIVER ATIVA (ORIGINAL)
+    // SE A ABA "VISÃO GERAL" ESTIVER ATIVA (ATUALIZADA)
     // ==========================================
-    const quantidade = typeof usadasDaConta === 'function' ? usadasDaConta(c.nome) : 0;
+    
+    // 1. QUANTIDADE DE VENDAS ATIVAS (Timers) POR CONTA - Conta cada item real
+    const quantidade = (state.reservas || []).filter(r => r.conta === c.nome && r.expiresAt > Date.now()).length;
     const disponiveis = Math.max(0, 5 - quantidade);
     const reservasAtivas = (state.reservas || []).filter(r => r.conta === c.nome && r.expiresAt > Date.now());
     
+    // 2. QUANTIDADE DE VAGAS RESERVADAS (AGENDAMENTOS) POR CONTA - Conta cada item real
     const agendamentosPendentes = (state.agendamentos || []).filter(a => {
-      if (a.conta !== c.nome) return false;
       if (!a.dataEnvio || a.dataEnvio === "Imediato") return true;
       const p = a.dataEnvio.split("/");
       if (p.length === 3) {
@@ -282,7 +282,22 @@ function renderContasCards(t) {
           return dataAg.getTime() <= hojeTime;
       }
       return true;
-    }).reduce((sum, a) => sum + (Number(a.quantidade) || 1), 0);
+    }).reduce((sum, a) => {
+        let qtdContaAtual = 0;
+        if (a.itens && a.itens.length > 0) {
+            a.itens.forEach(it => {
+                const cEnvio = it.contaEnvio || a.conta;
+                if (cEnvio === c.nome) {
+                    qtdContaAtual++;
+                }
+            });
+        } else {
+            if (a.conta === c.nome) {
+                qtdContaAtual += (Number(a.quantidade) || 1);
+            }
+        }
+        return sum + qtdContaAtual;
+    }, 0);
     
     const textoVaga = agendamentosPendentes === 1 ? "vaga reservada" : "vagas reservadas";
     const avisoAgenda = agendamentosPendentes > 0 ? `<div style="font-size: 11px; color: #ffb74d; margin-top: 4px; font-weight: bold; background: rgba(255, 152, 0, 0.1); padding: 4px 6px; border-radius: 4px;">⚠️ ${agendamentosPendentes} ${textoVaga}</div>` : '';
