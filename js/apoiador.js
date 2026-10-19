@@ -48,6 +48,23 @@ function abrirModalApoiador(mesEspecifico = null) {
   
   apoiadorPopoverAberto = false;
   atualizarModalApoiadorHTML();
+  
+  // CORREÇÃO: Aplica a quebra de linha (flex-wrap) e o tamanho adaptável aos campos no modal HTML se ele já existir!
+  setTimeout(() => {
+    const containerCampos = document.querySelector("#apoiadorModal .form-actions-row");
+    if (containerCampos) {
+       containerCampos.style.display = "flex";
+       containerCampos.style.flexWrap = "wrap";
+       containerCampos.style.gap = "10px";
+       
+       const divsFilhas = containerCampos.querySelectorAll("div.field");
+       divsFilhas.forEach(div => {
+           div.style.flex = "1";
+           div.style.minWidth = "130px";
+       });
+    }
+  }, 50);
+
   if (modal) modal.style.display = "flex";
 }
 
@@ -98,11 +115,10 @@ function renderizarHistoricoApoiadorCompleto() {
   container.innerHTML = `<div style="overflow-x:auto;"><table class="financial-table" style="width:100%; border-collapse:collapse;"><thead><tr><th style="padding:12px; text-align:left; border-bottom:1px solid var(--border);">Mês / Ano</th><th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">Valor Bruto ($ USD)</th><th style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">Valor Líquido (R$)</th><th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">Ações</th></tr></thead><tbody>${chaves.map(k => {
     const r = registros[k];
     const [m, a] = k.split("/").map(Number);
-    const nomeMesPorExtenso = `${nomesMeses[m - 1]} de ${a}`;
+    const nomeMesPorExtenso = `${nomesMeses[m - 1]} de${a}`;
     
     return `<tr>
-      <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:600; color:var(--accent-light);">📅 ${nomeMesPorExtenso}</td>
-      <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">$${Number(r.brutoUsd || 0).toFixed(2)} USD</td>
+      <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:600; color:var(--accent-light);">📅 ${nomeMesPorExtenso}</td> <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border);">$${Number(r.brutoUsd || 0).toFixed(2)} USD</td>
       <td style="padding:12px; text-align:right; border-bottom:1px solid var(--border); color:var(--green); font-weight:700;">${maskMoney(money(r.liquidoBrl))}</td>
       <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">
         <div style="display:flex; justify-content:center; gap:6px;">
