@@ -43,7 +43,7 @@ function abrirModalDetalhesCliente(id, nome) {
   let wpp = "—";
   let tk = "—";
 
-  // 1. Tenta buscar das vendas do cliente
+  // Tenta buscar das vendas do cliente
   for (let i = 0; i < clientePedidos.length; i++) {
     const v = clientePedidos[i];
     const wVal = String(v.whatsapp || "").trim();
@@ -60,7 +60,7 @@ function abrirModalDetalhesCliente(id, nome) {
     if (wpp !== "—" && tk !== "—") break;
   }
 
-  // 2. Se ainda faltar, busca do state.clientesInfo
+  // Se ainda faltar, busca do state.clientesInfo
   const info = (state.clientesInfo || {})[id] || (state.clientesInfo || {})[nome] || {};
   if (wpp === "—" && info.whatsapp && String(info.whatsapp).toLowerCase() !== nome.toLowerCase()) {
     wpp = info.whatsapp;
@@ -303,8 +303,15 @@ function renderizarHistoricoClientesCompleto() {
     clientesMap[id].searchString += ` ${String(v.nickCliente || "").toLowerCase()} ${String(v.tiktok || "").toLowerCase()} ${tkLimpo} ${String(v.whatsapp || "").toLowerCase()} ${wppLimpo} `;
   });
   
+  // 1. PRIMEIRO ORGANIZA TODO O MUNDO PELO TOTAL GASTO (RANKING GLOBAL)
   let listaClientes = Object.values(clientesMap).sort((a, b) => b.totalGasto - a.totalGasto);
   
+  // 2. CARIMBA A POSIÇÃO VERDADEIRA EM CADA CLIENTE ANTES DE FILTRAR
+  listaClientes.forEach((c, idx) => {
+    c.rankingReal = idx + 1;
+  });
+  
+  // 3. AGORA SIM, APLICA O FILTRO DA PESQUISA
   if (clientesTermoBusca) {
     let tN = clientesTermoBusca.replace(/\D/g, "");
     let tT = clientesTermoBusca.replace(/@/g, "");
@@ -343,11 +350,8 @@ function renderizarHistoricoClientesCompleto() {
             const hasObs = state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao;
             const obsIcon = hasObs ? ' <span style="font-size:12px;" title="Possui observação">📌</span>' : '';
             
-            // Calcula o índice global baseado na página
-            const posicaoGlobal = (clientesPaginaAtual - 1) * ITENS_POR_PAGINA + index + 1;
-            
-            // Visual idêntico e limpo para TODOS os números
-            const trofeuHtml = `<span style="font-size: 13px; font-weight:700; color:var(--muted);">#${posicaoGlobal}</span>`;
+            // Usa o ranking real carimbado lá em cima em vez do índice da pesquisa!
+            const trofeuHtml = `<span style="font-size: 13px; font-weight:700; color:var(--muted);">#${c.rankingReal}</span>`;
 
             return `
               <tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesCliente('${esc(c.id).replace(/'/g, "\\'")}', '${esc(c.nome).replace(/'/g, "\\'")}')">
