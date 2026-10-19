@@ -2,7 +2,7 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Putz Story — Controle de Vendas</title>
 
     <!-- CSS Modularizado -->
@@ -20,6 +20,16 @@
     />
 
     <style>
+      /* BLINDAGEM ANTI-VAZAMENTO PARA MOBILE */
+      html, body {
+        overflow-x: hidden !important;
+        width: 100%;
+        max-width: 100vw;
+      }
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+      
       input[type="number"]::-webkit-inner-spin-button,
       input[type="number"]::-webkit-outer-spin-button {
         -webkit-appearance: none;
@@ -78,7 +88,7 @@
               <div class="label">⚙️ Valor Base & Modos de Preço</div>
               <div class="pricing-help">Gerencie o valor base e altere o modo de cálculo do site para promoções.</div>
             </div>
-            <div class="pricing-controls" style="display: flex; align-items: center; gap: 10px;">
+            <div class="pricing-controls" style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
               <strong id="valorBaseDisplay">R$ 2,50</strong>
               <button
                 type="button"
@@ -172,7 +182,7 @@
       <section class="panel panel-form">
         <h2>➕ Registrar Venda</h2>
 
-        <div class="toolbar">
+        <div class="toolbar" style="display: flex; flex-wrap: wrap; gap: 10px;">
           <div class="field">
             <label>Conta utilizada</label>
             <select id="contaSelect"></select>
@@ -306,7 +316,7 @@
           </div>
         </div>
 
-        <div class="toolbar" style="margin-top: 14px">
+        <div class="toolbar" style="margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px;">
           <div class="field" style="position: relative">
             <label>Nome do cliente</label>
             <div class="autocomplete-wrapper">
@@ -419,7 +429,7 @@
 
         <div
           class="form-actions-row"
-          style="margin-top: 16px; display: flex; gap: 10px"
+          style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 10px"
         >
           <button
             type="button"
@@ -445,7 +455,7 @@
           </button>
         </div>
 
-        <div class="quick" style="margin-top: 14px">
+        <div class="quick" style="margin-top: 14px; display: flex; flex-wrap: wrap;">
           <span class="small" style="align-self: center">Valores rápidos:</span>
           <button type="button" onclick="valorRapido(2.5)">R$ 2,50</button>
           <button type="button" onclick="valorRapido(10)">R$ 10</button>
@@ -477,7 +487,7 @@
           <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
             <h2 style="margin: 0">💰 Total por Conta</h2>
             <!-- NOVAS ABAS DE NAVEGAÇÃO DOS CARDS -->
-            <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 10px; border: 1px solid var(--border);">
+            <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 10px; border: 1px solid var(--border); flex-wrap: wrap;">
               <button type="button" id="tabContasGeral" style="padding: 6px 14px; font-size: 12px; border-radius: 8px; font-weight: bold; background: rgba(142,68,255,0.2); border: 1px solid var(--accent-light); color: #fff; cursor: pointer; outline: none; transition: all 0.2s;" onclick="typeof mudarAbaContas === 'function' && mudarAbaContas('geral')">Visão Geral</button>
               <button type="button" id="tabContasAcessos" style="padding: 6px 14px; font-size: 12px; border-radius: 8px; font-weight: bold; background: transparent; border: 1px solid transparent; color: var(--muted); cursor: pointer; outline: none; transition: all 0.2s;" onclick="typeof mudarAbaContas === 'function' && mudarAbaContas('acessos')">🗄️ Acessos</button>
             </div>
@@ -517,6 +527,7 @@
             font-size: 1rem;
             cursor: pointer;
             padding: 6px 0;
+            flex-wrap: wrap;
           "
         >
           <span>⚙️ Gerenciar Contas & Saldos</span>
@@ -532,7 +543,7 @@
             padding-top: 14px;
           "
         >
-          <div class="section-actions" style="margin-bottom: 12px">
+          <div class="section-actions" style="margin-bottom: 12px; display: flex; flex-wrap: wrap;">
             <button
               type="button"
               class="btn-green"
@@ -616,6 +627,8 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
+                flex-wrap: wrap;
+                gap: 15px;
               "
             >
               <div>
@@ -653,6 +666,7 @@
                 class="btn-financial-toggle"
                 id="btnFinancialToggle"
                 onclick="abrirPainelContas()"
+                style="display: flex; flex-wrap: wrap; justify-content: space-between; width: 100%;"
               >
                 <span
                   >📊 Balanço Financeiro por Conta (Histórico Acumulado)</span
@@ -675,10 +689,11 @@
               gap: 10px;
               align-items: center;
               position: relative;
+              flex-wrap: wrap;
             "
           >
             <!-- ARMADILHA EXTRA PARA O OPERA -->
-            <div style="position: absolute; top: -9999px; width: 0; height: 0; overflow: hidden; opacity: 0;">
+            <div style="position: absolute; top: -9999px; left: -9999px; width: 0; height: 0; overflow: hidden; opacity: 0;">
                <input type="text" name="fake_search_username" autocomplete="username" />
                <input type="password" name="fake_search_password" autocomplete="current-password" />
             </div>
@@ -744,6 +759,8 @@
                 justify-content: space-between;
                 align-items: center;
                 margin-bottom: 15px;
+                flex-wrap: wrap;
+                gap: 10px;
               "
             >
               <h3 style="margin: 0; color: var(--accent-light)">
@@ -777,6 +794,8 @@
                 justify-content: space-between;
                 align-items: center;
                 margin-bottom: 15px;
+                flex-wrap: wrap;
+                gap: 10px;
               "
             >
               <h3 style="margin: 0; color: var(--accent-light)">
@@ -816,12 +835,14 @@
                 justify-content: space-between;
                 align-items: center;
                 margin-bottom: 15px;
+                flex-wrap: wrap;
+                gap: 10px;
               "
             >
               <h3 style="margin: 0; color: var(--accent-light)">
                 👥 Histórico de Clientes
               </h3>
-              <div style="display: flex; gap: 10px; align-items: center;">
+              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <button type="button" class="btn-green" style="font-size: 12px; padding: 6px 12px;" onclick="abrirModalAdicionarClienteRetroativo()">➕ Novo Cliente</button>
                 <div
                   id="totalClientesResumo"
@@ -832,7 +853,7 @@
               </div>
             </div>
 
-            <div class="history-search-bar-box" style="margin-bottom: 15px">
+            <div class="history-search-bar-box" style="margin-bottom: 15px; display: flex; flex-wrap: wrap;">
               <div class="history-search-input-wrapper" style="flex: 1">
                 <span class="search-icon">🔍</span>
                 <input
