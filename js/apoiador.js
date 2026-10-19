@@ -49,21 +49,30 @@ function abrirModalApoiador(mesEspecifico = null) {
   apoiadorPopoverAberto = false;
   atualizarModalApoiadorHTML();
   
-  // CORREÇÃO: Aplica a quebra de linha (flex-wrap) e o tamanho adaptável aos campos no modal HTML se ele já existir!
+  // 🚀 CORREÇÃO INFALÍVEL: Procura diretamente os IDs dos campos e força a caixa mestre a quebrar!
   setTimeout(() => {
-    const containerCampos = document.querySelector("#apoiadorModal .form-actions-row");
-    if (containerCampos) {
-       containerCampos.style.display = "flex";
-       containerCampos.style.flexWrap = "wrap";
-       containerCampos.style.gap = "10px";
-       
-       const divsFilhas = containerCampos.querySelectorAll("div.field");
-       divsFilhas.forEach(div => {
-           div.style.flex = "1";
-           div.style.minWidth = "130px";
-       });
+    const campoBruto = document.getElementById("apoiadorBrutoUsd");
+    const campoLiquido = document.getElementById("apoiadorLiquidoBrl");
+    
+    if (campoBruto && campoLiquido) {
+        const caixaBruto = campoBruto.parentElement;
+        const caixaLiquido = campoLiquido.parentElement;
+        const linhaMestre = caixaBruto.parentElement;
+        
+        if (linhaMestre) {
+            linhaMestre.style.display = "flex";
+            linhaMestre.style.flexWrap = "wrap";
+            linhaMestre.style.gap = "10px";
+        }
+        
+        // Dá permissão aos campos para descerem no telemóvel
+        caixaBruto.style.flex = "1";
+        caixaBruto.style.minWidth = "140px";
+        
+        caixaLiquido.style.flex = "1";
+        caixaLiquido.style.minWidth = "140px";
     }
-  }, 50);
+  }, 100);
 
   if (modal) modal.style.display = "flex";
 }
