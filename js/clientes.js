@@ -77,6 +77,30 @@ function abrirModalDetalhesCliente(id, nome) {
   const modal = document.getElementById("clienteDetalhesModal");
   if (!modal) return;
 
+  // 🚀 NOVIDADE: CALCULAR RANKING EM TEMPO REAL PARA O MODAL
+  const clientesMapRanking = {};
+  (state.historicoVendas || []).forEach(v => {
+    const vId = v.clienteId || String(v.cliente || "").trim();
+    if (!clientesMapRanking[vId]) {
+      clientesMapRanking[vId] = 0;
+    }
+    clientesMapRanking[vId] += Number(v.valor || 0);
+  });
+  
+  const listaRanking = Object.entries(clientesMapRanking).sort((a, b) => b[1] - a[1]);
+  const minhaPosicaoIdx = listaRanking.findIndex(item => item[0] === id || item[0] === String(nome).trim());
+  const posicaoCliente = minhaPosicaoIdx !== -1 ? `#${minhaPosicaoIdx + 1}` : "#—";
+
+  // 🚀 CORREÇÃO DAS CORES DO RANKING
+  // Roxo padrão para todos do #4 em diante (para não confundir com o prata do #2)
+  let rankStyle = "background: rgba(142,68,255,0.15); color: var(--accent-light); border: 1px solid var(--accent);"; 
+  
+  if (posicaoCliente === "#1") rankStyle = "background: rgba(255, 215, 0, 0.15); color: #ffd700; border: 1px solid #ffd700;";
+  else if (posicaoCliente === "#2") rankStyle = "background: rgba(192, 192, 192, 0.15); color: #c0c0c0; border: 1px solid #c0c0c0;";
+  else if (posicaoCliente === "#3") rankStyle = "background: rgba(205, 127, 50, 0.15); color: #cd7f32; border: 1px solid #cd7f32;";
+  
+  const tagRanking = `<span style="font-size: 18px; padding: 0 10px; border-radius: 8px; font-weight: 900; ${rankStyle} display: inline-flex; align-items: center; justify-content: center; height: 34px; margin-right: 10px;" title="Posição no Ranking Global">${posicaoCliente}</span>`;
+
   const TIKTOK_ICON = typeof TIKTOK_SVG !== "undefined" ? TIKTOK_SVG : '<svg width="14" height="14" viewBox="0 0 448 512" fill="currentColor" style="vertical-align: middle; margin-top: -2px;"><path d="M448 209.9a210.1 210.1 0 0 1 -122.8-39.3V349.4A162.6 162.6 0 1 1 185 188.3V278.2a74.6 74.6 0 1 0 52.2 71.2V0l88 0a121.2 121.2 0 0 0 1.9 22.2h0A122.2 122.2 0 0 0 381 102.4a121.4 121.4 0 0 0 67 20.1z"/></svg>';
 
   const modalHead = modal.querySelector('.modal-head');
@@ -105,8 +129,8 @@ function abrirModalDetalhesCliente(id, nome) {
         </div>
         
         <div style="width: 100%; margin-top: 16px;">
-          <h3 style="margin:0; color:#fff; font-size: 26px; font-weight: 900; line-height: 1.3; word-wrap: break-word; padding-right: 20px;">
-            <span class="copyable-text" onclick="copiarTexto('${esc(nome).replace(/'/g, "\\'")}', 'Nome do Cliente', event)">${esc(nome)}</span>
+          <h3 style="margin:0; color:#fff; font-size: 26px; font-weight: 900; line-height: 1.3; word-wrap: break-word; padding-right: 20px; display: flex; align-items: center; flex-wrap: wrap;">
+            ${tagRanking} <span class="copyable-text" onclick="copiarTexto('${esc(nome).replace(/'/g, "\\'")}', 'Nome do Cliente', event)">${esc(nome)}</span>
           </h3>
           <div style="display:flex; flex-wrap: wrap; gap:16px; margin-top:10px; font-size:14px; color:#fff; font-weight: 600;">
             <span style="display:inline-flex; align-items:center; gap:6px;">
