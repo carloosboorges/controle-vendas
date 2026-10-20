@@ -395,6 +395,7 @@ function renderizarBalancoFinanceiro() {
     const valorVenda = Number(v.valor || 0);
     const vbVenda = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
     
+    // Se a venda não for dividida por itens ou não tiver detalhes
     if (!v.itens || v.itens.length === 0) {
       if (!balancoContas[v.conta]) balancoContas[v.conta] = { totalVbucks: 0, totalValor: 0 };
       balancoContas[v.conta].totalValor += valorVenda;
@@ -402,6 +403,9 @@ function renderizarBalancoFinanceiro() {
       return;
     }
 
+    // Se for dividida, calcula item a item
+    const vbTotalDosItensParaDivisao = v.itens.reduce((sum, item) => sum + (Number(item.vbucks) || 0), 0);
+    
     v.itens.forEach(item => {
       const contaEnvioItem = item.contaEnvio || v.conta;
       if (!balancoContas[contaEnvioItem]) {
@@ -410,14 +414,19 @@ function renderizarBalancoFinanceiro() {
 
       const vbItem = Number(item.vbucks) || 0;
       let valorRateadoItem = 0;
+      let vbRealDoItem = vbItem;
       
-      if (vbItem > 0 && vbVenda > 0) {
-        valorRateadoItem = (vbItem / vbVenda) * valorVenda;
+      if (vbItem > 0 && vbTotalDosItensParaDivisao > 0) {
+        // Divide o dinheiro e os V-Bucks proporcionalmente de acordo com a tabela do sistema
+        valorRateadoItem = (vbItem / vbTotalDosItensParaDivisao) * valorVenda;
+        // vbRealDoItem já é o vbItem correto preenchido pelo utilizador
       } else if (vbItem === 0 && v.itens.length > 0) {
         valorRateadoItem = valorVenda / v.itens.length;
+        // Se a pessoa não colocou Vbucks nos itens da tabela antiga, adivinhamos o valor proporcional
+        vbRealDoItem = vbVenda / v.itens.length;
       }
 
-      balancoContas[contaEnvioItem].totalVbucks += vbItem;
+      balancoContas[contaEnvioItem].totalVbucks += vbRealDoItem;
       balancoContas[contaEnvioItem].totalValor += valorRateadoItem;
     });
   });
