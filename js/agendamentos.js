@@ -189,7 +189,6 @@ function agendarVenda() {
     }
   }
 
-  // Se não houver data selecionada, assume "Imediato" (Hoje) automaticamente, como você pediu!
   let dataEnvioFormatada = "Imediato";
   if (dataEnvioCrua) {
     const p = dataEnvioCrua.split("-");
@@ -204,7 +203,6 @@ function agendarVenda() {
     }
   }
 
-  // 🚀 ALERTAS ESPECÍFICOS DE ERRO RESTAURADOS (SEM BLOQUEAR A DATA DE HOJE)
   if (!conta) { mostrarNotificacao("⚠️ Por favor, selecione uma Conta!", "erro"); return; }
   if (!valorDigitado || isNaN(valorDigitado) || valorDigitado <= 0) { mostrarNotificacao("⚠️ Por favor, informe o Valor da venda!", "erro"); return; }
   if (!cliente) { mostrarNotificacao("⚠️ Por favor, informe o Nome do Cliente!", "erro"); return; }
@@ -215,15 +213,13 @@ function agendarVenda() {
       mostrarNotificacao("⚠️ Por favor, preencha o nome de todos os itens extras!", "erro"); return;
   }
 
-  // 🚀 VERIFICAÇÃO INTELIGENTE DE LIMITES DE VAGAS POR CONTA INDIVIDUAL DO ITEM
   if (!window.ignorarAvisoLimiteAgendamento) {
     const dataVerificar = dataEnvioFormatada === "Imediato" ? obterDataHojeFormatada() : dataEnvioFormatada;
     const isAgendamentoParaHoje = dataVerificar === obterDataHojeFormatada();
 
-    // Mapeia contas e conta os itens que vão ser enviados de cada uma
     const contasEnvolvidas = {};
     itens.forEach(it => {
-        const c = it.contaEnvio || conta; // Se o item não tem conta explícita, usa a principal
+        const c = it.contaEnvio || conta; 
         contasEnvolvidas[c] = (contasEnvolvidas[c] || 0) + 1;
     });
 
@@ -234,7 +230,6 @@ function agendarVenda() {
     for (const [nomeConta, qtdNecessaria] of Object.entries(contasEnvolvidas)) {
         let vagasOcupadas = 0;
 
-        // Verifica os outros agendamentos existentes no sistema para aquela conta específica
         (state.agendamentos || []).forEach(a => {
             const dEnvio = (a.dataEnvio && a.dataEnvio !== "Imediato") ? a.dataEnvio : obterDataHojeFormatada();
             if (dEnvio === dataVerificar) {
@@ -249,7 +244,6 @@ function agendarVenda() {
             }
         });
 
-        // Se for para hoje, junta à conta dos timers em andamento
         if (isAgendamentoParaHoje) {
             const fimDoDia = new Date();
             fimDoDia.setHours(23, 59, 59, 999);
@@ -291,7 +285,6 @@ function agendarVenda() {
   const somaVbucksItens = itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
   const vbucksNecessarios = somaVbucksItens > 0 ? somaVbucksItens : Math.round((valorDigitado / baseAtual) * 100);
   
-  // VERIFICAÇÃO PROPORCIONAL DO SALDO DE V-BUCKS POR CONTA
   const descontosPorConta = {};
   itens.forEach(it => {
       const c = it.contaEnvio || conta;
@@ -457,7 +450,8 @@ function renderizarAgendamentos() {
         return p.length === 3 ? new Date(p[2], p[1] - 1, p[0]).getTime() : hojeTime;
     })();
 
-    const badgeEnvioEstilo = (a.dataEnvio !== "Imediato" && dataEnvioTime <= hojeTime) 
+    // 🚀 CORREÇÃO DO "IMEDIATO": Agora ele avalia apenas se a data de envio é hoje ou se já passou
+    const badgeEnvioEstilo = (dataEnvioTime <= hojeTime) 
       ? "background: rgba(255, 152, 0, 0.2); border: 1px solid rgba(255, 152, 0, 0.6); color: #ffb74d;" 
       : "background: rgba(142,68,255,0.15); border: 1px solid var(--accent); color: var(--accent-light);";
       
