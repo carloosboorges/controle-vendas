@@ -445,15 +445,30 @@ function renderizarAgendamentos() {
     }
     const vb = a.vbucks !== undefined ? Number(a.vbucks) : (typeof valorParaVBucks === 'function' ? valorParaVBucks(a.valor, a.valorBaseMomento) : 0);
     
-    const dataEnvioTime = (!a.dataEnvio || a.dataEnvio === "Imediato") ? hojeTime : (() => {
+    // 🚀 LÓGICA ATUALIZADA DA COR DAS ETIQUETAS E DATA DE ATRASO
+    const dataEnvioTime = (!a.dataEnvio || a.dataEnvio === "Imediato") ? (() => {
+        if (!a.dataRegistro) return hojeTime;
+        const p = a.dataRegistro.split("/");
+        return p.length === 3 ? new Date(p[2], p[1] - 1, p[0]).getTime() : hojeTime;
+    })() : (() => {
         const p = a.dataEnvio.split("/");
         return p.length === 3 ? new Date(p[2], p[1] - 1, p[0]).getTime() : hojeTime;
     })();
 
-    // 🚀 CORREÇÃO DO "IMEDIATO": Agora ele avalia apenas se a data de envio é hoje ou se já passou
-    const badgeEnvioEstilo = (dataEnvioTime <= hojeTime) 
-      ? "background: rgba(255, 152, 0, 0.2); border: 1px solid rgba(255, 152, 0, 0.6); color: #ffb74d;" 
-      : "background: rgba(142,68,255,0.15); border: 1px solid var(--accent); color: var(--accent-light);";
+    let badgeEnvioEstilo = "";
+    let textoAtraso = "";
+
+    if (dataEnvioTime < hojeTime) {
+        // Passou do dia (Atrasado) - Vermelho
+        badgeEnvioEstilo = "background: rgba(244, 67, 54, 0.15); border: 1px solid rgba(244, 67, 54, 0.5); color: #ff5252;";
+        textoAtraso = " ⚠️ ATRASADO";
+    } else if (dataEnvioTime === hojeTime) {
+        // Hoje (Imediato) - Laranja
+        badgeEnvioEstilo = "background: rgba(255, 152, 0, 0.2); border: 1px solid rgba(255, 152, 0, 0.6); color: #ffb74d;";
+    } else {
+        // Futuro - Roxo
+        badgeEnvioEstilo = "background: rgba(142,68,255,0.15); border: 1px solid var(--accent); color: var(--accent-light);";
+    }
       
     const TIKTOK_ICON = typeof TIKTOK_SVG !== "undefined" ? TIKTOK_SVG : '<svg width="14" height="14" viewBox="0 0 448 512" fill="currentColor" style="vertical-align: middle; margin-top: -2px;"><path d="M448 209.9a210.1 210.1 0 0 1 -122.8-39.3V349.4A162.6 162.6 0 1 1 185 188.3V278.2a74.6 74.6 0 1 0 52.2 71.2V0l88 0a121.2 121.2 0 0 0 1.9 22.2h0A122.2 122.2 0 0 0 381 102.4a121.4 121.4 0 0 0 67 20.1z"/></svg>';
 
@@ -547,7 +562,7 @@ function renderizarAgendamentos() {
 
             <div class="history-date">📅 Criado em: ${esc(a.dataRegistro)} às ${esc(a.horaRegistro)}</div>
             ${obsHtml}
-            <div style="font-size: 12px; font-weight: bold; margin-top: 8px; padding: 4px 8px; border-radius: 6px; display: inline-block; ${badgeEnvioEstilo}">🚀 Enviar no dia: ${esc(a.dataEnvio || "Imediato")}</div>
+            <div style="font-size: 12px; font-weight: bold; margin-top: 8px; padding: 4px 8px; border-radius: 6px; display: inline-block; ${badgeEnvioEstilo}">🚀 Enviar no dia: ${esc(a.dataEnvio || "Imediato")}${textoAtraso}</div>
           </div>
           
           <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; min-width: 140px;">
@@ -562,7 +577,7 @@ function renderizarAgendamentos() {
         <div class="history-details">
           <span>🪙 ${formatVBucks(vb)} V-Bucks exigidos</span>
           <div class="history-actions">
-            <button type="button" class="btn-green" style="padding:6px 12px; font-weight: bold;" onclick="efetivarAgendamento('${esc(a.id)}')">✅ Efetivar Restante</button>
+            <button type="button" class="btn-green" style="padding:6px 12px; font-weight: bold;" onclick="efetivarAgendamento('${esc(a.id)}')">✅ Finalizar Venda</button>
             <button type="button" class="btn-gray" onclick="abrirModalEdicaoAgendamento('${esc(a.id)}')">✏️ Editar</button>
             <button type="button" class="btn-danger" onclick="excluirAgendamento('${esc(a.id)}')">🗑️ Cancelar</button>
           </div>
@@ -760,7 +775,7 @@ function efetivarAgendamento(id) {
       }
   }
 
-  abrirModalConfirmacao("✅ Efetivar Pré-venda", `Confirmar o envio final para ${agendamento.cliente}?`, () => {
+  abrirModalConfirmacao("✅ Finalizar Venda", `Confirmar o envio final para ${agendamento.cliente}?`, () => {
     const agora = Date.now();
     if (!state.reservas) state.reservas = [];
 
