@@ -418,23 +418,21 @@ function renderizarAgendamentos() {
   const valorTotalPreVendas = agendamentos.reduce((acc, a) => acc + Number(a.valor || 0), 0);
   const qtdAgendamentos = agendamentos.length;
   
-  // 🚀 NOVO BANNER DE QUANTIDADE COM DESTAQUE LARANJA ISOLADO DO TOTAL FINANCEIRO
+  // 🚀 BANNER SUAVE COM TOM ROXO (INTEGRADO AO TEMA) E TEXTO ENXUTO
   let bannerQuantidadeHtml = "";
   if (qtdAgendamentos > 0) {
       bannerQuantidadeHtml = `
-        <div style="background: linear-gradient(135deg, #ff9800, #e65100); padding: 12px 18px; border-radius: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 15px rgba(255, 152, 0, 0.25);">
-            <div style="background: #fff; color: #e65100; font-size: 18px; font-weight: 900; height: 36px; min-width: 36px; padding: 0 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+        <div style="background: rgba(142,68,255,0.15); border: 1px solid var(--accent); padding: 12px 18px; border-radius: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px;">
+            <div style="background: var(--accent); color: #fff; font-size: 18px; font-weight: 900; height: 36px; min-width: 36px; padding: 0 10px; border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
                 ${qtdAgendamentos}
             </div>
-            <div style="color: #fff; font-size: 15px; font-weight: 800; line-height: 1.3;">
-                Pré-venda${qtdAgendamentos !== 1 ? 's' : ''} na fila de espera<br>
-                <span style="font-size: 12px; font-weight: 600; opacity: 0.85;">Não se esqueça de realizar os envios nas datas programadas.</span>
+            <div style="color: #fff; font-size: 15px; font-weight: 800;">
+                Pré-venda${qtdAgendamentos !== 1 ? 's' : ''} na fila de espera
             </div>
         </div>
       `;
   }
   
-  // O HEADER DO DINHEIRO VOLTA A FICAR LIMPO E FOCADO APENAS NOS VALORES
   const headerTotalHtml = `<div style="background: rgba(142,68,255,0.08); border: 1px solid rgba(168,85,247,0.25); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <span style="font-size: 15px; font-weight: 700; color: #fff;">💰 Total Acumulado em Pré-vendas:</span>
         <span style="font-size: 24px; font-weight: 900; color: var(--green); margin-left: auto;">${maskMoney(money(valorTotalPreVendas))}</span>
