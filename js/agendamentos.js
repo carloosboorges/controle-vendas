@@ -416,8 +416,18 @@ function renderizarAgendamentos() {
   if (!container) return;
   const agendamentos = state.agendamentos || [];
   const valorTotalPreVendas = agendamentos.reduce((acc, a) => acc + Number(a.valor || 0), 0);
+  const qtdAgendamentos = agendamentos.length;
   
-  const headerTotalHtml = `<div style="background: rgba(142,68,255,0.08); border: 1px solid rgba(168,85,247,0.25); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 15px; font-weight: 700; color: #fff;">💰 Total Acumulado em Pré-vendas (Não enviadas):</span><span style="font-size: 24px; font-weight: 900; color: var(--green);">${maskMoney(money(valorTotalPreVendas))}</span></div>`;
+  // 🚀 ADIÇÃO DO BADGE COM A QUANTIDADE DE AGENDAMENTOS
+  const badgeQtd = `<span style="background: rgba(142,68,255,0.2); border: 1px solid var(--accent); color: var(--accent-light); padding: 4px 10px; border-radius: 12px; font-size: 12px; margin-left: 8px; white-space: nowrap;">${qtdAgendamentos} pré-venda${qtdAgendamentos !== 1 ? 's' : ''} pendente${qtdAgendamentos !== 1 ? 's' : ''}</span>`;
+  
+  const headerTotalHtml = `<div style="background: rgba(142,68,255,0.08); border: 1px solid rgba(168,85,247,0.25); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 15px; font-weight: 700; color: #fff;">💰 Total Acumulado em Pré-vendas:</span>
+            ${badgeQtd}
+        </div>
+        <span style="font-size: 24px; font-weight: 900; color: var(--green); margin-left: auto;">${maskMoney(money(valorTotalPreVendas))}</span>
+  </div>`;
   
   if (agendamentos.length === 0) { 
     container.innerHTML = headerTotalHtml + `<div style="text-align:center; padding:30px; color:var(--muted); font-size:13px;">Nenhuma pré-venda agendada. Tudo limpo!</div>`; 
@@ -445,7 +455,6 @@ function renderizarAgendamentos() {
     }
     const vb = a.vbucks !== undefined ? Number(a.vbucks) : (typeof valorParaVBucks === 'function' ? valorParaVBucks(a.valor, a.valorBaseMomento) : 0);
     
-    // 🚀 LÓGICA ATUALIZADA DA COR DAS ETIQUETAS E DATA DE ATRASO
     const dataEnvioTime = (!a.dataEnvio || a.dataEnvio === "Imediato") ? (() => {
         if (!a.dataRegistro) return hojeTime;
         const p = a.dataRegistro.split("/");
@@ -459,14 +468,11 @@ function renderizarAgendamentos() {
     let textoAtraso = "";
 
     if (dataEnvioTime < hojeTime) {
-        // Passou do dia (Atrasado) - Vermelho
         badgeEnvioEstilo = "background: rgba(244, 67, 54, 0.15); border: 1px solid rgba(244, 67, 54, 0.5); color: #ff5252;";
         textoAtraso = " ⚠️ ATRASADO";
     } else if (dataEnvioTime === hojeTime) {
-        // Hoje (Imediato) - Laranja
         badgeEnvioEstilo = "background: rgba(255, 152, 0, 0.2); border: 1px solid rgba(255, 152, 0, 0.6); color: #ffb74d;";
     } else {
-        // Futuro - Roxo
         badgeEnvioEstilo = "background: rgba(142,68,255,0.15); border: 1px solid var(--accent); color: var(--accent-light);";
     }
       
