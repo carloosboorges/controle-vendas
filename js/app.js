@@ -982,6 +982,201 @@ async function inicializar() {
 let ultimaDataHojeConhecida = typeof obterDataHojeFormatada === 'function' ? obterDataHojeFormatada() : new Date().toLocaleDateString('pt-BR');
 inicializar();
 
+// -------------------------------------------------------------
+// O "CORAÇÃO" DA RENDERIZAÇÃO GERAL
+// -------------------------------------------------------------
+function render() {
+  if (!state) return;
+  const baseEl = document.getElementById("valorBaseDisplay");
+  if (baseEl) baseEl.textContent = money(state.valorBase100 || 2.5);
+  if (typeof limparReservasExpiradas === 'function') limparReservasExpiradas();
+
+  const modoAtual = state?.modoPrecificacao || 'padrao';
+  const btnPadrao = document.getElementById("btnModoPadrao");
+  const btnGlobal = document.getElementById("btnModoGlobal");
+  const btnVolume = document.getElementById("btnModoVolume");
+
+  if (btnPadrao && btnGlobal && btnVolume) {
+    [btnPadrao, btnGlobal, btnVolume].forEach(b => {
+      b.className = "btn-gray";
+    });
+
+    if (modoAtual === 'padrao') {
+      btnPadrao.className = "btn-green";
+    } else if (modoAtual === 'global_promo') {
+      btnGlobal.className = "btn-green";
+    } else if (modoAtual === 'volume_promo') {
+      btnVolume.className = "btn-green";
+    }
+  }
+
+  const configVolumeWrapper = document.getElementById("configVolumeWrapper");
+  const inputValorPromoVolume = document.getElementById("inputValorPromoVolume");
+  const inputLimiteVolume = document.getElementById("inputLimiteVolume");
+  
+  if (configVolumeWrapper) {
+    if (modoAtual === 'volume_promo') {
+      configVolumeWrapper.style.display = "block";
+      if (inputValorPromoVolume && state) inputValorPromoVolume.value = Number(state.valorBasePromo || 2.00).toFixed(2);
+      if (inputLimiteVolume && state) inputLimiteVolume.value = state.limiteVolumePromo || 1500;
+    } else {
+      configVolumeWrapper.style.display = "none";
+      const content = document.getElementById("configVolumeContent");
+      const arrow = document.getElementById("volumeToggleArrow");
+      if (content) content.style.display = "none";
+      if (arrow) arrow.textContent = "▾";
+      if (typeof painelVolumeAberto !== 'undefined') painelVolumeAberto = false;
+    }
+  }
+  
+  // 🚀 ATUALIZAÇÃO DO CARTÃO HÍBRIDO DE PRÉ-VENDAS
+  const tSessao = typeof totais === 'function' ? totais() : {};
+  if (document.getElementById("totalGeral")) document.getElementById("totalGeral").textContent = maskMoney(money((state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0)));
+  
+  if (document.getElementById("totalAgendamentosSessao")) {
+      const valorTotalPendenteGlobal = (state.agendamentos || []).reduce((sum, a) => sum + Number(a.valor || 0), 0);
+      const valorSessaoPreVenda = (state.agendamentos || []).filter(a => a.criadoEmMs >= (state.sessaoIniciadaEm || 0)).reduce((sum, a) => sum + Number(a.valor || 0), 0);
+      
+      const textoPendenteMaior = maskMoney(money(valorTotalPendenteGlobal));
+      const textSessaoMenor = maskMoney(money(valorSessaoPreVenda));
+      
+      // Sobrescreve o conteúdo do cartão para mostrar as duas variáveis!
+      document.getElementById("totalAgendamentosSessao").innerHTML = `
+          <div style="font-size: 24px; font-weight: 900; line-height: 1;">${textoPendenteMaior}</div>
+          <div style="font-size: 11px; color: var(--muted); margin-top: 4px; font-weight: 600;">Na sessão: <span style="color: var(--accent-light);">${textSessaoMenor}</span></div>
+      `;
+      
+      // Muda a etiqueta superior do cartão de "Pré-vendas (Sessão)" para "Pré-vendas Pendentes"
+      const labelDoCartao = document.getElementById("totalAgendamentosSessao").previousElementSibling;
+      if (labelDoCartao && labelDoCartao.classList.contains("label")) {
+          labelDoCartao.textContent = "Pré-vendas Pendentes";
+      }
+  }
+
+  if (document.getElementById("qtdVendas")) document.getElementById("qtdVendas").textContent = `${(state.vendas || []).length} (${(state.vendas || []).reduce((a, v) => a + (Number(v.quantidade) || 1), 0)} itens)`;
+  
+  let top = "—", tv = 0;
+  Object.entries(tSessao).forEach(([n, v]) => {
+    if (v > tv) { top = n; tv = v; }
+  });
+  if (document.getElementById("topConta")) document.getElementById("topConta").textContent = tv ? `${top} — ${maskMoney(money(tv))}` : "—";
+  
+  const sel = document.getElementById("contaSelect");
+  if (sel) {
+    const old = sel.value;
+    sel.innerHTML = (state.contas || []).filter(c => c.ativa).map(c => `<option value="${esc(c.nome)}">${esc(c.nome)}</option>`).join("");
+    if ([...sel.options].some(o => o.value === old)) sel.value = old;
+  }
+  
+  if (typeof renderContasCards === 'function') renderContasCards(tSessao);
+  
+  if (document.getElementById("contas")) {
+    document.getElementById("contas").innerHTML = (state.contas || []).map((c, i) => `
+      <div class="account-row" 
+           draggable="true" 
+           ondragstart="iniciarArrasteConta(event, ${i})"
+           ondragover="permitirSoltarConta(event)"
+           ondragleave="sairAreaSoltoConta(event)"
+           ondrop="soltarConta(event, ${i})"
+           ondragend="fimArrasteConta(event)"
+           style="display: flex; align-items: center; transition: all 0.2s ease;">
+           
+        <div style="cursor: grab; color: var(--muted); font-size: 22px; padding: 0 12px 0 4px; display: flex; align-items: center; user-select: none;" title="Pressione e arraste para reordenar a conta">⋮⋮</div>
+        
+        <div class="account-info" style="flex: 1;">
+          <div class="account-header-line">
+            <div class="account-name">${esc(c.nome)}</div>
+            <span class="badge ${c.ativa ? "" : "off"}">${c.ativa ? "🟢 ATIVA" : "⚫ DESATIVADA"}</span>
+          </div>
+          <div class="small">${c.ativa ? `Saldo: ${formatVBucks(c.vbucks)} V-Bucks` : "Desativada"}</div>
+        </div>
+        <div class="account-actions">
+          <button type="button" class="btn-gray" onclick="typeof abrirModalEditConta === 'function' ? abrirModalEditConta(${i}) : null">✏️ Editar</button>
+          <button type="button" class="${c.ativa ? "btn-gray" : "btn-green"}" onclick="typeof toggleConta === 'function' ? toggleConta(${i}) : null">${c.ativa ? "Desativar" : "Ativar"}</button>
+          <button type="button" class="btn-danger" onclick="typeof removerConta === 'function' ? removerConta(${i}) : null">🗑️ Remover</button>
+        </div>
+      </div>`).join("");
+  }
+  
+  const totalHistorico = (state.historicoVendas || []).reduce((s, v) => s + Number(v.valor || 0), 0);
+  if (document.getElementById("historicoQtdTotal")) document.getElementById("historicoQtdTotal").textContent = `${(state.historicoVendas || []).length} pedidos · ${(state.historicoVendas || []).reduce((s, v) => s + (Number(v.quantidade) || 1), 0)} itens enviados`;
+  
+  const leftContainer = document.querySelector(".history-total-card > div:first-child");
+  if (leftContainer) {
+    leftContainer.style.textAlign = "center";
+    leftContainer.style.display = "flex";
+    leftContainer.style.flexDirection = "column";
+    leftContainer.style.alignItems = "center";
+  }
+
+  const histTotalLabel = document.querySelector(".history-total-label");
+  if (histTotalLabel) {
+    histTotalLabel.style.cssText = "display: flex; flex-direction: row; align-items: center; justify-content: center; position: relative;";
+    if (!document.getElementById("eyeToggleValoresWrapper")) {
+      histTotalLabel.innerHTML = `
+        <span style="position: relative; display: inline-flex; align-items: center; white-space: nowrap;" id="eyeToggleValoresWrapper">
+          💰 TOTAL DO HISTÓRICO
+          <button type="button" id="eyeToggleValores" style="position: absolute; left: 100%; margin-left: 8px; background:none; border:none; color:inherit; font-size:18px; cursor:pointer; padding:0; outline:none; display:flex; align-items:center; justify-content:center; width: 30px; height: 30px;" title="Ocultar/Mostrar Valores">👁️</button>
+        </span>
+      `;
+      document.getElementById("eyeToggleValores").addEventListener("click", toggleOcultarValores);
+    }
+    const eyeTotalBtn = document.getElementById("eyeToggleValores");
+    if (eyeTotalBtn) eyeTotalBtn.textContent = valoresOcultos ? "🙈" : "👁️";
+  }
+
+  const headerActions = document.querySelector(".header-actions-bar");
+  if (headerActions) {
+    headerActions.style.alignItems = "stretch"; 
+    if (!document.getElementById("eyeToggleValoresHeader")) {
+      const eyeBtnHeader = document.createElement("button");
+      eyeBtnHeader.id = "eyeToggleValoresHeader";
+      eyeBtnHeader.className = "btn-gray";
+      eyeBtnHeader.style.cssText = "padding: 0; font-size: 18px; width: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 12px;";
+      eyeBtnHeader.title = "Ocultar/Mostrar Valores Globalmente";
+      eyeBtnHeader.onclick = toggleOcultarValores;
+      headerActions.insertBefore(eyeBtnHeader, headerActions.firstChild);
+    }
+    const eyeHeaderBtn = document.getElementById("eyeToggleValoresHeader");
+    if (eyeHeaderBtn) eyeHeaderBtn.textContent = valoresOcultos ? "🙈" : "👁️";
+  }
+
+  const btnNovaSessao = document.querySelector('button[onclick*="novaLive"]');
+  if (btnNovaSessao && !document.getElementById("eyeToggleValoresSessao")) {
+    const parent = btnNovaSessao.parentNode;
+    const wrapper = document.createElement("div");
+    wrapper.style.display = "flex";
+    wrapper.style.gap = "8px";
+    wrapper.style.alignItems = "stretch"; 
+    btnNovaSessao.style.marginLeft = "0";
+    wrapper.style.marginLeft = "auto";
+    
+    parent.insertBefore(wrapper, btnNovaSessao);
+    
+    const eyeBtnSessao = document.createElement("button");
+    eyeBtnSessao.id = "eyeToggleValoresSessao";
+    eyeBtnSessao.className = "btn-gray";
+    eyeBtnSessao.style.cssText = "padding: 0; font-size: 16px; width: 40px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 10px;";
+    eyeBtnSessao.title = "Ocultar/Mostrar Valores Globalmente";
+    eyeBtnSessao.onclick = toggleOcultarValores;
+    
+    wrapper.appendChild(eyeBtnSessao);
+    wrapper.appendChild(btnNovaSessao);
+  }
+  const eyeSessaoBtn = document.getElementById("eyeToggleValoresSessao");
+  if (eyeSessaoBtn) eyeSessaoBtn.textContent = valoresOcultos ? "🙈" : "👁️";
+
+  if (document.getElementById("historicoTotal")) {
+    document.getElementById("historicoTotal").textContent = maskMoney(money(totalHistorico));
+  }
+
+  if (document.getElementById("lixeiraBtn")) document.getElementById("lixeiraBtn").textContent = `🗑️ Lixeira (${(state.lixeiraVendas || []).length})`;
+  
+  if (typeof renderizarResumoPeriodos === 'function') renderizarResumoPeriodos();
+  if (typeof renderizarListaHistorico === 'function') renderizarListaHistorico();
+  if (abaHistoricoAtiva === 'agendamentos' && typeof renderizarAgendamentos === 'function') renderizarAgendamentos();
+}
+
 setInterval(() => {
   if (typeof state !== 'undefined' && state) {
       if (typeof atualizarRelogios === 'function') {
