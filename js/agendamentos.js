@@ -418,7 +418,6 @@ function renderizarAgendamentos() {
   const valorTotalPreVendas = agendamentos.reduce((acc, a) => acc + Number(a.valor || 0), 0);
   const qtdAgendamentos = agendamentos.length;
   
-  // 🚀 BANNER SUAVE COM TOM ROXO (INTEGRADO AO TEMA) E TEXTO ENXUTO
   let bannerQuantidadeHtml = "";
   if (qtdAgendamentos > 0) {
       bannerQuantidadeHtml = `
@@ -445,33 +444,33 @@ function renderizarAgendamentos() {
   
   const hojeTime = new Date().setHours(0,0,0,0);
   
-  const agendamentosOrdenados = [...agendamentos].sort((a, b) => {
-    function getTempo(dStr) {
-      if (!dStr || dStr === "Imediato") return hojeTime;
-      const p = dStr.split("/");
-      if (p.length === 3) return new Date(p[2], p[1] - 1, p[0]).getTime();
-      return hojeTime;
-    }
-    const timeA = getTempo(a.dataEnvio);
-    const timeB = getTempo(b.dataEnvio);
-    if (timeA === timeB) return (a.criadoEmMs || 0) - (b.criadoEmMs || 0);
-    return timeA - timeB;
-  });
-  
-  container.innerHTML = bannerQuantidadeHtml + headerTotalHtml + agendamentosOrdenados.map(a => {
+  // 🚀 LÓGICA DE ORDENAÇÃO CORRIGIDA PARA USAR O MESMO TEMPO DAS CORES
+  const agendamentosComTempo = agendamentos.map(a => {
     if (a.dataRegistro === "28/09/2026" && a.horaRegistro === "23:18") {
       a.dataRegistro = "27/09/2026";
     }
+    let tempoEnvio = hojeTime;
+    if (!a.dataEnvio || a.dataEnvio === "Imediato") {
+        if (a.dataRegistro) {
+            const p = a.dataRegistro.split("/");
+            if (p.length === 3) tempoEnvio = new Date(p[2], p[1] - 1, p[0]).getTime();
+        }
+    } else {
+        const p = a.dataEnvio.split("/");
+        if (p.length === 3) tempoEnvio = new Date(p[2], p[1] - 1, p[0]).getTime();
+    }
+    return { ...a, tempoEnvio };
+  });
+  
+  const agendamentosOrdenados = agendamentosComTempo.sort((a, b) => {
+    if (a.tempoEnvio === b.tempoEnvio) return (a.criadoEmMs || 0) - (b.criadoEmMs || 0);
+    return a.tempoEnvio - b.tempoEnvio; // Menor tempo (Atrasados) primeiro!
+  });
+  
+  container.innerHTML = bannerQuantidadeHtml + headerTotalHtml + agendamentosOrdenados.map(a => {
     const vb = a.vbucks !== undefined ? Number(a.vbucks) : (typeof valorParaVBucks === 'function' ? valorParaVBucks(a.valor, a.valorBaseMomento) : 0);
     
-    const dataEnvioTime = (!a.dataEnvio || a.dataEnvio === "Imediato") ? (() => {
-        if (!a.dataRegistro) return hojeTime;
-        const p = a.dataRegistro.split("/");
-        return p.length === 3 ? new Date(p[2], p[1] - 1, p[0]).getTime() : hojeTime;
-    })() : (() => {
-        const p = a.dataEnvio.split("/");
-        return p.length === 3 ? new Date(p[2], p[1] - 1, p[0]).getTime() : hojeTime;
-    })();
+    const dataEnvioTime = a.tempoEnvio;
 
     let badgeEnvioEstilo = "";
     let textoAtraso = "";
