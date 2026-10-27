@@ -17,7 +17,7 @@ function obterMapaDeClientes() {
   if (state && state.clientesInfo) {
     Object.keys(state.clientesInfo).forEach(id => {
       const info = state.clientesInfo[id];
-      const nome = String(info.nome || id).trim(); // Se não tiver nome salvo, tenta usar o ID (alguns antigos usam nome como ID)
+      const nome = String(info.nome || id).trim(); 
       if (nome && !nome.startsWith('cli-')) {
         clientesMap[id] = { 
           id: id, 
@@ -179,44 +179,51 @@ function sugerirNickPresente(texto, index) {
   dropdown.style.display = "block";
 }
 
+// 🚀 NOVA INTELIGÊNCIA DE SUGESTÃO DE ITENS (Lê Tipo e Preço!)
 function buscarSugestoesItem(texto, index) {
   const dropdown = document.getElementById(`itemSuggestions_${index}`);
   if (!dropdown) return;
   const termo = String(texto).toLowerCase().trim();
   if (!termo) { dropdown.style.display = "none"; return; }
 
+  // 1. Lê qual o Tipo que o utilizador já escolheu na caixinha para dar prioridade
+  const tipoSelecionado = document.getElementById(`itemTypeSelect_${index}`)?.value || "";
+
   const itensMap = {};
   
-  // A memória mais fresca primeiro
+  // 2. A memória mais fresca primeiro
   const histReverso = [...(state.historicoVendas || [])].reverse();
 
   histReverso.forEach(v => {
-    if (Array.isArray(v.itens)) {
+    if (Array.isArray(v.itens) && v.itens.length > 0) {
       v.itens.forEach(itemObj => {
         const nomeItem = typeof itemObj === "string" ? itemObj : (itemObj?.nome || "");
         const tipoItem = typeof itemObj === "string" ? "Outro" : (itemObj?.tipo || "Outro");
-        const vbItem = typeof itemObj === "string" ? 0 : (Number(itemObj?.vbucks) || 0); // 🚀 LÊ O V-BUCK SALVO NO HISTÓRICO
+        const vbItem = typeof itemObj === "string" ? 0 : (Number(itemObj?.vbucks) || 0);
         const nomeLimpo = String(nomeItem).trim();
         
         if (nomeLimpo) {
-          const chave = `${nomeLimpo.toLowerCase()}|||${tipoItem.toLowerCase()}`;
+          // Cria uma chave única juntando Nome + Tipo + Valor para não sobrepor pacotes com trajes
+          const chave = `${nomeLimpo.toLowerCase()}|||${tipoItem.toLowerCase()}|||${vbItem}`;
           if (!itensMap[chave]) {
-            // Guarda o nome, o tipo e a quantidade exata de moedas!
             itensMap[chave] = { nome: nomeLimpo, tipo: tipoItem, vbucks: vbItem };
-          } else if (!itensMap[chave].vbucks && vbItem > 0) {
-            // Se já estava mapeado mas sem moedas, atualiza.
-            itensMap[chave].vbucks = vbItem;
           }
         }
       });
     } else if (v.item) {
-      // Vendas bem antigas que não tinham itens divididos
-      const nomeLimpo = String(v.item).trim();
-      const tipoItem = "Outro";
+      // Itens de vendas muito antigas
+      const strAntiga = String(v.item).trim();
+      let parseado = { tipo: "Outro", nome: strAntiga };
+      if (typeof parseItemString === 'function') {
+        parseado = parseItemString(strAntiga);
+      }
+      const nomeLimpo = parseado.nome;
+      const tipoItem = parseado.tipo;
+      
       const vbItem = Number(v.vbucks) || 0; 
       
       if (nomeLimpo) {
-        const chave = `${nomeLimpo.toLowerCase()}|||${tipoItem.toLowerCase()}`;
+        const chave = `${nomeLimpo.toLowerCase()}|||${tipoItem.toLowerCase()}|||${vbItem}`;
         if (!itensMap[chave]) {
           itensMap[chave] = { nome: nomeLimpo, tipo: tipoItem, vbucks: vbItem };
         }
@@ -227,9 +234,19 @@ function buscarSugestoesItem(texto, index) {
   const sugestoes = Object.values(itensMap).filter(i => i.nome.toLowerCase().includes(termo));
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
 
-  dropdown.innerHTML = sugestoes.slice(0, 6).map(i => {
-    // 🚀 Passa o V-Buck para o data-attribute do HTML!
-    return `<div class="autocomplete-item" onmousedown="clicarSugestaoItem(this, ${index})" data-nome="${esc(i.nome)}" data-tipo="${esc(i.tipo)}" data-vbucks="${i.vbucks || 0}">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
+  // 3. Ordena inteligentemente: O que tiver o Tipo igual ao selecionado aparece no TOPO
+  sugestoes.sort((a, b) => {
+     const aMatch = a.tipo === tipoSelecionado ? -1 : 1;
+     const bMatch = b.tipo === tipoSelecionado ? -1 : 1;
+     if (aMatch !== bMatch) return aMatch - bMatch;
+     return b.vbucks - a.vbucks; // Dentro do mesmo tipo, o mais caro (provavelmente o bundle real) vem primeiro
+  });
+
+  // 4. Constrói o HTML visual com o distintivo de preço!
+  dropdown.innerHTML = sugestoes.slice(0, 8).map(i => {
+    const formatadorVb = typeof formatVBucks === 'function' ? formatVBucks : (val) => val;
+    const vbFormatado = i.vbucks > 0 ? `${formatadorVb(i.vbucks)} VB` : '? VB';
+    return `<div class="autocomplete-item" onmousedown="clicarSugestaoItem(this, ${index})" data-nome="${esc(i.nome)}" data-tipo="${esc(i.tipo)}" data-vbucks="${i.vbucks || 0}">🎁 ${esc(i.nome)} <span style="color:#ffb74d; font-weight:800; font-size:11px; margin-left:6px;">[${vbFormatado}]</span> <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
   }).join("");
   
   dropdown.style.display = "block";
@@ -260,7 +277,7 @@ function selecionarSugestaoNickPresente(nick, index) {
 function clicarSugestaoItem(element, index) {
   const nomeItem = element.getAttribute("data-nome");
   const tipoItem = element.getAttribute("data-tipo");
-  const vbucksItem = Number(element.getAttribute("data-vbucks")) || 0; // 🚀 LÊ O VALOR DO HTML
+  const vbucksItem = Number(element.getAttribute("data-vbucks")) || 0; 
   
   const input = document.getElementById(`itemNameInput_${index}`);
   if (input) input.value = nomeItem;
@@ -270,7 +287,7 @@ function clicarSugestaoItem(element, index) {
     selectTipo.value = tipoItem;
   }
 
-  // 🚀 MÁGICA ACONTECENDO: Preenche o campo de V-Bucks automaticamente!
+  // 🚀 INJETA O VALOR DO V-BUCKS!
   const inputVb = document.getElementById(`itemVbucksInput_${index}`);
   if (inputVb && vbucksItem > 0) {
     inputVb.value = vbucksItem;
@@ -279,7 +296,7 @@ function clicarSugestaoItem(element, index) {
   const dropdown = document.getElementById(`itemSuggestions_${index}`);
   if (dropdown) dropdown.style.display = "none";
 
-  // 🚀 RECALCULA TUDO SOZINHO! Ao preencher os V-Bucks, ele roda o motor de dinheiro lá do top!
+  // 🚀 GATILHOS VITAIS: Força o sistema a somar os V-Bucks de todos os itens e atualizar o Reais (R$) lá no topo
   if (typeof recalcularValorSugeridoPorItem === 'function') recalcularValorSugeridoPorItem();
   if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
 }
