@@ -307,7 +307,6 @@ function toggleBalancoFinanceiro() {
   }
 }
 
-// 🚀 CORREÇÃO 4: Lê o valor perfeitamente, com ou sem vírgula, e não multiplica os números mais!
 function atualizarPreviewVBucks() {
   const badge = document.getElementById("valorVbucksPreview");
   if (!badge) return;
@@ -429,6 +428,16 @@ function recalcularValorSugeridoPorItem() {
     const valorInput = document.getElementById("valorInput");
     if (valorInput) {
       valorInput.value = valorSugerido.toFixed(2);
+      if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
+    }
+  } else {
+    // 🚀 LÓGICA DE LIMPEZA ADICIONADA: Se o V-Bucks chegar a zero, ele apaga o valor em Reais!
+    const valorInput = document.getElementById("valorInput");
+    if (valorInput) {
+      valorInput.value = "";
+      if (typeof ultimoValorSugeridoAuto !== 'undefined') ultimoValorSugeridoAuto = 0;
+      valorInput.dispatchEvent(new Event('input', { bubbles: true }));
+      valorInput.dispatchEvent(new Event('change', { bubbles: true }));
       if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
     }
   }
