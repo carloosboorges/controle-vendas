@@ -13,7 +13,7 @@ function safeString(str) {
 function obterMapaDeClientes() {
   const clientesMap = {};
   
-  // 1. Prioridade: Clientes cadastrados manualmente ou já com perfil no clientesInfo
+  // Prioridade: Clientes cadastrados manualmente ou já com perfil no clientesInfo
   if (state && state.clientesInfo) {
     Object.keys(state.clientesInfo).forEach(id => {
       const info = state.clientesInfo[id];
@@ -186,6 +186,8 @@ function buscarSugestoesItem(texto, index) {
   if (!termo) { dropdown.style.display = "none"; return; }
 
   const itensMap = {};
+  
+  // A memória mais fresca primeiro
   const histReverso = [...(state.historicoVendas || [])].reverse();
 
   histReverso.forEach(v => {
@@ -193,23 +195,30 @@ function buscarSugestoesItem(texto, index) {
       v.itens.forEach(itemObj => {
         const nomeItem = typeof itemObj === "string" ? itemObj : (itemObj?.nome || "");
         const tipoItem = typeof itemObj === "string" ? "Outro" : (itemObj?.tipo || "Outro");
+        const vbItem = typeof itemObj === "string" ? 0 : (Number(itemObj?.vbucks) || 0); // 🚀 LÊ O V-BUCK SALVO NO HISTÓRICO
         const nomeLimpo = String(nomeItem).trim();
         
         if (nomeLimpo) {
           const chave = `${nomeLimpo.toLowerCase()}|||${tipoItem.toLowerCase()}`;
           if (!itensMap[chave]) {
-            itensMap[chave] = { nome: nomeLimpo, tipo: tipoItem };
+            // Guarda o nome, o tipo e a quantidade exata de moedas!
+            itensMap[chave] = { nome: nomeLimpo, tipo: tipoItem, vbucks: vbItem };
+          } else if (!itensMap[chave].vbucks && vbItem > 0) {
+            // Se já estava mapeado mas sem moedas, atualiza.
+            itensMap[chave].vbucks = vbItem;
           }
         }
       });
     } else if (v.item) {
+      // Vendas bem antigas que não tinham itens divididos
       const nomeLimpo = String(v.item).trim();
       const tipoItem = "Outro";
+      const vbItem = Number(v.vbucks) || 0; 
       
       if (nomeLimpo) {
         const chave = `${nomeLimpo.toLowerCase()}|||${tipoItem.toLowerCase()}`;
         if (!itensMap[chave]) {
-          itensMap[chave] = { nome: nomeLimpo, tipo: tipoItem };
+          itensMap[chave] = { nome: nomeLimpo, tipo: tipoItem, vbucks: vbItem };
         }
       }
     }
@@ -219,8 +228,10 @@ function buscarSugestoesItem(texto, index) {
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
 
   dropdown.innerHTML = sugestoes.slice(0, 6).map(i => {
-    return `<div class="autocomplete-item" onmousedown="clicarSugestaoItem(this, ${index})" data-nome="${esc(i.nome)}" data-tipo="${esc(i.tipo)}">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
+    // 🚀 Passa o V-Buck para o data-attribute do HTML!
+    return `<div class="autocomplete-item" onmousedown="clicarSugestaoItem(this, ${index})" data-nome="${esc(i.nome)}" data-tipo="${esc(i.tipo)}" data-vbucks="${i.vbucks || 0}">🎁 ${esc(i.nome)} <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
   }).join("");
+  
   dropdown.style.display = "block";
 }
 
@@ -249,6 +260,7 @@ function selecionarSugestaoNickPresente(nick, index) {
 function clicarSugestaoItem(element, index) {
   const nomeItem = element.getAttribute("data-nome");
   const tipoItem = element.getAttribute("data-tipo");
+  const vbucksItem = Number(element.getAttribute("data-vbucks")) || 0; // 🚀 LÊ O VALOR DO HTML
   
   const input = document.getElementById(`itemNameInput_${index}`);
   if (input) input.value = nomeItem;
@@ -258,6 +270,16 @@ function clicarSugestaoItem(element, index) {
     selectTipo.value = tipoItem;
   }
 
+  // 🚀 MÁGICA ACONTECENDO: Preenche o campo de V-Bucks automaticamente!
+  const inputVb = document.getElementById(`itemVbucksInput_${index}`);
+  if (inputVb && vbucksItem > 0) {
+    inputVb.value = vbucksItem;
+  }
+
   const dropdown = document.getElementById(`itemSuggestions_${index}`);
   if (dropdown) dropdown.style.display = "none";
+
+  // 🚀 RECALCULA TUDO SOZINHO! Ao preencher os V-Bucks, ele roda o motor de dinheiro lá do top!
+  if (typeof recalcularValorSugeridoPorItem === 'function') recalcularValorSugeridoPorItem();
+  if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
 }
