@@ -444,7 +444,6 @@ function renderizarAgendamentos() {
   
   const hojeTime = new Date().setHours(0,0,0,0);
   
-  // 🚀 LÓGICA DE ORDENAÇÃO CORRIGIDA PARA USAR O MESMO TEMPO DAS CORES
   const agendamentosComTempo = agendamentos.map(a => {
     if (a.dataRegistro === "28/09/2026" && a.horaRegistro === "23:18") {
       a.dataRegistro = "27/09/2026";
@@ -464,7 +463,7 @@ function renderizarAgendamentos() {
   
   const agendamentosOrdenados = agendamentosComTempo.sort((a, b) => {
     if (a.tempoEnvio === b.tempoEnvio) return (a.criadoEmMs || 0) - (b.criadoEmMs || 0);
-    return a.tempoEnvio - b.tempoEnvio; // Menor tempo (Atrasados) primeiro!
+    return a.tempoEnvio - b.tempoEnvio; 
   });
   
   container.innerHTML = bannerQuantidadeHtml + headerTotalHtml + agendamentosOrdenados.map(a => {
@@ -502,7 +501,8 @@ function renderizarAgendamentos() {
           linhaSubordinada = `<div style="font-size: 11.5px; color: var(--muted); margin-top: 3px; margin-left: 20px; font-style: italic;">↳ Sairá de: <span style="font-weight: 700; color: var(--accent-light);">${esc(cNome)}</span></div>`;
       }
 
-      let presenteText = it.presente ? `<span style="color:var(--accent-light); font-size:12px; margin-left:8px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px;">➡️ 🎁 Para: <b>${esc(it.presente)}</b></span>` : '';
+      // 🚀 AQUI ESTÁ A CORREÇÃO: Transformamos a tag do Nick Presente numa área copiável, igual nas vendas!
+      let presenteText = it.presente ? `<span style="color:var(--accent-light); font-size:12px; margin-left:8px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-flex; align-items:center; white-space:nowrap;">➡️ 🎁 Para: <span class="copyable-text" onclick="copiarTexto('${esc(it.presente)}', 'Nick Presente', event)" style="margin:0 0 0 4px; padding:0; white-space:nowrap; font-weight:bold;">${esc(it.presente)}</span></span>` : '';
 
       let acaoHtml = "";
       if (it.enviadoAvulso) {
