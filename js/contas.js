@@ -35,30 +35,19 @@ function toggleGerenciarContas() {
   }
 }
 
-// === AUTO INJETOR DE CAMPOS XBOX NOS MODAIS ===
-function injetarCamposXboxNoModal(isEdit) {
-  const prefixo = isEdit ? 'editConta' : 'novaConta';
-  const senhaInput = document.getElementById(`${prefixo}SenhaInput`);
-  
-  if (senhaInput && !document.getElementById(`${prefixo}EmailXboxInput`)) {
-    const parentDiv = senhaInput.closest('.field') || senhaInput.parentNode;
-    if (parentDiv) {
-      const xboxHtml = `
-        <div style="margin-top:16px; margin-bottom:8px; border-bottom: 1px solid var(--border); padding-bottom: 4px;">
-          <span style="font-weight:bold; font-size:13px; color:#4ade80;">🎮 Credenciais Xbox Live</span>
-        </div>
-        <div class="field">
-          <label style="color: #4ade80;">E-mail (Xbox)</label>
-          <input id="${prefixo}EmailXboxInput" type="text" placeholder="E-mail do Xbox">
-        </div>
-        <div class="field">
-          <label style="color: #4ade80;">Senha (Xbox)</label>
-          <input id="${prefixo}SenhaXboxInput" type="text" placeholder="Senha do Xbox">
-        </div>
-      `;
-      parentDiv.insertAdjacentHTML('afterend', xboxHtml);
+function preencherSelectBancos(selectId, bancoSelecionado) {
+    const selectElement = document.getElementById(selectId);
+    if (selectElement) {
+        let options = '<option value="">⚠️ Nenhum Banco Fixo</option>';
+        if (state && state.bancos && state.bancos.length > 0) {
+            state.bancos.forEach(b => {
+                const nomeSeguro = typeof esc === 'function' ? esc(b.nome) : b.nome;
+                const isSelected = bancoSelecionado === b.id ? 'selected' : '';
+                options += `<option value="${b.id}" ${isSelected}>${nomeSeguro}</option>`;
+            });
+        }
+        selectElement.innerHTML = options;
     }
-  }
 }
 
 function abrirModalAddConta() {
@@ -67,9 +56,10 @@ function abrirModalAddConta() {
   document.getElementById("novaContaEmailInput").value = "";
   document.getElementById("novaContaSenhaInput").value = "";
   
-  injetarCamposXboxNoModal(false);
   if(document.getElementById("novaContaEmailXboxInput")) document.getElementById("novaContaEmailXboxInput").value = "";
   if(document.getElementById("novaContaSenhaXboxInput")) document.getElementById("novaContaSenhaXboxInput").value = "";
+
+  preencherSelectBancos("novaContaBancoSelect", ""); 
 
   if (document.getElementById("addContaModal")) document.getElementById("addContaModal").style.display = "flex";
 }
@@ -84,18 +74,21 @@ function salvarNovaContaModal() {
   const email = document.getElementById("novaContaEmailInput")?.value.trim() || "";
   const senha = document.getElementById("novaContaSenhaInput")?.value.trim() || "";
   
+  const bancoId = document.getElementById("novaContaBancoSelect")?.value || "";
   const emailXbox = document.getElementById("novaContaEmailXboxInput")?.value.trim() || "";
   const senhaXbox = document.getElementById("novaContaSenhaXboxInput")?.value.trim() || "";
   
   if (!nome) {
-    mostrarNotificacao("Digite o nome da conta.", "erro");
+    if (typeof mostrarNotificacao === 'function') mostrarNotificacao("Digite o nome da conta.", "erro");
     return;
   }
   
-  state.contas.push({ nome, ativa: false, vbucks: Number(vbucks) || 0, email, senha, emailXbox, senhaXbox });
-  save();
+  if (!state.contas) state.contas = [];
+  state.contas.push({ nome, ativa: false, vbucks: Number(vbucks) || 0, bancoId, email, senha, emailXbox, senhaXbox });
+  
+  if (typeof save === 'function') save();
   fecharModalAddConta();
-  mostrarNotificacao(`Conta ${nome} adicionada!`, "sucesso");
+  if (typeof mostrarNotificacao === 'function') mostrarNotificacao(`Conta ${nome} adicionada!`, "sucesso");
   if (typeof render === 'function') render();
 }
 
@@ -110,10 +103,11 @@ function abrirModalEditConta(i) {
   document.getElementById("editContaEmailInput").value = conta.email || "";
   document.getElementById("editContaSenhaInput").value = conta.senha || "";
   
-  injetarCamposXboxNoModal(true);
   if(document.getElementById("editContaEmailXboxInput")) document.getElementById("editContaEmailXboxInput").value = conta.emailXbox || "";
   if(document.getElementById("editContaSenhaXboxInput")) document.getElementById("editContaSenhaXboxInput").value = conta.senhaXbox || "";
   
+  preencherSelectBancos("editContaBancoSelect", conta.bancoId || "");
+
   if (document.getElementById("editContaModal")) document.getElementById("editContaModal").style.display = "flex";
 }
 
@@ -125,7 +119,7 @@ function somarPacoteRapido(qtd) {
   const saldoInput = document.getElementById("editContaVbucksInput");
   if (!saldoInput) return;
   saldoInput.value = (parseInt(String(saldoInput.value || "0").replace(/\D/g, ""), 10) || 0) + qtd;
-  mostrarNotificacao(`+${qtd.toLocaleString("pt-BR")} VB somados!`, "sucesso");
+  if (typeof mostrarNotificacao === 'function') mostrarNotificacao(`+${qtd.toLocaleString("pt-BR")} VB somados!`, "sucesso");
 }
 
 function aplicarSomaVbucksModal() {
@@ -136,7 +130,7 @@ function aplicarSomaVbucksModal() {
   if (valorSomar > 0) {
     saldoInput.value = (parseInt(String(saldoInput.value || "0").replace(/\D/g, ""), 10) || 0) + valorSomar;
     somarInput.value = "";
-    mostrarNotificacao(`+${valorSomar.toLocaleString("pt-BR")} VB somados!`, "sucesso");
+    if (typeof mostrarNotificacao === 'function') mostrarNotificacao(`+${valorSomar.toLocaleString("pt-BR")} VB somados!`, "sucesso");
   }
 }
 
@@ -150,6 +144,7 @@ function salvarEdicaoContaModal() {
   const novoEmail = document.getElementById("editContaEmailInput").value.trim();
   const novaSenha = document.getElementById("editContaSenhaInput").value.trim();
   
+  const novoBancoId = document.getElementById("editContaBancoSelect")?.value || "";
   const novoEmailXbox = document.getElementById("editContaEmailXboxInput")?.value.trim() || "";
   const novaSenhaXbox = document.getElementById("editContaSenhaXboxInput")?.value.trim() || "";
   
@@ -159,12 +154,14 @@ function salvarEdicaoContaModal() {
   conta.vbucks = Number(novoVbucks) || 0;
   conta.email = novoEmail;
   conta.senha = novaSenha;
+  
+  conta.bancoId = novoBancoId;
   conta.emailXbox = novoEmailXbox;
   conta.senhaXbox = novaSenhaXbox;
   
-  save();
+  if (typeof save === 'function') save();
   fecharModalEditConta();
-  mostrarNotificacao("Conta atualizada!", "sucesso");
+  if (typeof mostrarNotificacao === 'function') mostrarNotificacao("Conta atualizada!", "sucesso");
   if (typeof render === 'function') render();
 }
 

@@ -196,7 +196,7 @@ function agendarVenda() {
       const dataEscolhida = new Date(p[0], p[1] - 1, p[2]);
       const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
       if (dataEscolhida < hoje) {
-        mostrarNotificacao("Erro: Não é possível agendar para o passado!", "erro");
+        mostrarNotificacao("Erro: Não é possível agendar no passado!", "erro");
         return;
       }
       dataEnvioFormatada = `${p[2]}/${p[1]}/${p[0]}`;
@@ -411,11 +411,137 @@ function dispararEnvioItemAgendado(agendamentoId, itemIdx) {
   }
 }
 
+// 🚀 CALCULA OS SALDOS DAS PRÉ-VENDAS POR BANCO
+function saldoPorBancoAgendamentos() {
+  const saldoBancos = {};
+  const agendamentos = state?.agendamentos || [];
+  
+  (state?.bancos || []).forEach(b => {
+    saldoBancos[b.id] = { nome: b.nome, valor: 0, contas: [] };
+  });
+
+  const contasTotaisPreVendas = {};
+
+  agendamentos.forEach(a => {
+    const valorPre = Number(a.valor || 0);
+    const contaPrincipal = a.conta;
+    
+    if (a.itens && a.itens.length > 0) {
+      const somaVbItens = a.itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
+      if (somaVbItens > 0) {
+        a.itens.forEach(it => {
+          const cItem = it.contaEnvio || a.conta;
+          const proporcao = valorPre * ((Number(it.vbucks) || 0) / somaVbItens);
+          contasTotaisPreVendas[cItem] = (contasTotaisPreVendas[cItem] || 0) + proporcao;
+        });
+      } else {
+        contasTotaisPreVendas[contaPrincipal] = (contasTotaisPreVendas[contaPrincipal] || 0) + valorPre;
+      }
+    } else {
+      contasTotaisPreVendas[contaPrincipal] = (contasTotaisPreVendas[contaPrincipal] || 0) + valorPre;
+    }
+  });
+
+  for (const [nomeConta, valorTotal] of Object.entries(contasTotaisPreVendas)) {
+    const contaObj = (state?.contas || []).find(c => c.nome === nomeConta);
+    const idDoBanco = contaObj?.bancoId || "banco-sem-categoria";
+
+    if (!saldoBancos[idDoBanco]) {
+      saldoBancos[idDoBanco] = { nome: "⚠️ Sem Banco Definido", valor: 0, contas: [] };
+    }
+
+    saldoBancos[idDoBanco].valor += valorTotal;
+    const formatoDinheiro = typeof money === 'function' ? money(valorTotal) : `R$ ${valorTotal.toFixed(2)}`;
+    saldoBancos[idDoBanco].contas.push(`${nomeConta} (${formatoDinheiro})`);
+  }
+
+  return saldoBancos;
+}
+
+function abrirModalFecharCaixaAgendamentos() {
+    let modal = document.getElementById("modalFecharCaixaAgendamentos");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "modalFecharCaixaAgendamentos";
+        modal.className = "modal-overlay";
+        modal.style.cssText = "display: none; align-items: center; justify-content: center; z-index: 9999;";
+        
+        modal.innerHTML = `
+            <div class="modal-card" style="max-width: 500px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; padding: 25px;">
+                <div class="modal-head" style="flex-shrink: 0; margin-bottom: 15px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 12px;">
+                    <h3 style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 20px;">🏦 Caixa de Pré-vendas</h3>
+                    <button class="close-modal-btn btn-danger" onclick="fecharModalFecharCaixaAgendamentos()" style="padding: 4px 10px;">✕</button>
+                </div>
+                
+                <p style="flex-shrink: 0; color: var(--muted); font-size: 13px; margin-bottom: 15px;">
+                    Confira abaixo em qual banco/conta o dinheiro das pré-vendas pendentes está guardado:
+                </p>
+
+                <div id="corpoModalBancosAgendamentos" style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px; padding-right: 5px; margin-bottom: 15px;">
+                </div>
+                
+                <div style="flex-shrink: 0; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                    <button class="btn-green" onclick="fecharModalFecharCaixaAgendamentos()" style="width: 100%; padding: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">Tudo Certo ✅</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    const corpoModal = document.getElementById("corpoModalBancosAgendamentos");
+    const saldos = saldoPorBancoAgendamentos();
+    
+    let html = "";
+    let totalGeral = 0;
+
+    for (const bancoId in saldos) {
+        const banco = saldos[bancoId];
+        if (banco.valor > 0) {
+            totalGeral += banco.valor;
+            const bgCor = "var(--accent-light)";
+            const escFunc = typeof esc === 'function' ? esc : (s) => s;
+            const moneyFunc = typeof money === 'function' ? money : (v) => `R$ ${v.toFixed(2)}`;
+            
+            html += `
+                <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); border-left: 4px solid ${bgCor}; border-radius: 8px; padding: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-weight: bold; font-size: 16px; color: #fff;">${escFunc(banco.nome)}</span>
+                        <span style="font-size: 20px; font-weight: 900; color: ${bgCor};">${moneyFunc(banco.valor)}</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--muted); line-height: 1.4;">
+                        <strong style="color: #aaa;">Contas:</strong><br>
+                        ${banco.contas.length > 0 ? banco.contas.join('<br>') : "—"}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    if (html === "") {
+        html = `<div style="text-align: center; color: var(--muted); padding: 30px; background: rgba(255,255,255,0.02); border-radius: 8px;">Nenhuma pré-venda pendente no momento.</div>`;
+    } else {
+        const moneyFunc = typeof money === 'function' ? money : (v) => `R$ ${v.toFixed(2)}`;
+        html += `
+            <div style="text-align: right; padding-top: 5px;">
+                <span style="color: var(--muted); font-size: 14px;">Soma Total (Pré-vendas):</span>
+                <span style="font-size: 22px; font-weight: 900; color: #fff; margin-left: 10px;">${moneyFunc(totalGeral)}</span>
+            </div>
+        `;
+    }
+
+    corpoModal.innerHTML = html;
+    modal.style.display = "flex";
+}
+
+function fecharModalFecharCaixaAgendamentos() {
+    const modal = document.getElementById("modalFecharCaixaAgendamentos");
+    if (modal) modal.style.display = "none";
+}
+
 function renderizarAgendamentos() {
   const container = document.getElementById("listaAgendamentosContainer"); 
   if (!container) return;
   const agendamentos = state.agendamentos || [];
-  const valorTotalPreVendas = agendamentos.reduce((acc, a) => acc + Number(a.valor || 0), 0);
   const qtdAgendamentos = agendamentos.length;
   
   let bannerQuantidadeHtml = "";
@@ -432,13 +558,8 @@ function renderizarAgendamentos() {
       `;
   }
   
-  const headerTotalHtml = `<div style="background: rgba(142,68,255,0.08); border: 1px solid rgba(168,85,247,0.25); border-radius: 12px; padding: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-        <span style="font-size: 15px; font-weight: 700; color: #fff;">💰 Total Acumulado em Pré-vendas:</span>
-        <span style="font-size: 24px; font-weight: 900; color: var(--green); margin-left: auto;">${maskMoney(money(valorTotalPreVendas))}</span>
-  </div>`;
-  
   if (agendamentos.length === 0) { 
-    container.innerHTML = headerTotalHtml + `<div style="text-align:center; padding:30px; color:var(--muted); font-size:13px;">Nenhuma pré-venda agendada. Tudo limpo!</div>`; 
+    container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--muted); font-size:13px;">Nenhuma pré-venda agendada. Tudo limpo!</div>`; 
     return; 
   }
   
@@ -466,7 +587,7 @@ function renderizarAgendamentos() {
     return a.tempoEnvio - b.tempoEnvio; 
   });
   
-  container.innerHTML = bannerQuantidadeHtml + headerTotalHtml + agendamentosOrdenados.map(a => {
+  container.innerHTML = bannerQuantidadeHtml + agendamentosOrdenados.map(a => {
     const vb = a.vbucks !== undefined ? Number(a.vbucks) : (typeof valorParaVBucks === 'function' ? valorParaVBucks(a.valor, a.valorBaseMomento) : 0);
     
     const dataEnvioTime = a.tempoEnvio;
@@ -501,7 +622,6 @@ function renderizarAgendamentos() {
           linhaSubordinada = `<div style="font-size: 11.5px; color: var(--muted); margin-top: 3px; margin-left: 20px; font-style: italic;">↳ Sairá de: <span style="font-weight: 700; color: var(--accent-light);">${esc(cNome)}</span></div>`;
       }
 
-      // 🚀 AQUI ESTÁ A CORREÇÃO: Transformamos a tag do Nick Presente numa área copiável, igual nas vendas!
       let presenteText = it.presente ? `<span style="color:var(--accent-light); font-size:12px; margin-left:8px; background: rgba(142,68,255,0.15); padding: 2px 6px; border-radius: 6px; display:inline-flex; align-items:center; white-space:nowrap;">➡️ 🎁 Para: <span class="copyable-text" onclick="copiarTexto('${esc(it.presente)}', 'Nick Presente', event)" style="margin:0 0 0 4px; padding:0; white-space:nowrap; font-weight:bold;">${esc(it.presente)}</span></span>` : '';
 
       let acaoHtml = "";
@@ -690,6 +810,28 @@ function abrirModalEdicaoAgendamento(id) {
   
   if (typeof atualizarPreviewVBucksEdicao === 'function') atualizarPreviewVBucksEdicao();
   
+  // 🚀 INJETA AUTOCOMPLETAR NOS CAMPOS SUPERIORES (Cliente, Nick, WhatsApp, TikTok)
+  const inputsSuperiores = [
+      { id: 'editClientInput', tipo: 'cliente' },
+      { id: 'editNickInput', tipo: 'nick' },
+      { id: 'editWhatsappInput', tipo: 'whatsapp' },
+      { id: 'editTiktokInput', tipo: 'tiktok' }
+  ];
+
+  inputsSuperiores.forEach(cfg => {
+      const el = document.getElementById(cfg.id);
+      if (el) {
+          el.setAttribute("autocomplete", "off");
+          el.setAttribute("oninput", `window.onInputEdicaoCustom('${cfg.tipo}', '${cfg.id}', this.value)`);
+          if (el.parentElement.style.position !== "relative") {
+              el.parentElement.style.position = "relative";
+          }
+          if (!document.getElementById(cfg.id + "_drop")) {
+              el.insertAdjacentHTML('afterend', `<div id="${cfg.id}_drop" class="autocomplete-edicao-drop autocomplete-dropdown" style="display:none; position:absolute; z-index:99999; background:#1a1025; border:1px solid var(--accent); border-radius:8px; width:100%; max-height:200px; overflow-y:auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); top: 100%; left: 0;"></div>`);
+          }
+      }
+  });
+
   const container = document.getElementById("editItensListContainer");
   const itens = Array.isArray(agendamento.itens) && agendamento.itens.length ? agendamento.itens : [agendamento.item || ""];
   
@@ -725,6 +867,7 @@ function abrirModalEdicaoAgendamento(id) {
          </select>`
       : `<input type="hidden" class="edit-modal-item-conta" value="${esc(contaEnvio)}">`;
 
+    // 🚀 INJETA AUTOCOMPLETAR NOS ITENS
     return `
       <div class="item-picker-box" style="margin-top: 0; margin-bottom: 8px; width: 100%;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
@@ -735,12 +878,22 @@ function abrirModalEdicaoAgendamento(id) {
           </div>
           ${itens.length > 1 && !isEnviado ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
         </div>
-        <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap;">
+        
+        <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
           <input type="hidden" class="edit-modal-item-enviado" value="${isEnviado ? "true" : "false"}">
-          <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
-          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
-          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center; ${travaEdicao}" ${isEnviado ? "readonly" : ""} oninput="if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico()">
-          <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="flex: 1.5; min-width: 110px; padding: 10px;">
+          <select class="item-type-select edit-modal-item-type" id="itemTypeSelect_edit_agenda_${idx}" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
+          
+          <div style="position: relative; flex: 2; min-width: 140px;">
+            <input class="item-name-input edit-modal-item-name" id="itemNameInput_edit_agenda_${idx}" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="width: 100%; padding: 10px;" oninput="window.onInputEdicaoCustom('item', 'itemNameInput_edit_agenda_${idx}', this.value)" autocomplete="off">
+            <div id="itemNameInput_edit_agenda_${idx}_drop" class="autocomplete-edicao-drop autocomplete-dropdown" style="display:none; position:absolute; z-index:99999; background:#1a1025; border:1px solid var(--accent); border-radius:8px; width:100%; max-height:200px; overflow-y:auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); top: 100%; left: 0;"></div>
+          </div>
+
+          <input class="item-vbucks-input edit-modal-item-vbucks" id="itemVbucksInput_edit_agenda_${idx}" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center; ${travaEdicao}" ${isEnviado ? "readonly" : ""} oninput="if(typeof atualizarCalculoEdicaoAutomatico==='function') atualizarCalculoEdicaoAutomatico()">
+          
+          <div style="position: relative; flex: 1.5; min-width: 110px;">
+            <input class="item-name-input edit-modal-item-presente" id="itemPresenteInput_edit_agenda_${idx}" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="width: 100%; padding: 10px;" oninput="window.onInputEdicaoCustom('presente', 'itemPresenteInput_edit_agenda_${idx}', this.value)" autocomplete="off">
+            <div id="itemPresenteInput_edit_agenda_${idx}_drop" class="autocomplete-edicao-drop autocomplete-dropdown" style="display:none; position:absolute; z-index:99999; background:#1a1025; border:1px solid var(--accent); border-radius:8px; width:100%; max-height:200px; overflow-y:auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); top: 100%; left: 0;"></div>
+          </div>
         </div>
       </div>`; 
   }).join("");
@@ -775,8 +928,8 @@ function efetivarAgendamento(id) {
       for (const [nomeConta, qtdPendentes] of Object.entries(limitesPendentes)) {
           const u = typeof usadasDaConta === 'function' ? usadasDaConta(nomeConta) : 0;
           if (u + qtdPendentes > 5) {
-             mostrarNotificacao(`Sem vagas livres na conta ${nomeConta} agora.`, "erro");
-             return;
+              mostrarNotificacao(`Sem vagas livres na conta ${nomeConta} agora.`, "erro");
+              return;
           }
       }
 
@@ -860,3 +1013,29 @@ function excluirAgendamento(id) {
     } 
   });
 }
+
+setInterval(() => {
+    if (typeof state === 'undefined' || !state) return;
+    
+    const agendamentos = state.agendamentos || [];
+    const valorTotalPreVendas = agendamentos.reduce((acc, a) => acc + Number(a.valor || 0), 0);
+    
+    const sessaoInicio = state.sessaoIniciadaEm || 0;
+    const valorSessaoPreVendas = agendamentos
+      .filter(a => (a.criadoEmMs || 0) >= sessaoInicio)
+      .reduce((acc, a) => acc + Number(a.valor || 0), 0);
+      
+    const elTopo = document.getElementById("totalAgendamentosTopo");
+    const elSessaoTopo = document.getElementById("totalAgendamentosSessaoTopo");
+    
+    if (elTopo && typeof money === 'function') {
+        const formatoMoney = typeof maskMoney === 'function' ? maskMoney(money(valorTotalPreVendas)) : money(valorTotalPreVendas);
+        if (elTopo.textContent !== formatoMoney) elTopo.textContent = formatoMoney;
+    }
+    
+    if (elSessaoTopo && typeof money === 'function') {
+        const formatoSessao = typeof maskMoney === 'function' ? maskMoney(money(valorSessaoPreVendas)) : money(valorSessaoPreVendas);
+        const textoSessao = `Na sessão: ${formatoSessao}`;
+        if (elSessaoTopo.textContent !== textoSessao) elSessaoTopo.textContent = textoSessao;
+    }
+}, 1000);

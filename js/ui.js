@@ -20,9 +20,11 @@ function maskMoney(valueText) {
   return valoresOcultos ? "R$ *****" : valueText;
 }
 
+// 🚀 GARANTE QUE A ABA BANCOS CHAMA A TELA CORRETA AO SER CLICADA
 function mudarAbaHistorico(aba) {
   abaHistoricoAtiva = aba;
-  ["Vendas", "Agendamentos", "Apoiador", "Clientes", "Itens"].forEach(id => {
+  
+  ["Vendas", "Agendamentos", "Apoiador", "Clientes", "Itens", "Bancos"].forEach(id => {
     const btn = document.getElementById(`tabBtn${id}`);
     const div = document.getElementById(`conteudoAba${id}`);
     if (btn) btn.classList.remove("active");
@@ -40,6 +42,7 @@ function mudarAbaHistorico(aba) {
   else if (aba === 'apoiador' && typeof renderizarHistoricoApoiadorCompleto === 'function') renderizarHistoricoApoiadorCompleto();
   else if (aba === 'clientes' && typeof renderizarHistoricoClientesCompleto === 'function') renderizarHistoricoClientesCompleto();
   else if (aba === 'itens' && typeof renderizarHistoricoItensCompleto === 'function') renderizarHistoricoItensCompleto();
+  else if (aba === 'bancos' && typeof renderizarAbaBancos === 'function') renderizarAbaBancos();
 }
 
 function alterarQtdItens(delta) {
@@ -85,22 +88,12 @@ document.addEventListener("keydown", (e) => {
     let fechouAlgumModal = false;
 
     const modaisIds = [
-      "authModal",
-      "clienteDetalhesModal",
-      "editClienteModal",
-      "leituraObsModal",
-      "apoiadorModal",
-      "valorBaseModal",
-      "addContaModal",
-      "editContaModal",
-      "editSaleModal",
-      "editItemModal",
-      "itemDetalhesModal",
-      "trashModal",
-      "genericConfirmModal",
-      "modalAntiDuplicacao",
-      "modalMesclarClientes",
-      "modalAdicionarClienteRetroativo"
+      "authModal", "clienteDetalhesModal", "editClienteModal", "leituraObsModal",
+      "apoiadorModal", "valorBaseModal", "addContaModal", "editContaModal",
+      "editSaleModal", "editItemModal", "itemDetalhesModal", "trashModal",
+      "genericConfirmModal", "modalAntiDuplicacao", "modalMesclarClientes",
+      "modalAdicionarClienteRetroativo", "modalFecharCaixaBancos",
+      "modalFecharCaixaAgendamentos", "modalEditarBancoCustom"
     ];
 
     modaisIds.forEach(id => {
@@ -126,22 +119,7 @@ document.addEventListener("keydown", (e) => {
       }
     });
 
-    for (let j = 0; j < 20; j++) {
-      const dropP = document.getElementById("nickPresenteSuggestions_" + j);
-      if (dropP && dropP.style.display === "block") {
-        dropP.style.display = "none";
-        fechouAlgumModal = true;
-      }
-      const dropItem = document.getElementById("itemSuggestions_" + j);
-      if (dropItem && dropItem.style.display === "block") {
-        dropItem.style.display = "none";
-        fechouAlgumModal = true;
-      }
-    }
-
-    if (fechouAlgumModal && typeof render === 'function') {
-      render();
-    }
+    if (fechouAlgumModal && typeof render === 'function') render();
   }
 });
 
@@ -189,19 +167,6 @@ document.addEventListener("click", (e) => {
         fechouAlgo = true;
       }
     });
-    
-    for (let j = 0; j < 20; j++) {
-      const dropP = document.getElementById("nickPresenteSuggestions_" + j);
-      if (dropP && dropP.style.display === "block") {
-        dropP.style.display = "none";
-        fechouAlgumModal = true;
-      }
-      const dropItem = document.getElementById("itemSuggestions_" + j);
-      if (dropItem && dropItem.style.display === "block") {
-        dropItem.style.display = "none";
-        fechouAlgumModal = true;
-      }
-    }
     
     if (fechouAlgo && typeof render === 'function') render();
   }
@@ -431,7 +396,6 @@ function recalcularValorSugeridoPorItem() {
       if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
     }
   } else {
-    // 🚀 LÓGICA DE LIMPEZA ADICIONADA: Se o V-Bucks chegar a zero, ele apaga o valor em Reais!
     const valorInput = document.getElementById("valorInput");
     if (valorInput) {
       valorInput.value = "";
@@ -545,9 +509,6 @@ function atualizarCamposItensComDados(valoresSalvos) {
   atualizarPreviewVBucks();
 }
 
-// ========================================================
-// SISTEMA DE DRAG & DROP (REORDENAR CONTAS)
-// ========================================================
 let contaSendoArrastadaIndex = null;
 
 function iniciarArrasteConta(e, index) {
@@ -635,13 +596,24 @@ function render() {
       const arrow = document.getElementById("volumeToggleArrow");
       if (content) content.style.display = "none";
       if (arrow) arrow.textContent = "▾";
-      if (typeof painelVolumeAberto !== 'undefined') painelVolumeAberto = false;
     }
   }
   
   const tSessao = typeof totais === 'function' ? totais() : {};
   if (document.getElementById("totalGeral")) document.getElementById("totalGeral").textContent = maskMoney(money((state.vendas || []).reduce((a, v) => a + Number(v.valor || 0), 0)));
-  if (document.getElementById("totalAgendamentosSessao")) document.getElementById("totalAgendamentosSessao").textContent = maskMoney(money((state.agendamentos || []).filter(a => a.criadoEmMs >= (state.sessaoIniciadaEm || 0)).reduce((sum, a) => sum + Number(a.valor || 0), 0)));
+  
+  // 🚀 ATUALIZAÇÃO AUTOMÁTICA DOS VALORES DE PRÉ-VENDAS NO TOPO (TOTAL E SESSÃO)
+  const valorTotalPreVendas = (state.agendamentos || []).reduce((acc, a) => acc + Number(a.valor || 0), 0);
+  const sessaoInicio = state.sessaoIniciadaEm || 0;
+  const valorSessaoPreVendas = (state.agendamentos || [])
+    .filter(a => (a.criadoEmMs || 0) >= sessaoInicio)
+    .reduce((acc, a) => acc + Number(a.valor || 0), 0);
+
+  const elTopo = document.getElementById("totalAgendamentosTopo");
+  const elSessaoTopo = document.getElementById("totalAgendamentosSessaoTopo");
+  if (elTopo) elTopo.textContent = maskMoney(money(valorTotalPreVendas));
+  if (elSessaoTopo) elSessaoTopo.textContent = `Na sessão: ${maskMoney(money(valorSessaoPreVendas))}`;
+
   if (document.getElementById("qtdVendas")) document.getElementById("qtdVendas").textContent = `${(state.vendas || []).length} (${(state.vendas || []).reduce((a, v) => a + (Number(v.quantidade) || 1), 0)} itens)`;
   
   let top = "—", tv = 0;
@@ -660,7 +632,17 @@ function render() {
   if (typeof renderContasCards === 'function') renderContasCards(tSessao);
   
   if (document.getElementById("contas")) {
-    document.getElementById("contas").innerHTML = (state.contas || []).map((c, i) => `
+    document.getElementById("contas").innerHTML = (state.contas || []).map((c, i) => {
+      
+      let htmlBancoDisplay = "";
+      const bancoVinculado = (state.bancos || []).find(b => b.id === c.bancoId);
+      if (bancoVinculado) {
+          htmlBancoDisplay = `<div style="font-size: 11px; margin-top: 4px; color: var(--accent-light); font-weight: bold;">🏦 Recebe por: ${esc(bancoVinculado.nome)}</div>`;
+      } else {
+          htmlBancoDisplay = `<div style="font-size: 11px; margin-top: 4px; color: var(--danger); font-weight: bold;">⚠️ Sem Banco Vinculado</div>`;
+      }
+
+      return `
       <div class="account-row" 
            draggable="true" 
            ondragstart="iniciarArrasteConta(event, ${i})"
@@ -678,13 +660,15 @@ function render() {
             <span class="badge ${c.ativa ? "" : "off"}">${c.ativa ? "🟢 ATIVA" : "⚫ DESATIVADA"}</span>
           </div>
           <div class="small">${c.ativa ? `Saldo: ${formatVBucks(c.vbucks)} V-Bucks` : "Desativada"}</div>
+          ${htmlBancoDisplay}
         </div>
         <div class="account-actions">
           <button type="button" class="btn-gray" onclick="typeof abrirModalEditConta === 'function' ? abrirModalEditConta(${i}) : null">✏️ Editar</button>
           <button type="button" class="${c.ativa ? "btn-gray" : "btn-green"}" onclick="typeof toggleConta === 'function' ? toggleConta(${i}) : null">${c.ativa ? "Desativar" : "Ativar"}</button>
           <button type="button" class="btn-danger" onclick="typeof removerConta === 'function' ? removerConta(${i}) : null">🗑️ Remover</button>
         </div>
-      </div>`).join("");
+      </div>`;
+    }).join("");
   }
   
   const totalHistorico = (state.historicoVendas || []).reduce((s, v) => s + Number(v.valor || 0), 0);
@@ -764,11 +748,9 @@ function render() {
   if (typeof renderizarResumoPeriodos === 'function') renderizarResumoPeriodos();
   if (typeof renderizarListaHistorico === 'function') renderizarListaHistorico();
   if (abaHistoricoAtiva === 'agendamentos' && typeof renderizarAgendamentos === 'function') renderizarAgendamentos();
+  if (abaHistoricoAtiva === 'bancos' && typeof renderizarAbaBancos === 'function') renderizarAbaBancos();
 }
 
-// -------------------------------------------------------------
-// O "CORAÇÃO" DO SISTEMA - RODA A CADA 1 SEGUNDO
-// -------------------------------------------------------------
 setInterval(() => {
   if (typeof state !== 'undefined' && state) {
       if (typeof atualizarRelogios === 'function') {

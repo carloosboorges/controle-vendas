@@ -196,7 +196,6 @@ function renderizarListaHistorico() {
   } else {
     historicoContainer.innerHTML = itensPagina.map(v => {
       
-      // --- CORREÇÃO DO CÁLCULO DE DESCONTO PARA NÃO MOSTRAR ETIQUETA ERRADA ---
       let diferencaDesconto = 0;
       let vb = 0;
       const baseMomento = Number(v.valorBaseMomento || state.valorBase100 || 2.5);
@@ -218,7 +217,6 @@ function renderizarListaHistorico() {
 
       const obsHtml = v.observacao ? `<div style="margin-top: 6px; font-size: 12px; color: var(--accent-light); background: rgba(142,68,255,0.08); padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--accent); white-space: pre-wrap; word-break: break-word;">💬 <b>Observação:</b> ${esc(v.observacao)}</div>` : "";
       
-      // Renderiza itens individuais
       let itensHtml = "";
       const listaItensHtml = Array.isArray(v.itens) && v.itens.length > 0 ? v.itens : (v.item ? [{ tipo: "Outro", nome: v.item }] : []);
       if (!Array.isArray(listaItensHtml) || listaItensHtml.length === 0) {
@@ -259,7 +257,6 @@ function renderizarListaHistorico() {
         }).join("");
       }
 
-      // --- LOGICA DO RECIBO DE SUBTOTAL ---
       let breakdownHtml = "";
       const listaItensBreakdown = Array.isArray(v.itens) && v.itens.length > 0 ? v.itens : (v.item ? [{ tipo: "Outro", nome: v.item }] : []);
       
@@ -395,7 +392,6 @@ function renderizarBalancoFinanceiro() {
     const valorVenda = Number(v.valor || 0);
     const vbVenda = v.vbucks !== undefined ? Number(v.vbucks) : valorParaVBucks(v.valor, v.valorBaseMomento);
     
-    // Se a venda não for dividida por itens ou não tiver detalhes
     if (!v.itens || v.itens.length === 0) {
       if (!balancoContas[v.conta]) balancoContas[v.conta] = { totalVbucks: 0, totalValor: 0 };
       balancoContas[v.conta].totalValor += valorVenda;
@@ -403,7 +399,6 @@ function renderizarBalancoFinanceiro() {
       return;
     }
 
-    // Se for dividida, calcula item a item
     const vbTotalDosItensParaDivisao = v.itens.reduce((sum, item) => sum + (Number(item.vbucks) || 0), 0);
     
     v.itens.forEach(item => {
@@ -417,12 +412,9 @@ function renderizarBalancoFinanceiro() {
       let vbRealDoItem = vbItem;
       
       if (vbItem > 0 && vbTotalDosItensParaDivisao > 0) {
-        // Divide o dinheiro e os V-Bucks proporcionalmente de acordo com a tabela do sistema
         valorRateadoItem = (vbItem / vbTotalDosItensParaDivisao) * valorVenda;
-        // vbRealDoItem já é o vbItem correto preenchido pelo utilizador
       } else if (vbItem === 0 && v.itens.length > 0) {
         valorRateadoItem = valorVenda / v.itens.length;
-        // Se a pessoa não colocou Vbucks nos itens da tabela antiga, adivinhamos o valor proporcional
         vbRealDoItem = vbVenda / v.itens.length;
       }
 
@@ -545,24 +537,40 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
     inputHoraCriacao.style.cursor = "text";
   }
 
-  // ==========================================
-  // CORREÇÃO: Trata o valor (seja string com vírgula ou numérico)
-  // ==========================================
-  let valorOriginalStr = String(venda.valor || "0");
-  let valorLimpoParaInput = valorOriginalStr
-    .replace(/[^\d.,]/g, '') 
-    .replace(/\./g, '')      
-    .replace(',', '.');      
-
+  // 🚀 CORREÇÃO DO BUG DO VALOR (Lê número correto independente se foi salvo com . ou ,)
+  let valStr = String(venda.valor || "0");
+  if (valStr.includes(',')) {
+      valStr = valStr.replace(/\./g, '').replace(',', '.');
+  }
   const editValorInputEl = document.getElementById("editValorInput");
   if (editValorInputEl) {
-    editValorInputEl.value = parseFloat(valorLimpoParaInput).toFixed(2);
+    editValorInputEl.value = Number(valStr).toFixed(2);
   }
-  // ==========================================
   
   const elDataEnvioContainer = document.getElementById("editDataEnvioContainer");
   if (elDataEnvioContainer) elDataEnvioContainer.style.display = "none";
   if (typeof atualizarPreviewVBucksEdicao === 'function') atualizarPreviewVBucksEdicao();
+
+  const inputsSuperiores = [
+      { id: 'editClientInput', tipo: 'cliente' },
+      { id: 'editNickInput', tipo: 'nick' },
+      { id: 'editWhatsappInput', tipo: 'whatsapp' },
+      { id: 'editTiktokInput', tipo: 'tiktok' }
+  ];
+
+  inputsSuperiores.forEach(cfg => {
+      const el = document.getElementById(cfg.id);
+      if (el) {
+          el.setAttribute("autocomplete", "off");
+          el.setAttribute("oninput", `window.onInputEdicaoCustom('${cfg.tipo}', '${cfg.id}', this.value)`);
+          if (el.parentElement.style.position !== "relative") {
+              el.parentElement.style.position = "relative";
+          }
+          if (!document.getElementById(cfg.id + "_drop")) {
+              el.insertAdjacentHTML('afterend', `<div id="${cfg.id}_drop" class="autocomplete-edicao-drop autocomplete-dropdown" style="display:none; position:absolute; z-index:99999; background:#1a1025; border:1px solid var(--accent); border-radius:8px; width:100%; max-height:200px; overflow-y:auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); top: 100%; left: 0;"></div>`);
+          }
+      }
+  });
 
   const container = document.getElementById("editItensListContainer");
   const itens = Array.isArray(venda.itens) && venda.itens.length ? venda.itens : [venda.item || ""];
@@ -594,18 +602,144 @@ function abrirModalEdicaoPorId(vendaId, origemClienteId = null, origemClienteNom
             <label style="font-size:12px;">Item ${idx + 1}</label>
             ${seletorContaHtml}
           </div>
-          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
+          ${itens.length > 1 ? `<button type="button" class="btn-danger close-modal-btn" style="padding:2px 6px;" onclick="this.closest('.item-picker-box').remove(); if(typeof atualizarCalculoEdicaoAutomatico === 'function') atualizarCalculoEdicaoAutomatico();">✕</button>` : ""}
         </div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        
+        <div class="item-picker-row" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
           <input type="hidden" class="edit-modal-item-enviado" value="${isEnviado ? "true" : "false"}">
-          <select class="item-type-select edit-modal-item-type" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
-          <input class="item-name-input edit-modal-item-name" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="flex: 2; min-width: 140px; padding: 10px;">
-          <input class="item-vbucks-input edit-modal-item-vbucks" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;" oninput="atualizarCalculoEdicaoAutomatico()">
-          <input class="item-name-input edit-modal-item-presente" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="flex: 1.5; min-width: 110px; padding: 10px;">
+          <select class="item-type-select edit-modal-item-type" id="itemTypeSelect_edit_hist_${idx}" style="flex: 1; min-width: 90px; padding: 10px;">${optionsHtml}</select>
+          
+          <div style="position: relative; flex: 2; min-width: 140px;">
+            <input class="item-name-input edit-modal-item-name" id="itemNameInput_edit_hist_${idx}" type="text" maxlength="120" value="${esc(nome)}" placeholder="Nome do item" style="width: 100%; padding: 10px;" oninput="window.onInputEdicaoCustom('item', 'itemNameInput_edit_hist_${idx}', this.value)" autocomplete="off">
+            <div id="itemNameInput_edit_hist_${idx}_drop" class="autocomplete-edicao-drop autocomplete-dropdown" style="display:none; position:absolute; z-index:99999; background:#1a1025; border:1px solid var(--accent); border-radius:8px; width:100%; max-height:200px; overflow-y:auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); top: 100%; left: 0;"></div>
+          </div>
+
+          <input class="item-vbucks-input edit-modal-item-vbucks" id="itemVbucksInput_edit_hist_${idx}" type="number" step="50" min="0" value="${esc(vbucks)}" placeholder="V-Bucks" style="flex: 0.8; min-width: 80px; padding: 10px; text-align: center;" oninput="if(typeof atualizarCalculoEdicaoAutomatico === 'function') atualizarCalculoEdicaoAutomatico()">
+          
+          <div style="position: relative; flex: 1.5; min-width: 110px;">
+            <input class="item-name-input edit-modal-item-presente" id="itemPresenteInput_edit_hist_${idx}" type="text" maxlength="80" value="${esc(presente)}" placeholder="🎁 P/ Nick" style="width: 100%; padding: 10px;" oninput="window.onInputEdicaoCustom('presente', 'itemPresenteInput_edit_hist_${idx}', this.value)" autocomplete="off">
+            <div id="itemPresenteInput_edit_hist_${idx}_drop" class="autocomplete-edicao-drop autocomplete-dropdown" style="display:none; position:absolute; z-index:99999; background:#1a1025; border:1px solid var(--accent); border-radius:8px; width:100%; max-height:200px; overflow-y:auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); top: 100%; left: 0;"></div>
+          </div>
         </div>
       </div>`;
   }).join("");
 
-  atualizarCalculoEdicaoAutomatico();
+  if (typeof atualizarCalculoEdicaoAutomatico === 'function') {
+      atualizarCalculoEdicaoAutomatico();
+  }
   document.getElementById("editSaleModal").style.display = "flex";
 }
+
+window.removerAcentosCustom = function(str) {
+    if (!str) return "";
+    return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+};
+
+window.onInputEdicaoCustom = function(tipo, inputId, val) {
+    const drop = document.getElementById(inputId + "_drop");
+    if (!drop) return;
+    
+    document.querySelectorAll('.autocomplete-edicao-drop').forEach(el => el.style.display = 'none');
+    
+    if (!val || val.trim() === "") return;
+    const search = window.removerAcentosCustom(val);
+    const results = new Map();
+
+    (state.historicoVendas || []).forEach(v => {
+        if (tipo === 'cliente' && v.cliente && window.removerAcentosCustom(v.cliente).includes(search)) {
+            results.set(v.cliente, { name: v.cliente, nick: v.nickCliente, wpp: v.whatsapp, tk: v.tiktok });
+        }
+        if (tipo === 'nick' && v.nickCliente && window.removerAcentosCustom(v.nickCliente).includes(search)) {
+            results.set(v.nickCliente, { name: v.nickCliente });
+        }
+        if (tipo === 'whatsapp' && v.whatsapp && window.removerAcentosCustom(v.whatsapp).includes(search)) {
+            results.set(v.whatsapp, { name: v.whatsapp });
+        }
+        if (tipo === 'tiktok' && v.tiktok && window.removerAcentosCustom(v.tiktok).includes(search)) {
+            results.set(v.tiktok, { name: v.tiktok });
+        }
+        if (tipo === 'item') {
+            if (v.itens && v.itens.length > 0) {
+                v.itens.forEach(it => {
+                    if (it.nome && window.removerAcentosCustom(it.nome).includes(search)) {
+                        results.set(it.nome, { name: it.nome, vbucks: it.vbucks, tipo: it.tipo });
+                    }
+                });
+            } else if (v.item && window.removerAcentosCustom(v.item).includes(search)) {
+                results.set(v.item, { name: v.item, vbucks: v.vbucks });
+            }
+        }
+        if (tipo === 'presente') {
+            if (v.itens) {
+                v.itens.forEach(it => {
+                    if (it.presente && window.removerAcentosCustom(it.presente).includes(search)) {
+                        results.set(it.presente, { name: it.presente });
+                    }
+                });
+            }
+        }
+    });
+
+    if (tipo === 'cliente') {
+        Object.keys(state.clientesInfo || {}).forEach(c => {
+            if (window.removerAcentosCustom(c).includes(search)) results.set(c, { name: c });
+        });
+    }
+
+    const matches = Array.from(results.values()).slice(0, 8);
+    if (matches.length === 0) return;
+
+    drop.innerHTML = matches.map(m => {
+        const safeName = typeof esc === 'function' ? esc(m.name).replace(/'/g, "\\'") : m.name.replace(/'/g, "\\'");
+        let displayHtml = `<span style="font-weight: bold; color: #fff;">${typeof esc === 'function' ? esc(m.name) : m.name}</span>`;
+        
+        if (tipo === 'item' && m.vbucks) {
+            displayHtml = `<span style="color: #ffb74d; font-weight: bold; margin-right: 6px;">[${m.vbucks} VB]</span> ${displayHtml}`;
+        }
+
+        return `<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; display: flex; align-items: center;" 
+                     onmouseover="this.style.background='rgba(142,68,255,0.2)'" 
+                     onmouseout="this.style.background='transparent'" 
+                     onmousedown="window.selecionarEdicaoCustom('${tipo}', '${inputId}', '${safeName}', '${m.vbucks || ''}'); return false;">
+                    ${displayHtml}
+                </div>`;
+    }).join("");
+    
+    drop.style.display = "block";
+};
+
+window.selecionarEdicaoCustom = function(tipo, inputId, valor, extraData) {
+    const input = document.getElementById(inputId);
+    if (input) {
+        input.value = valor;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    
+    document.querySelectorAll('.autocomplete-edicao-drop').forEach(el => el.style.display = 'none');
+
+    if (tipo === 'cliente') {
+        const venda = (state.historicoVendas || []).find(v => v.cliente === valor);
+        if (venda) {
+            if (venda.nickCliente) document.getElementById("editNickInput").value = venda.nickCliente;
+            if (venda.whatsapp) document.getElementById("editWhatsappInput").value = venda.whatsapp;
+            if (venda.tiktok) document.getElementById("editTiktokInput").value = venda.tiktok;
+        }
+    } else if (tipo === 'item' && extraData) {
+        const idxMatch = inputId.match(/\d+$/);
+        if (idxMatch) {
+            const idx = idxMatch[0];
+            const prefix = inputId.includes('edit_hist') ? 'edit_hist' : 'edit_agenda';
+            const vbucksInput = document.getElementById(`itemVbucksInput_${prefix}_${idx}`);
+            if (vbucksInput) {
+                vbucksInput.value = extraData;
+                if (typeof atualizarCalculoEdicaoAutomatico === 'function') atualizarCalculoEdicaoAutomatico();
+            }
+        }
+    }
+};
+
+document.addEventListener("mousedown", (e) => {
+    if (!e.target.closest(".autocomplete-edicao-drop") && !e.target.closest("input")) {
+        document.querySelectorAll('.autocomplete-edicao-drop').forEach(el => el.style.display = 'none');
+    }
+});

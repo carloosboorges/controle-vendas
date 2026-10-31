@@ -10,7 +10,6 @@ const MARGEM_CUSTO = 210 / 310;
 
 let ultimoValorSugeridoAuto = 0; 
 
-// 🚀 A TABELA VICIADA FOI MORTA AQUI! Agora o sistema é obrigado a fazer matemática exata!
 const TABELA_PRECOS_ESPECIAIS = {};
 
 const DADOS_DEMO = {
@@ -18,6 +17,7 @@ const DADOS_DEMO = {
     { nome: "Putz0101", ativa: true, usadas: 0, vbucks: 10000 },
     { nome: "Putz0202", ativa: true, usadas: 0, vbucks: 8500 }
   ],
+  bancos: [], // 🚀 AQUI: Começa 100% vazio. Sem PicPay, Sem Nubank.
   vendas: [],
   reservas: [],
   valorBase100: 2.5,          
@@ -195,6 +195,14 @@ function sanitizarDados() {
   if (!Array.isArray(state.reservas)) state.reservas = [];
   if (!Array.isArray(state.historicoVendas)) state.historicoVendas = [];
   if (!Array.isArray(state.lixeiraVendas)) state.lixeiraVendas = [];
+  
+  if (!Array.isArray(state.bancos)) {
+    state.bancos = []; 
+  }
+  
+  // 🚀 FAXINA FORÇADA PARA APAGAR OS BANCOS DO CÓDIGO ANTERIOR
+  state.bancos = state.bancos.filter(b => b.nome !== 'PicPay' && b.nome !== 'Nubank' && b.nome !== 'PIX Nubank (Principal)' && b.nome !== 'PIX Inter (Secundário)');
+
   if (!state.apoiadorRegistros) state.apoiadorRegistros = {};
   if (!state.clientesInfo) state.clientesInfo = {};
   if (!Array.isArray(state.agendamentos)) state.agendamentos = [];
@@ -478,7 +486,6 @@ function calcularPrecoInteligente(vbucks) {
       }
     }
   } else {
-    // PADRÃO OU GLOBAL: MATEMÁTICA EXATA SEMPRE
     precoCalculado = (vb / 100) * baseNormal; 
   }
 
@@ -517,36 +524,29 @@ function valorParaVBucks(valor, baseCustom) {
     }
   }
 
-  // CÁLCULO EXATO! 90 reais -> 3600 VB. Nunca mais dará 3800.
   return Math.round((val / baseNormal) * 100);
 }
 
-// 🚀 CÁLCULO JUSTO DAS CONTAS: Divide o dinheiro corretamente se os itens saírem de contas diferentes!
 function totais() {
   let t = {};
-  // Inicializa todas as contas ativas com 0
   (state?.contas || []).forEach(c => (t[c.nome] = 0));
   
   (state?.vendas || []).forEach(v => {
     const valorTotalDaVenda = Number(v.valor || 0);
     
-    // Verifica se a venda tem itens detalhados com V-Bucks
     if (v.itens && v.itens.length > 0) {
         const somaVbDosItens = v.itens.reduce((acc, it) => acc + (Number(it.vbucks) || 0), 0);
         
         if (somaVbDosItens > 0) {
-            // Distribui o dinheiro (R$) para cada conta com base no V-Buck que ela enviou
             v.itens.forEach(it => {
-                const contaDoItem = it.contaEnvio || v.conta; // Usa a conta do item ou a principal
+                const contaDoItem = it.contaEnvio || v.conta; 
                 const proporcaoEmReais = valorTotalDaVenda * ((Number(it.vbucks) || 0) / somaVbDosItens);
                 t[contaDoItem] = (t[contaDoItem] || 0) + proporcaoEmReais;
             });
         } else {
-            // Se os itens não tiverem V-Bucks definidos, vai tudo para a conta principal
             t[v.conta] = (t[v.conta] || 0) + valorTotalDaVenda;
         }
     } else {
-        // Venda simples (sem itens divididos), vai tudo para a conta principal
         t[v.conta] = (t[v.conta] || 0) + valorTotalDaVenda;
     }
   });

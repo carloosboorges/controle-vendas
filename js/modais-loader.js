@@ -169,76 +169,132 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     </div>
 
+    <!-- MODAL ADICIONAR CONTA -->
     <div id="addContaModal" class="modal-overlay" style="display: none">
-      <div class="modal-card">
+      <div class="modal-card" style="max-width: 520px;">
         <div class="modal-head">
           <h3 style="margin: 0">➕ Adicionar Nova Conta</h3>
           <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalAddConta()">✕</button>
         </div>
-        <div class="field" style="margin-top: 14px">
-          <label>Nome / Nick da Conta</label>
-          <input id="novaContaNomeInput" type="text" maxlength="60" placeholder="Ex.: Putz0606" />
+        
+        <div class="modal-body-grid" style="max-height: 75vh; overflow-y: auto; padding-right: 4px; margin-top: 12px; display: flex; flex-direction: column; gap: 10px;">
+          <div class="field">
+            <label>Nome / Nick da Conta</label>
+            <input id="novaContaNomeInput" type="text" maxlength="60" placeholder="Ex.: Putz0606" />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="field">
+              <label>Saldo V-Bucks</label>
+              <input id="novaContaVbucksInput" type="text" placeholder="Ex.: 8100" value="0" />
+            </div>
+            <div class="field">
+              <label style="color: var(--accent-light);">🏦 Banco / Pix</label>
+              <select id="novaContaBancoSelect" style="padding: 10px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); outline: none; width: 100%;">
+                <option value="">⚠️ Nenhum</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 10px;">
+            <div class="field">
+              <label>E-mail (Epic)</label>
+              <input id="novaContaEmailInput" type="email" placeholder="email@epic.com" />
+            </div>
+            <div class="field">
+              <label>Senha (Epic)</label>
+              <input id="novaContaSenhaInput" type="text" placeholder="Senha Epic" />
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 10px;">
+            <div class="field">
+              <label style="color: #4ade80;">E-mail (Xbox)</label>
+              <input id="novaContaEmailXboxInput" type="text" placeholder="E-mail Xbox">
+            </div>
+            <div class="field">
+              <label style="color: #4ade80;">Senha (Xbox)</label>
+              <input id="novaContaSenhaXboxInput" type="text" placeholder="Senha Xbox">
+            </div>
+          </div>
         </div>
-        <div class="field" style="margin-top: 10px">
-          <label>Saldo Inicial de V-Bucks (opcional)</label>
-          <input id="novaContaVbucksInput" type="text" placeholder="Ex.: 8100 ou 8.100" value="0" />
-        </div>
-        <div class="field" style="margin-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 10px;">
-          <label>E-mail de Login (opcional)</label>
-          <input id="novaContaEmailInput" type="email" placeholder="email@epic.com" />
-        </div>
-        <div class="field" style="margin-top: 10px">
-          <label>Senha da Epic (opcional)</label>
-          <input id="novaContaSenhaInput" type="text" placeholder="Sua senha" />
-        </div>
-        <div style="display: flex; gap: 10px; margin-top: 16px">
-          <button type="button" class="btn-green" style="flex: 1" onclick="salvarNovaContaModal()">➕ Adicionar Conta</button>
+
+        <div style="display: flex; gap: 10px; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px;">
+          <button type="button" class="btn-green" style="flex: 1" onclick="salvarNovaContaModal()">➕ Adicionar</button>
           <button type="button" class="btn-gray" onclick="fecharModalAddConta()">Cancelar</button>
         </div>
       </div>
     </div>
 
+    <!-- MODAL EDITAR CONTA -->
     <div id="editContaModal" class="modal-overlay" style="display: none">
-      <div class="modal-card">
+      <div class="modal-card" style="max-width: 520px;">
         <div class="modal-head">
           <h3 id="editContaTitle" style="margin: 0">✏️ Editar Conta</h3>
           <button type="button" class="btn-danger close-modal-btn" onclick="fecharModalEditConta()">✕</button>
         </div>
         <input type="hidden" id="editContaIndex" />
-        <div class="field" style="margin-top: 14px">
-          <label>Nick da Conta</label>
-          <input id="editContaNomeInput" type="text" maxlength="60" />
-        </div>
-        <div class="field" style="margin-top: 10px">
-          <label>Saldo Atual de V-Bucks</label>
-          <input id="editContaVbucksInput" type="text" placeholder="Ex.: 8100 ou 8.100" />
-        </div>
-        <div class="field" style="margin-top: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 10px;">
-          <label>E-mail de Login (opcional)</label>
-          <input id="editContaEmailInput" type="email" placeholder="email@epic.com" />
-        </div>
-        <div class="field" style="margin-top: 10px">
-          <label>Senha da Epic (opcional)</label>
-          <input id="editContaSenhaInput" type="text" placeholder="Sua senha" />
-        </div>
 
-        <div class="field" style="margin-top: 12px; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 10px;">
-          <label style="color: var(--green); font-weight: 700">➕ Somar V-Bucks ao Saldo</label>
-          <div style="display: flex; gap: 8px">
-            <input id="editContaSomarVbucksInput" type="number" step="50" placeholder="Ex.: 800, 2400 ou 12500" />
-            <button type="button" class="btn-green" style="padding: 0 14px; font-size: 13px; white-space: nowrap" onclick="aplicarSomaVbucksModal()">Somar</button>
+        <div class="modal-body-grid" style="max-height: 75vh; overflow-y: auto; padding-right: 4px; margin-top: 12px; display: flex; flex-direction: column; gap: 10px;">
+          <div class="field">
+            <label>Nick da Conta</label>
+            <input id="editContaNomeInput" type="text" maxlength="60" />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="field">
+              <label>Saldo V-Bucks</label>
+              <input id="editContaVbucksInput" type="text" placeholder="Ex.: 8100" />
+            </div>
+            <div class="field">
+              <label style="color: var(--accent-light);">🏦 Banco / Pix</label>
+              <select id="editContaBancoSelect" style="padding: 10px; border-radius: 6px; background: #000; color: #fff; border: 1px solid var(--border); outline: none; width: 100%;">
+                <option value="">⚠️ Nenhum</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 10px;">
+            <div class="field">
+              <label>E-mail (Epic)</label>
+              <input id="editContaEmailInput" type="email" placeholder="email@epic.com" />
+            </div>
+            <div class="field">
+              <label>Senha (Epic)</label>
+              <input id="editContaSenhaInput" type="text" placeholder="Senha Epic" />
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 10px;">
+            <div class="field">
+              <label style="color: #4ade80;">E-mail (Xbox)</label>
+              <input id="editContaEmailXboxInput" type="text" placeholder="E-mail Xbox">
+            </div>
+            <div class="field">
+              <label style="color: #4ade80;">Senha (Xbox)</label>
+              <input id="editContaSenhaXboxInput" type="text" placeholder="Senha Xbox">
+            </div>
+          </div>
+
+          <div class="field" style="border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 10px;">
+            <label style="color: var(--green); font-weight: 700">➕ Somar V-Bucks ao Saldo</label>
+            <div style="display: flex; gap: 8px">
+              <input id="editContaSomarVbucksInput" type="number" step="50" placeholder="Ex.: 800, 2400" />
+              <button type="button" class="btn-green" style="padding: 0 14px; font-size: 13px; white-space: nowrap" onclick="aplicarSomaVbucksModal()">Somar</button>
+            </div>
+          </div>
+
+          <!-- BOTÕES RÁPIDOS MAIORES E MAIS DESTACADOS -->
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+            <button type="button" style="flex: 1; min-width: 70px; font-size: 12px; font-weight: 700; padding: 8px 6px; background: #25183d; border: 1px solid var(--border); border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--accent)'; this.style.borderColor='var(--accent-light)'" onmouseout="this.style.background='#25183d'; this.style.borderColor='var(--border)'" onclick="somarPacoteRapido(800)">+800</button>
+            <button type="button" style="flex: 1; min-width: 70px; font-size: 12px; font-weight: 700; padding: 8px 6px; background: #25183d; border: 1px solid var(--border); border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--accent)'; this.style.borderColor='var(--accent-light)'" onmouseout="this.style.background='#25183d'; this.style.borderColor='var(--border)'" onclick="somarPacoteRapido(2400)">+2.400</button>
+            <button type="button" style="flex: 1; min-width: 70px; font-size: 12px; font-weight: 700; padding: 8px 6px; background: #25183d; border: 1px solid var(--border); border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--accent)'; this.style.borderColor='var(--accent-light)'" onmouseout="this.style.background='#25183d'; this.style.borderColor='var(--border)'" onclick="somarPacoteRapido(4500)">+4.500</button>
+            <button type="button" style="flex: 1; min-width: 70px; font-size: 12px; font-weight: 700; padding: 8px 6px; background: #25183d; border: 1px solid var(--border); border-radius: 8px; color: #fff; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--accent)'; this.style.borderColor='var(--accent-light)'" onmouseout="this.style.background='#25183d'; this.style.borderColor='var(--border)'" onclick="somarPacoteRapido(12500)">+12.500</button>
           </div>
         </div>
 
-        <div class="quick" style="margin-top: 8px">
-          <button type="button" style="font-size: 11px; padding: 5px 10px" onclick="somarPacoteRapido(800)">+800</button>
-          <button type="button" style="font-size: 11px; padding: 5px 10px" onclick="somarPacoteRapido(2400)">+2.400</button>
-          <button type="button" style="font-size: 11px; padding: 5px 10px" onclick="somarPacoteRapido(4500)">+4.500</button>
-          <button type="button" style="font-size: 11px; padding: 5px 10px" onclick="somarPacoteRapido(12500)">+12.500</button>
-        </div>
-
-        <div style="display: flex; gap: 10px; margin-top: 18px">
-          <button type="button" class="btn-green" style="flex: 1" onclick="salvarEdicaoContaModal()">💾 Salvar Dados</button>
+        <div style="display: flex; gap: 10px; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px;">
+          <button type="button" class="btn-green" style="flex: 1" onclick="salvarEdicaoContaModal()">💾 Salvar</button>
           <button type="button" class="btn-gray" onclick="fecharModalEditConta()">Cancelar</button>
         </div>
       </div>

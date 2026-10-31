@@ -8,6 +8,12 @@ function safeString(str) {
   return typeof esc === 'function' ? esc(jsEscaped) : jsEscaped.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
+// 🚀 FUNÇÃO PARA IGNORAR ACENTOS NAS BUSCAS
+function removerAcentosBusca(str) {
+  if (!str) return "";
+  return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
 function obterMapaDeClientes() {
   const clientesMap = {};
   
@@ -52,12 +58,12 @@ function buscarSugestoesCliente(texto) {
   if (idInput) idInput.value = ""; 
 
   if (!dropdown) return;
-  const termo = String(texto).toLowerCase().trim();
-  if (!termo) { dropdown.style.display = "none"; return; }
+  const termoLimpo = removerAcentosBusca(texto);
+  if (!termoLimpo) { dropdown.style.display = "none"; return; }
   
   const clientesMap = obterMapaDeClientes();
   
-  const sugestoes = Object.values(clientesMap).filter(c => c.nome.toLowerCase().includes(termo));
+  const sugestoes = Object.values(clientesMap).filter(c => removerAcentosBusca(c.nome).includes(termoLimpo));
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
@@ -70,12 +76,12 @@ function buscarSugestoesCliente(texto) {
 function buscarSugestoesNick(texto) {
   const dropdown = document.getElementById("nickSuggestions");
   if (!dropdown) return;
-  const termo = String(texto).toLowerCase().trim();
-  if (!termo) { dropdown.style.display = "none"; return; }
+  const termoLimpo = removerAcentosBusca(texto);
+  if (!termoLimpo) { dropdown.style.display = "none"; return; }
   
   const clientesMap = obterMapaDeClientes();
   
-  const sugestoes = Object.values(clientesMap).filter(c => c.nick.toLowerCase().includes(termo));
+  const sugestoes = Object.values(clientesMap).filter(c => removerAcentosBusca(c.nick).includes(termoLimpo));
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
@@ -119,8 +125,8 @@ function buscarSugestoesWhatsapp(texto) {
 function buscarSugestoesTiktok(texto) {
   const dropdown = document.getElementById("tiktokSuggestions");
   if (!dropdown) return;
-  let termo = String(texto).toLowerCase().trim().replace(/@/g, "");
-  if (!termo || termo.length < 2) { dropdown.style.display = "none"; return; }
+  let termoLimpo = removerAcentosBusca(texto).replace(/@/g, "");
+  if (!termoLimpo || termoLimpo.length < 2) { dropdown.style.display = "none"; return; }
   
   const clientesMap = obterMapaDeClientes();
   const resultadosEncontrados = {};
@@ -129,8 +135,8 @@ function buscarSugestoesTiktok(texto) {
     const tkOriginal = String(c.tiktok || "").trim();
     if (!tkOriginal) return;
     
-    const tkLimpo = tkOriginal.toLowerCase().replace(/@/g, "");
-    if (tkLimpo.includes(termo)) {
+    const tkLimpo = removerAcentosBusca(tkOriginal).replace(/@/g, "");
+    if (tkLimpo.includes(termoLimpo)) {
       resultadosEncontrados[c.id] = { ...c, tkOriginal: tkOriginal };
     }
   });
@@ -148,8 +154,8 @@ function buscarSugestoesTiktok(texto) {
 function sugerirNickPresente(texto, index) {
   const dropdown = document.getElementById(`nickPresenteSuggestions_${index}`);
   if (!dropdown) return;
-  const termo = String(texto).toLowerCase().trim();
-  if (!termo) { dropdown.style.display = "none"; return; }
+  const termoLimpo = removerAcentosBusca(texto);
+  if (!termoLimpo) { dropdown.style.display = "none"; return; }
   
   const nicksMap = {};
   const histReverso = [...(state.historicoVendas || [])].reverse();
@@ -167,7 +173,7 @@ function sugerirNickPresente(texto, index) {
     }
   });
   
-  const sugestoes = Object.keys(nicksMap).filter(n => n.toLowerCase().includes(termo));
+  const sugestoes = Object.keys(nicksMap).filter(n => removerAcentosBusca(n).includes(termoLimpo));
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(nick => `<div class="autocomplete-item" onmousedown="selecionarSugestaoNickPresente('${safeString(nick)}', ${index})">🎁 ${esc(nick)} <span class="autocomplete-nick">(${esc(nicksMap[nick])})</span></div>`).join("");
@@ -179,14 +185,13 @@ function buscarSugestoesItem(texto, index) {
   if (!dropdown) return;
   
   try {
-      const termo = String(texto).toLowerCase().trim();
+      const termoLimpo = removerAcentosBusca(texto);
       
-      if (!termo) { 
+      if (!termoLimpo) { 
         dropdown.style.display = "none"; 
         const inputVb = document.getElementById(`itemVbucksInput_${index}`);
         if(inputVb) {
             inputVb.value = "";
-            // 🚀 GATILHO ADICIONADO: Avisa o sistema financeiro que a caixa agora está vazia
             if (typeof recalcularValorSugeridoPorItem === 'function') recalcularValorSugeridoPorItem();
             if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
         }
@@ -212,21 +217,8 @@ function buscarSugestoesItem(texto, index) {
             if (vbItem === 0 && v.itens.length === 1 && totalVbVenda > 0) {
                 vbItem = totalVbVenda;
             }
-
-            if (nomeItem.includes(" – ")) {
-                const partes = nomeItem.split(" – ");
-                if (partes.length > 1) {
-                    tipoItem = partes[0].trim();
-                    nomeItem = partes.slice(1).join(" – ").trim();
-                }
-            } else if (nomeItem.includes(" - ")) {
-                const partes = nomeItem.split(" - ");
-                if (partes.length > 1) {
-                    tipoItem = partes[0].trim();
-                    nomeItem = partes.slice(1).join(" - ").trim();
-                }
-            }
             
+            // 🚀 REMOVIDO o código que "quebrava" o nome do item no meio!
             let nomeLimpo = nomeItem.trim();
             
             if (nomeLimpo) {
@@ -263,7 +255,8 @@ function buscarSugestoesItem(texto, index) {
         }
       });
 
-      const sugestoes = Object.values(itensMap).filter(i => i.nome.toLowerCase().includes(termo));
+      // 🚀 AQUI IGNORA OS ACENTOS NA HORA DE COMPARAR
+      const sugestoes = Object.values(itensMap).filter(i => removerAcentosBusca(i.nome).includes(termoLimpo));
       
       if (sugestoes.length === 0) { 
         dropdown.style.display = "none"; 

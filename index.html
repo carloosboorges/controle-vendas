@@ -39,7 +39,6 @@
         -moz-appearance: textfield;
         appearance: textfield;
       }
-      /* Remove o "X" padrão de campos de busca no Chrome/Opera */
       input[type="search"]::-webkit-search-decoration,
       input[type="search"]::-webkit-search-cancel-button,
       input[type="search"]::-webkit-search-results-button,
@@ -49,7 +48,7 @@
     </style>
   </head>
   <body>
-    <!-- ARMADILHA GLOBAL PARA O OPERA: Campos invisíveis para o navegador preencher e deixar o resto em paz -->
+    <!-- ARMADILHA GLOBAL PARA O OPERA -->
     <div style="position: absolute; top: -9999px; left: -9999px; width: 0; height: 0; overflow: hidden; opacity: 0; pointer-events: none;">
       <input type="text" name="fake_username_opera" autocomplete="username" tabindex="-1" />
       <input type="password" name="fake_password_opera" autocomplete="current-password" tabindex="-1" />
@@ -147,7 +146,6 @@
                 </div>
               </div>
 
-              <!-- NOVO SELETOR DE MODO DE APLICAÇÃO DO VOLUME -->
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px;">
                 <span style="font-size: 12px; color: #fff;">Modo de Aplicação do Desconto:</span>
                 <select id="selectModoVolumeRegra" class="item-type-select" style="width: 200px; padding: 6px; font-size: 12px;" onchange="alterarModoRegraVolume(this.value)">
@@ -160,22 +158,34 @@
         </div>
       </section>
 
-      <section class="summary">
-        <div class="card card-glow">
+      <!-- 🚀 SEÇÃO SUMMARY CORRIGIDA: GRID PARA ALINHAMENTO E FONTE REDUZIDA NO TOP CONTA -->
+     <section class="summary" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; align-items: stretch;">
+        <div class="card card-glow" style="position: relative;">
           <div class="label">Total da Sessão</div>
           <div class="value" id="totalGeral">R$ 0,00</div>
+          <button type="button" onclick="if(typeof abrirModalFecharCaixaBancos === 'function') abrirModalFecharCaixaBancos()" style="position: absolute; top: 10px; right: 10px; font-size: 11px; padding: 4px 8px; background: rgba(138, 5, 190, 0.2); border: 1px solid #8a05be; color: #fff; border-radius: 6px; cursor: pointer; font-weight: bold; z-index: 10; transition: all 0.2s;" onmouseover="this.style.background='rgba(138, 5, 190, 0.4)'" onmouseout="this.style.background='rgba(138, 5, 190, 0.2)'">
+            🏦 Caixa
+          </button>
         </div>
+        
         <div class="card card-glow">
           <div class="label">Vendas da Sessão</div>
-          <div class="value" id="qtdVendas">0</div>
+          <div class="value" id="qtdVendas">0 (0 itens)</div>
         </div>
-        <div class="card card-glow">
-          <div class="label">Pré-vendas (Sessão)</div>
-          <div class="value" id="totalAgendamentosSessao">R$ 0,00</div>
+
+        <div class="card card-glow" style="position: relative;">
+          <div class="label">Pré-vendas</div>
+          <div class="value" id="totalAgendamentosTopo">R$ 0,00</div>
+          <div class="small" id="totalAgendamentosSessaoTopo" style="color: var(--accent-light); margin-top: 2px;">Na sessão: R$ 0,00</div>
+          <button type="button" onclick="if(typeof abrirModalFecharCaixaAgendamentos === 'function') abrirModalFecharCaixaAgendamentos()" style="position: absolute; top: 10px; right: 10px; font-size: 11px; padding: 4px 8px; background: rgba(138, 5, 190, 0.2); border: 1px solid #8a05be; color: #fff; border-radius: 6px; cursor: pointer; font-weight: bold; z-index: 10; transition: all 0.2s;" onmouseover="this.style.background='rgba(138, 5, 190, 0.4)'" onmouseout="this.style.background='rgba(138, 5, 190, 0.2)'">
+            🏦 Caixa
+          </button>
         </div>
-        <div class="card card-glow">
+
+        <!-- O SEGREDO ESTÁ AQUI: overflow escondido e texto numa única linha -->
+        <div class="card card-glow" style="overflow: hidden;">
           <div class="label">Top Conta (Sessão)</div>
-          <div class="value" id="topConta" style="font-size: 19px">—</div>
+          <div class="value" id="topConta" style="font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 5px;">—</div>
         </div>
       </section>
 
@@ -190,9 +200,7 @@
           <div class="field field-valor">
             <div class="field-label-row">
               <label>Valor da venda</label>
-              <span id="valorVbucksPreview" class="vbucks-badge-preview"
-                >🪙 0 V-Bucks</span
-              >
+              <span id="valorVbucksPreview" class="vbucks-badge-preview">🪙 0 V-Bucks</span>
             </div>
             <input
               id="valorInput"
@@ -374,9 +382,7 @@
               onmouseout="this.style.borderColor = 'var(--border)'"
               onclick="toggleAgendaCalendario(event)"
             >
-              <span id="labelAgendaData" style="color: #fff; font-weight: 600"
-                >Hoje</span
-              >
+              <span id="labelAgendaData" style="color: #fff; font-weight: 600">Hoje</span>
               <span style="color: var(--muted); font-size: 16px">📅</span>
             </div>
             <div id="agendaPopoverPlaceholder"></div>
@@ -416,7 +422,6 @@
           "
         ></div>
 
-        <!-- CAMPO DE OBSERVAÇÃO AMPLIADO PARA 1000 CARACTERES -->
         <div class="field" style="margin-top: 14px">
           <label>💬 Observação (opcional)</label>
           <input
@@ -486,7 +491,6 @@
         >
           <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
             <h2 style="margin: 0">💰 Total por Conta</h2>
-            <!-- NOVAS ABAS DE NAVEGAÇÃO DOS CARDS -->
             <div style="display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 10px; border: 1px solid var(--border); flex-wrap: wrap;">
               <button type="button" id="tabContasGeral" style="padding: 6px 14px; font-size: 12px; border-radius: 8px; font-weight: bold; background: rgba(142,68,255,0.2); border: 1px solid var(--accent-light); color: #fff; cursor: pointer; outline: none; transition: all 0.2s;" onclick="typeof mudarAbaContas === 'function' && mudarAbaContas('geral')">Visão Geral</button>
               <button type="button" id="tabContasAcessos" style="padding: 6px 14px; font-size: 12px; border-radius: 8px; font-weight: bold; background: transparent; border: 1px solid transparent; color: var(--muted); cursor: pointer; outline: none; transition: all 0.2s;" onclick="typeof mudarAbaContas === 'function' && mudarAbaContas('acessos')">🗄️ Acessos</button>
@@ -616,6 +620,15 @@
             >
               📦 Itens
             </button>
+            <button
+              type="button"
+              class="history-tab-btn"
+              id="tabBtnBancos"
+              onclick="mudarAbaHistorico('bancos')"
+              style="flex: 1; text-align: center; min-width: 130px"
+            >
+              🏦 Bancos
+            </button>
           </div>
         </div>
 
@@ -692,7 +705,6 @@
               flex-wrap: wrap;
             "
           >
-            <!-- ARMADILHA EXTRA PARA O OPERA -->
             <div style="position: absolute; top: -9999px; left: -9999px; width: 0; height: 0; overflow: hidden; opacity: 0;">
                <input type="text" name="fake_search_username" autocomplete="username" />
                <input type="password" name="fake_search_password" autocomplete="current-password" />
@@ -700,7 +712,6 @@
 
             <div class="history-search-input-wrapper" style="flex: 1">
               <span class="search-icon">🔍</span>
-              <!-- CAMPO DE BUSCA BLINDADO -->
               <input
                 id="inputBuscaGeralHistorico"
                 type="search"
@@ -1031,6 +1042,28 @@
             ></div>
           </div>
         </div>
+
+        <!-- ABA BANCOS -->
+        <div id="conteudoAbaBancos" style="display: none">
+          <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+              <h3 style="margin: 0; color: var(--accent-light)">🏦 Gerenciar Bancos</h3>
+            </div>
+            <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px">
+              Crie aqui os bancos que você usa (ex: Nubank, PicPay, Inter). Depois de criá-los, eles aparecerão nas opções ao "Editar" uma conta.
+            </p>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                <input type="text" id="novoNomeBancoInput" placeholder="Nome do novo banco..." style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: #000; color: #fff; min-width: 200px; outline: none;">
+                <button type="button" onclick="adicionarBancoAction()" class="btn-green" style="padding: 0 15px; height: 42px; font-weight: bold;">➕ Criar Banco</button>
+            </div>
+            
+            <div id="listaDeBancosContainer" style="display: flex; flex-direction: column; gap: 8px;">
+               <!-- A lista de bancos será renderizada aqui via Javascript -->
+            </div>
+          </div>
+        </div>
+
       </section>
 
       <footer id="statusFooter">☁️ Carregando...</footer>
@@ -1048,45 +1081,8 @@
     <script src="js/itens.js"></script>
     <script src="js/mesclar.js"></script>
     <script src="js/modais-loader.js"></script>
-
+    <script src="js/bancos.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
-    <script>
-      let painelVolumeAberto = false;
-      window.togglePainelVolumeRetratil = function() {
-        painelVolumeAberto = !painelVolumeAberto;
-        const content = document.getElementById("configVolumeContent");
-        const arrow = document.getElementById("volumeToggleArrow");
-        if (content && arrow) {
-          content.style.display = painelVolumeAberto ? "flex" : "none";
-          arrow.textContent = painelVolumeAberto ? "▴" : "▾";
-        }
-      };
-      window.salvarValorBaseNormal = function(val) {
-        if (!state) return;
-        state.valorBase100 = parseFloat(val) || 2.50;
-        if (typeof save === 'function') save();
-        if (typeof render === 'function') render();
-      };
-      window.salvarValorPromoVolume = function(val) {
-        if (!state) return;
-        state.valorBasePromo = parseFloat(val) || 2.00;
-        if (typeof save === 'function') save();
-      };
-      window.salvarLimiteVolume = function(val) {
-        if (!state) return;
-        state.limiteVolumePromo = parseInt(val, 10) || 1500;
-        if (typeof save === 'function') save();
-      };
-      // Sincroniza o select visual com o estado ao carregar/renderizar
-      document.addEventListener("DOMContentLoaded", () => {
-        setTimeout(() => {
-          const sel = document.getElementById("selectModoVolumeRegra");
-          if (sel && state && state.modoVolumeRegra) {
-            sel.value = state.modoVolumeRegra;
-          }
-        }, 300);
-      });
-    </script>
   </body>
 </html>
