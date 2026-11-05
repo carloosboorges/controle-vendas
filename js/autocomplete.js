@@ -35,6 +35,7 @@ function highlightTexto(textoOriginal, termoPesquisado) {
   return `${safeAntes}<span style="color: #fff; background: rgba(142,68,255,0.6); padding: 0 2px; border-radius: 4px;">${safeMatch}</span>${safeDepois}`;
 }
 
+// 🚀 MAPA DE CLIENTES BLINDADO CONTRA DUPLICADAS DE MAIÚSCULA/MINÚSCULA
 function obterMapaDeClientes() {
   const clientesMap = {};
   
@@ -43,7 +44,8 @@ function obterMapaDeClientes() {
       const info = state.clientesInfo[id];
       const nome = String(info.nome || id).trim(); 
       if (nome && !nome.startsWith('cli-')) {
-        clientesMap[id] = { 
+        const chaveUnica = removerAcentosBusca(nome);
+        clientesMap[chaveUnica] = { 
           id: id, 
           nome: nome, 
           nick: info.nick || info.nickCliente || "", 
@@ -59,13 +61,14 @@ function obterMapaDeClientes() {
   histReverso.forEach(v => {
     const nome = String(v.cliente || "").trim();
     const id = v.clienteId || nome;
+    const chaveUnica = removerAcentosBusca(nome);
     
-    if (nome && !clientesMap[id]) {
-      clientesMap[id] = { id: id, nome: nome, nick: v.nickCliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
-    } else if (nome && clientesMap[id]) {
-      if (!clientesMap[id].whatsapp && v.whatsapp) clientesMap[id].whatsapp = v.whatsapp;
-      if (!clientesMap[id].tiktok && v.tiktok) clientesMap[id].tiktok = v.tiktok;
-      if (!clientesMap[id].nick && v.nickCliente) clientesMap[id].nick = v.nickCliente;
+    if (nome && !clientesMap[chaveUnica]) {
+      clientesMap[chaveUnica] = { id: id, nome: nome, nick: v.nickCliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
+    } else if (nome && clientesMap[chaveUnica]) {
+      if (!clientesMap[chaveUnica].whatsapp && v.whatsapp) clientesMap[chaveUnica].whatsapp = v.whatsapp;
+      if (!clientesMap[chaveUnica].tiktok && v.tiktok) clientesMap[chaveUnica].tiktok = v.tiktok;
+      if (!clientesMap[chaveUnica].nick && v.nickCliente) clientesMap[chaveUnica].nick = v.nickCliente;
     }
   });
 
@@ -89,7 +92,6 @@ function buscarSugestoesCliente(texto) {
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
     const obsIcon = (state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao) ? ' <span style="font-size:11px;" title="Possui observação">📌</span>' : '';
-    // Aplicando destaque no Nome do Cliente
     const nomeDestacado = highlightTexto(c.nome, texto);
     return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tiktok)}')">👤 ${nomeDestacado}${obsIcon} <span class="autocomplete-nick">🎮 ${esc(c.nick)}</span></div>`;
   }).join("");
@@ -103,12 +105,21 @@ function buscarSugestoesNick(texto) {
   if (!termoLimpo) { dropdown.style.display = "none"; return; }
   
   const clientesMap = obterMapaDeClientes();
+  const nicksUnicos = {};
   
-  const sugestoes = Object.values(clientesMap).filter(c => removerAcentosBusca(c.nick).includes(termoLimpo));
+  Object.values(clientesMap).forEach(c => {
+    if (c.nick) {
+      const chaveNick = removerAcentosBusca(c.nick);
+      if (!nicksUnicos[chaveNick]) {
+        nicksUnicos[chaveNick] = c;
+      }
+    }
+  });
+  
+  const sugestoes = Object.values(nicksUnicos).filter(c => removerAcentosBusca(c.nick).includes(termoLimpo));
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
-    // Aplicando destaque no Nick
     const nickDestacado = highlightTexto(c.nick, texto);
     return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tiktok)}')">🎮 ${nickDestacado} <span class="autocomplete-nick">👤 ${esc(c.nome)}</span></div>`;
   }).join("");
@@ -142,7 +153,6 @@ function buscarSugestoesWhatsapp(texto) {
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
     const obsIcon = (state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao) ? ' <span style="font-size:11px;" title="Possui observação">📌</span>' : '';
-    // Aplicando destaque no WhatsApp
     const wppDestacado = highlightTexto(c.wppOriginal, texto);
     return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.wppOriginal)}', '${safeString(c.tiktok)}')">📱 ${wppDestacado} <span class="autocomplete-nick">👤 ${esc(c.nome)}${obsIcon}</span></div>`;
   }).join("");
@@ -173,7 +183,6 @@ function buscarSugestoesTiktok(texto) {
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
     const obsIcon = (state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao) ? ' <span style="font-size:11px;" title="Possui observação">📌</span>' : '';
-    // Aplicando destaque no TikTok
     const tkDestacado = highlightTexto(c.tkOriginal, texto.replace(/@/g, ""));
     return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tkOriginal)}')">${typeof TIKTOK_SVG !== 'undefined' ? TIKTOK_SVG : '🎵'} ${tkDestacado} <span class="autocomplete-nick">👤 ${esc(c.nome)}${obsIcon}</span></div>`;
   }).join("");
@@ -191,24 +200,27 @@ function sugerirNickPresente(texto, index) {
   
   histReverso.forEach(v => {
     const nickC = String(v.nickCliente || "").trim();
-    if (nickC && !nicksMap[nickC]) nicksMap[nickC] = v.cliente || "";
+    if (nickC) {
+      const chaveN = removerAcentosBusca(nickC);
+      if (!nicksMap[chaveN]) nicksMap[chaveN] = { nick: nickC, cliente: v.cliente || "" };
+    }
     if (Array.isArray(v.itens)) {
       v.itens.forEach(item => {
         if (item && typeof item === 'object' && item.presente) {
           const np = item.presente.trim();
-          if (!nicksMap[np]) nicksMap[np] = "Nick Anterior";
+          const chaveP = removerAcentosBusca(np);
+          if (!nicksMap[chaveP]) nicksMap[chaveP] = { nick: np, cliente: "Nick Anterior" };
         }
       });
     }
   });
   
-  const sugestoes = Object.keys(nicksMap).filter(n => removerAcentosBusca(n).includes(termoLimpo));
+  const sugestoes = Object.values(nicksMap).filter(item => removerAcentosBusca(item.nick).includes(termoLimpo));
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
-  dropdown.innerHTML = sugestoes.slice(0, 6).map(nick => {
-      // Aplicando destaque no Nick de Presente
-      const nickDestacado = highlightTexto(nick, texto);
-      return `<div class="autocomplete-item" onmousedown="selecionarSugestaoNickPresente('${safeString(nick)}', ${index})">🎁 ${nickDestacado} <span class="autocomplete-nick">(${esc(nicksMap[nick])})</span></div>`;
+  dropdown.innerHTML = sugestoes.slice(0, 6).map(item => {
+      const nickDestacado = highlightTexto(item.nick, texto);
+      return `<div class="autocomplete-item" onmousedown="selecionarSugestaoNickPresente('${safeString(item.nick)}', ${index})">🎁 ${nickDestacado} <span class="autocomplete-nick">(${esc(item.cliente)})</span></div>`;
   }).join("");
   dropdown.style.display = "block";
 }
@@ -253,7 +265,7 @@ function buscarSugestoesItem(texto, index) {
             let nomeLimpo = nomeItem.trim();
             
             if (nomeLimpo) {
-              const chave = `${nomeLimpo.toLowerCase()}|||${tipoItem.toLowerCase()}`;
+              const chave = `${removerAcentosBusca(nomeLimpo)}|||${removerAcentosBusca(tipoItem)}`;
               if (!itensMap[chave]) {
                 itensMap[chave] = { nome: nomeLimpo, tipo: tipoItem, vbucks: vbItem };
               } else {
@@ -274,7 +286,7 @@ function buscarSugestoesItem(texto, index) {
           const vbItem = totalVbVenda; 
           
           if (nomeLimpo) {
-            const chave = `${nomeLimpo.toLowerCase()}|||${tipoItem.toLowerCase()}`;
+            const chave = `${removerAcentosBusca(nomeLimpo)}|||${removerAcentosBusca(tipoItem)}`;
             if (!itensMap[chave]) {
               itensMap[chave] = { nome: nomeLimpo, tipo: tipoItem, vbucks: vbItem };
             } else {
@@ -310,8 +322,6 @@ function buscarSugestoesItem(texto, index) {
       dropdown.innerHTML = sugestoes.slice(0, 8).map(i => {
         const formatadorVb = typeof formatVBucks === 'function' ? formatVBucks : (val) => val;
         const vbFormatado = i.vbucks > 0 ? `${formatadorVb(i.vbucks)} VB` : '? VB';
-        
-        // Aplicando a função inteligente de destaque!
         const nomeDestacado = highlightTexto(i.nome, texto);
 
         return `<div class="autocomplete-item" onmousedown="clicarSugestaoItem(this, ${index})" data-nome="${esc(i.nome)}" data-tipo="${esc(i.tipo)}" data-vbucks="${i.vbucks || 0}">🎁 ${nomeDestacado} <span style="color:#ffb74d; font-weight:800; font-size:11px; margin-left:6px;">[${vbFormatado}]</span> <span class="autocomplete-nick">📦 ${esc(i.tipo)}</span></div>`;
@@ -329,6 +339,7 @@ function selecionarSugestaoCliente(id, nome, nick, whatsapp, tiktok) {
   if (idInput) idInput.value = id; 
   
   document.getElementById("clienteInput").value = nome;
+  document.getElementById("nickClienteInput").value, nick;
   document.getElementById("nickClienteInput").value = nick;
   if (document.getElementById("whatsappInput")) document.getElementById("whatsappInput").value = whatsapp || "";
   if (document.getElementById("tiktokInput")) document.getElementById("tiktokInput").value = tiktok || "";
@@ -381,6 +392,7 @@ document.addEventListener("mousedown", (e) => {
     dropdowns.forEach(drop => {
         const wrapper = drop.closest('.autocomplete-wrapper') || drop.parentElement;
         if (wrapper && !wrapper.contains(e.target)) {
+            drop.style.display = 'none5'; // mantido fechar
             drop.style.display = 'none';
         }
     });
