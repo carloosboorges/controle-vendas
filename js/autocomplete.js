@@ -35,7 +35,7 @@ function highlightTexto(textoOriginal, termoPesquisado) {
   return `${safeAntes}<span style="color: #fff; background: rgba(142,68,255,0.6); padding: 0 2px; border-radius: 4px;">${safeMatch}</span>${safeDepois}`;
 }
 
-// 🚀 MAPA DE CLIENTES BLINDADO CONTRA DUPLICADAS DE MAIÚSCULA/MINÚSCULA (PARA O NOME)
+// 🚀 MAPA DE CLIENTES (PARA O NOME)
 function obterMapaDeClientes() {
   const clientesMap = {};
   
@@ -108,7 +108,7 @@ function buscarSugestoesNick(texto) {
   const combinacoesUnicas = new Set();
   const listaSugestoes = [];
   
-  // 1. Varre o histórico de vendas para capturar todas as combinações reais de (Nick + Nome de Comprovante)
+  // 1. Varre o histórico de vendas recolhendo todas as duplas (Nick + Nome de Comprovante)
   const histReverso = [...(state.historicoVendas || [])].reverse();
   histReverso.forEach(v => {
     const nickVenda = String(v.nickCliente || "").trim();
@@ -129,7 +129,7 @@ function buscarSugestoesNick(texto) {
     }
   });
 
-  // 2. Varre também o cadastro geral de clientes caso tenha algum salvo sem venda recente
+  // 2. Varre o cadastro central de clientes (`state.clientesInfo`)
   if (state && state.clientesInfo) {
     Object.keys(state.clientesInfo).forEach(id => {
       const info = state.clientesInfo[id];
@@ -154,7 +154,7 @@ function buscarSugestoesNick(texto) {
 
   if (listaSugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
-  dropdown.innerHTML = listaSugestoes.slice(0, 6).map(c => {
+  dropdown.innerHTML = listaSugestoes.slice(0, 8).map(c => {
     const nickDestacado = highlightTexto(c.nick, texto);
     return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tiktok)}')">🎮 ${nickDestacado} <span class="autocomplete-nick">👤 ${esc(c.nome)}</span></div>`;
   }).join("");
