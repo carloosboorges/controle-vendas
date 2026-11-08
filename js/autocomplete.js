@@ -8,13 +8,11 @@ function safeString(str) {
   return typeof esc === 'function' ? esc(jsEscaped) : jsEscaped.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
-// 🚀 FUNÇÃO PARA IGNORAR ACENTOS NAS BUSCAS
 function removerAcentosBusca(str) {
   if (!str) return "";
   return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
-// 🚀 FUNÇÃO GLOBAL DE DESTAQUE VISUAL (O "Roxinho")
 function highlightTexto(textoOriginal, termoPesquisado) {
   if (!termoPesquisado || !textoOriginal) return typeof esc === 'function' ? esc(textoOriginal) : textoOriginal;
   
@@ -35,12 +33,9 @@ function highlightTexto(textoOriginal, termoPesquisado) {
   return `${safeAntes}<span style="color: #fff; background: rgba(142,68,255,0.6); padding: 0 2px; border-radius: 4px;">${safeMatch}</span>${safeDepois}`;
 }
 
-// 🚀 O MAPA MESTRE: Agrupa por NOME + NICK simultaneamente!
-// Isso garante que "José+LordDark" seja unificado, mas "Pedro+Toky" e "Maria+Toky" apareçam os dois.
 function obterMapaDeClientes() {
   const clientesMap = {};
   
-  // Criador de chaves únicas que ignora letras maiúsculas e acentos
   const gerarChave = (nome, nick) => {
     const n = removerAcentosBusca(nome || "");
     const nk = removerAcentosBusca(nick || "");
@@ -88,6 +83,7 @@ function obterMapaDeClientes() {
   return clientesMap;
 }
 
+// 🚀 BUSCA DE NOME: Agrupa para mostrar o nome apenas UMA vez com o nick mais recente
 function buscarSugestoesCliente(texto) {
   const dropdown = document.getElementById("clienteSuggestions");
   const idInput = document.getElementById("clienteIdInput");
@@ -100,13 +96,27 @@ function buscarSugestoesCliente(texto) {
   
   const clientesMap = obterMapaDeClientes();
   
-  const sugestoes = Object.values(clientesMap).filter(c => removerAcentosBusca(c.nome).includes(termoLimpo));
+  const nomesUnicos = {};
+  Object.values(clientesMap).forEach(c => {
+    const chaveNome = removerAcentosBusca(c.nome);
+    if (!nomesUnicos[chaveNome]) {
+      nomesUnicos[chaveNome] = { ...c };
+    } else {
+      if (!nomesUnicos[chaveNome].nick && c.nick) {
+        nomesUnicos[chaveNome].nick = c.nick;
+      }
+    }
+  });
+  
+  const sugestoes = Object.values(nomesUnicos).filter(c => removerAcentosBusca(c.nome).includes(termoLimpo));
   if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
   dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
     const obsIcon = (state.clientesInfo && state.clientesInfo[c.id] && state.clientesInfo[c.id].observacao) ? ' <span style="font-size:11px;" title="Possui observação">📌</span>' : '';
     const nomeDestacado = highlightTexto(c.nome, texto);
-    return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tiktok)}')">👤 ${nomeDestacado}${obsIcon} <span class="autocomplete-nick">🎮 ${esc(c.nick)}</span></div>`;
+    const nickHtml = c.nick ? ` <span class="autocomplete-nick">🎮 ${esc(c.nick)}</span>` : '';
+    
+    return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tiktok)}')">👤 ${nomeDestacado}${obsIcon}${nickHtml}</div>`;
   }).join("");
   dropdown.style.display = "block";
 }
@@ -117,14 +127,54 @@ function buscarSugestoesNick(texto) {
   const termoLimpo = removerAcentosBusca(texto);
   if (!termoLimpo) { dropdown.style.display = "none"; return; }
   
-  const clientesMap = obterMapaDeClientes();
+  const combinacoesUnicas = new Set();
+  const listaSugestoes = [];
   
-  // Filtra todo o mapa buscando quem tem esse nick
-  const sugestoes = Object.values(clientesMap).filter(c => removerAcentosBusca(c.nick).includes(termoLimpo));
+  const histReverso = [...(state.historicoVendas || [])].reverse();
+  histReverso.forEach(v => {
+    const nickVenda = String(v.nickCliente || "").trim();
+    const nomeVenda = String(v.cliente || "").trim();
+    
+    if (nickVenda && removerAcentosBusca(nickVenda).includes(termoLimpo)) {
+      const chave = `${removerAcentosBusca(nickVenda)}|||${removerAcentosBusca(nomeVenda)}`;
+      if (!combinacoesUnicas.has(chave)) {
+        combinacoesUnicas.add(chave);
+        listaSugestoes.push({
+          id: v.clienteId || nomeVenda,
+          nome: nomeVenda,
+          nick: nickVenda,
+          whatsapp: v.whatsapp || "",
+          tiktok: v.tiktok || ""
+        });
+      }
+    }
+  });
+
+  if (state && state.clientesInfo) {
+    Object.keys(state.clientesInfo).forEach(id => {
+      const info = state.clientesInfo[id];
+      const nickInfo = String(info.nick || info.nickCliente || "").trim();
+      const nomeInfo = String(info.nome || "").trim();
+      
+      if (nickInfo && nomeInfo && !nomeInfo.startsWith('cli-') && removerAcentosBusca(nickInfo).includes(termoLimpo)) {
+        const chave = `${removerAcentosBusca(nickInfo)}|||${removerAcentosBusca(nomeInfo)}`;
+        if (!combinacoesUnicas.has(chave)) {
+          combinacoesUnicas.add(chave);
+          listaSugestoes.push({
+            id: id,
+            nome: nomeInfo,
+            nick: nickInfo,
+            whatsapp: info.whatsapp || "",
+            tiktok: info.tiktok || ""
+          });
+        }
+      }
+    });
+  }
+
+  if (listaSugestoes.length === 0) { dropdown.style.display = "none"; return; }
   
-  if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
-  
-  dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
+  dropdown.innerHTML = listaSugestoes.slice(0, 8).map(c => {
     const nickDestacado = highlightTexto(c.nick, texto);
     return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tiktok)}')">🎮 ${nickDestacado} <span class="autocomplete-nick">👤 ${esc(c.nome)}</span></div>`;
   }).join("");
@@ -390,7 +440,7 @@ function clicarSugestaoItem(element, index) {
   if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
 }
 
-// CORREÇÃO DA JANELA FANTASMA: fecha as listas ao clicar fora
+// FECHAMENTO INTELIGENTE
 document.addEventListener("mousedown", (e) => {
     const dropdowns = document.querySelectorAll('.autocomplete-dropdown, .autocomplete-edicao-drop');
     dropdowns.forEach(drop => {
