@@ -35,20 +35,30 @@ function highlightTexto(textoOriginal, termoPesquisado) {
   return `${safeAntes}<span style="color: #fff; background: rgba(142,68,255,0.6); padding: 0 2px; border-radius: 4px;">${safeMatch}</span>${safeDepois}`;
 }
 
-// 🚀 MAPA DE CLIENTES (PARA O NOME)
+// 🚀 O MAPA MESTRE: Agrupa por NOME + NICK simultaneamente!
+// Isso garante que "José+LordDark" seja unificado, mas "Pedro+Toky" e "Maria+Toky" apareçam os dois.
 function obterMapaDeClientes() {
   const clientesMap = {};
+  
+  // Criador de chaves únicas que ignora letras maiúsculas e acentos
+  const gerarChave = (nome, nick) => {
+    const n = removerAcentosBusca(nome || "");
+    const nk = removerAcentosBusca(nick || "");
+    return `${n}|||${nk}`;
+  };
   
   if (state && state.clientesInfo) {
     Object.keys(state.clientesInfo).forEach(id => {
       const info = state.clientesInfo[id];
-      const nome = String(info.nome || id).trim(); 
+      const nome = String(info.nome || id).trim();
+      const nick = String(info.nick || info.nickCliente || "").trim();
+      
       if (nome && !nome.startsWith('cli-')) {
-        const chaveUnica = removerAcentosBusca(nome);
-        clientesMap[chaveUnica] = { 
+        const chave = gerarChave(nome, nick);
+        clientesMap[chave] = { 
           id: id, 
           nome: nome, 
-          nick: info.nick || info.nickCliente || "", 
+          nick: nick, 
           whatsapp: info.whatsapp || "", 
           tiktok: info.tiktok || "" 
         };
@@ -60,15 +70,18 @@ function obterMapaDeClientes() {
   
   histReverso.forEach(v => {
     const nome = String(v.cliente || "").trim();
+    const nick = String(v.nickCliente || "").trim();
     const id = v.clienteId || nome;
-    const chaveUnica = removerAcentosBusca(nome);
     
-    if (nome && !clientesMap[chaveUnica]) {
-      clientesMap[chaveUnica] = { id: id, nome: nome, nick: v.nickCliente || "", whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
-    } else if (nome && clientesMap[chaveUnica]) {
-      if (!clientesMap[chaveUnica].whatsapp && v.whatsapp) clientesMap[chaveUnica].whatsapp = v.whatsapp;
-      if (!clientesMap[chaveUnica].tiktok && v.tiktok) clientesMap[chaveUnica].tiktok = v.tiktok;
-      if (!clientesMap[chaveUnica].nick && v.nickCliente) clientesMap[chaveUnica].nick = v.nickCliente;
+    if (nome) {
+      const chave = gerarChave(nome, nick);
+      
+      if (!clientesMap[chave]) {
+        clientesMap[chave] = { id: id, nome: nome, nick: nick, whatsapp: v.whatsapp || "", tiktok: v.tiktok || "" };
+      } else {
+        if (!clientesMap[chave].whatsapp && v.whatsapp) clientesMap[chave].whatsapp = v.whatsapp;
+        if (!clientesMap[chave].tiktok && v.tiktok) clientesMap[chave].tiktok = v.tiktok;
+      }
     }
   });
 
@@ -98,63 +111,20 @@ function buscarSugestoesCliente(texto) {
   dropdown.style.display = "block";
 }
 
-// 🚀 BUSCA DE NICKS PERMITINDO MÚLTIPLOS COMPROVANTES (Mãe, Pai, etc.)
 function buscarSugestoesNick(texto) {
   const dropdown = document.getElementById("nickSuggestions");
   if (!dropdown) return;
   const termoLimpo = removerAcentosBusca(texto);
   if (!termoLimpo) { dropdown.style.display = "none"; return; }
   
-  const combinacoesUnicas = new Set();
-  const listaSugestoes = [];
+  const clientesMap = obterMapaDeClientes();
   
-  // 1. Varre o histórico de vendas recolhendo todas as duplas (Nick + Nome de Comprovante)
-  const histReverso = [...(state.historicoVendas || [])].reverse();
-  histReverso.forEach(v => {
-    const nickVenda = String(v.nickCliente || "").trim();
-    const nomeVenda = String(v.cliente || "").trim();
-    
-    if (nickVenda && removerAcentosBusca(nickVenda).includes(termoLimpo)) {
-      const chave = `${removerAcentosBusca(nickVenda)}|||${removerAcentosBusca(nomeVenda)}`;
-      if (!combinacoesUnicas.has(chave)) {
-        combinacoesUnicas.add(chave);
-        listaSugestoes.push({
-          id: v.clienteId || nomeVenda,
-          nome: nomeVenda,
-          nick: nickVenda,
-          whatsapp: v.whatsapp || "",
-          tiktok: v.tiktok || ""
-        });
-      }
-    }
-  });
-
-  // 2. Varre o cadastro central de clientes (`state.clientesInfo`)
-  if (state && state.clientesInfo) {
-    Object.keys(state.clientesInfo).forEach(id => {
-      const info = state.clientesInfo[id];
-      const nickInfo = String(info.nick || info.nickCliente || "").trim();
-      const nomeInfo = String(info.nome || "").trim();
-      
-      if (nickInfo && nomeInfo && !nomeInfo.startsWith('cli-') && removerAcentosBusca(nickInfo).includes(termoLimpo)) {
-        const chave = `${removerAcentosBusca(nickInfo)}|||${removerAcentosBusca(nomeInfo)}`;
-        if (!combinacoesUnicas.has(chave)) {
-          combinacoesUnicas.add(chave);
-          listaSugestoes.push({
-            id: id,
-            nome: nomeInfo,
-            nick: nickInfo,
-            whatsapp: info.whatsapp || "",
-            tiktok: info.tiktok || ""
-          });
-        }
-      }
-    });
-  }
-
-  if (listaSugestoes.length === 0) { dropdown.style.display = "none"; return; }
+  // Filtra todo o mapa buscando quem tem esse nick
+  const sugestoes = Object.values(clientesMap).filter(c => removerAcentosBusca(c.nick).includes(termoLimpo));
   
-  dropdown.innerHTML = listaSugestoes.slice(0, 8).map(c => {
+  if (sugestoes.length === 0) { dropdown.style.display = "none"; return; }
+  
+  dropdown.innerHTML = sugestoes.slice(0, 6).map(c => {
     const nickDestacado = highlightTexto(c.nick, texto);
     return `<div class="autocomplete-item" onmousedown="selecionarSugestaoCliente('${safeString(c.id)}', '${safeString(c.nome)}', '${safeString(c.nick)}', '${safeString(c.whatsapp)}', '${safeString(c.tiktok)}')">🎮 ${nickDestacado} <span class="autocomplete-nick">👤 ${esc(c.nome)}</span></div>`;
   }).join("");
