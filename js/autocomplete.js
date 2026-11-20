@@ -83,7 +83,7 @@ function obterMapaDeClientes() {
   return clientesMap;
 }
 
-// 🚀 BUSCA DE NOME: Agrupa para mostrar o nome apenas UMA vez com o nick mais recente
+// BUSCA DE NOME: Agrupa para mostrar o nome apenas UMA vez com o nick mais recente
 function buscarSugestoesCliente(texto) {
   const dropdown = document.getElementById("clienteSuggestions");
   const idInput = document.getElementById("clienteIdInput");
@@ -121,6 +121,7 @@ function buscarSugestoesCliente(texto) {
   dropdown.style.display = "block";
 }
 
+// BUSCA DE NICKS: Permite múltiplos nomes de comprovante ligados ao mesmo nick
 function buscarSugestoesNick(texto) {
   const dropdown = document.getElementById("nickSuggestions");
   if (!dropdown) return;
@@ -440,13 +441,21 @@ function clicarSugestaoItem(element, index) {
   if (typeof atualizarPreviewVBucks === 'function') atualizarPreviewVBucks();
 }
 
-// FECHAMENTO INTELIGENTE
-document.addEventListener("mousedown", (e) => {
+// FECHAMENTO INTELIGENTE (Clique fora, navegação por Tab e tecla Esc)
+function fecharDropdownsFora(alvo) {
     const dropdowns = document.querySelectorAll('.autocomplete-dropdown, .autocomplete-edicao-drop');
     dropdowns.forEach(drop => {
         const wrapper = drop.closest('.autocomplete-wrapper') || drop.parentElement;
-        if (wrapper && !wrapper.contains(e.target)) {
+        if (wrapper && !wrapper.contains(alvo)) {
             drop.style.display = 'none';
         }
     });
+}
+
+document.addEventListener("mousedown", (e) => fecharDropdownsFora(e.target));
+document.addEventListener("focusin", (e) => fecharDropdownsFora(e.target));
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+        document.querySelectorAll('.autocomplete-dropdown, .autocomplete-edicao-drop').forEach(d => d.style.display = 'none');
+    }
 });

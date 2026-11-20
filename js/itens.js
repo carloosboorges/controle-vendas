@@ -165,7 +165,8 @@ function renderizarHistoricoItensCompleto() {
   const totalPaginas = Math.ceil(totalItensFiltrados / ITENS_POR_PAGINA) || 1;
   if (itensPaginaAtual > totalPaginas) itensPaginaAtual = totalPaginas;
   if (itensPaginaAtual < 1) itensPaginaAtual = 1;
-  const itensPagina = listaItensArr.slice((itensPaginaAtual - 1) * ITENS_POR_PAGINA, itensPaginaAtual * ITENS_POR_PAGINA);
+  const offset = (itensPaginaAtual - 1) * ITENS_POR_PAGINA;
+  const itensPagina = listaItensArr.slice(offset, itensPaginaAtual * ITENS_POR_PAGINA);
 
   if (resumoEl) resumoEl.textContent = `${totalItensFiltrados} ${totalItensFiltrados === 1 ? 'item encontrado' : 'itens encontrados'}`;
 
@@ -180,6 +181,7 @@ function renderizarHistoricoItensCompleto() {
       <table class="financial-table" style="width:100%; border-collapse:collapse;">
         <thead>
           <tr>
+            <th style="padding:12px; text-align:left; border-bottom:1px solid var(--border); width:70px;">Posição</th>
             <th style="padding:12px; text-align:left; border-bottom:1px solid var(--border);">Nome do Item</th>
             <th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">Tipo</th>
             <th style="padding:12px; text-align:center; border-bottom:1px solid var(--border);">Qtd. Vendida</th>
@@ -190,7 +192,8 @@ function renderizarHistoricoItensCompleto() {
           </tr>
         </thead>
         <tbody>
-          ${itensPagina.map(item => {
+          ${itensPagina.map((item, idx) => {
+            const posicao = offset + idx + 1;
             const custoPorVbuck = 0.01;
             const custoTotalDoItem = item.vbucksAcumuladoReal * custoPorVbuck;
             const lucroItem = item.faturamentoReal - custoTotalDoItem;
@@ -198,6 +201,7 @@ function renderizarHistoricoItensCompleto() {
 
             return `
               <tr style="cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(142,68,255,0.08)'" onmouseout="this.style.background='transparent'" onclick="abrirModalDetalhesItem(\`${item.nomeOriginal.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`, \`${item.tipo.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\`)">
+                <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:800; color:var(--muted);">#${posicao}</td>
                 <td style="padding:12px; border-bottom:1px solid var(--border); font-weight:700; color:var(--accent-light);">🎁 ${esc(item.nomeOriginal)} 🔍</td>
                 <td style="padding:12px; text-align:center; border-bottom:1px solid var(--border); color:#fff; font-weight:600;">
                   <span style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap;">${esc(item.tipo)}</span>
@@ -460,7 +464,6 @@ function salvarEdicaoItem() {
             } else {
               itemObj.nome = novoNome;
               if (novoTipo) itemObj.tipo = novoTipo;
-              // CORREÇÃO: Garante que o novo V-Bucks da edição substitui o valor antigo imediatamente
               itemObj.vbucks = novoVbucks;
             }
             modificado = true;
