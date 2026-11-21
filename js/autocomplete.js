@@ -121,25 +121,26 @@ function buscarSugestoesCliente(texto) {
   dropdown.style.display = "block";
 }
 
-// BUSCA DE NICKS: Permite múltiplos nomes de comprovante ligados ao mesmo nick
+// BUSCA DE NICKS: 1 resultado por cliente (sempre o nick mais recente), mantendo múltiplos pagadores para o mesmo nick
 function buscarSugestoesNick(texto) {
   const dropdown = document.getElementById("nickSuggestions");
   if (!dropdown) return;
   const termoLimpo = removerAcentosBusca(texto);
   if (!termoLimpo) { dropdown.style.display = "none"; return; }
   
-  const combinacoesUnicas = new Set();
+  const clientesVistos = new Set();
   const listaSugestoes = [];
   
+  // 1. Varre da venda mais recente para a mais antiga
   const histReverso = [...(state.historicoVendas || [])].reverse();
   histReverso.forEach(v => {
     const nickVenda = String(v.nickCliente || "").trim();
     const nomeVenda = String(v.cliente || "").trim();
     
     if (nickVenda && removerAcentosBusca(nickVenda).includes(termoLimpo)) {
-      const chave = `${removerAcentosBusca(nickVenda)}|||${removerAcentosBusca(nomeVenda)}`;
-      if (!combinacoesUnicas.has(chave)) {
-        combinacoesUnicas.add(chave);
+      const chaveCliente = nomeVenda ? removerAcentosBusca(nomeVenda) : removerAcentosBusca(nickVenda);
+      if (!clientesVistos.has(chaveCliente)) {
+        clientesVistos.add(chaveCliente);
         listaSugestoes.push({
           id: v.clienteId || nomeVenda,
           nome: nomeVenda,
@@ -151,6 +152,7 @@ function buscarSugestoesNick(texto) {
     }
   });
 
+  // 2. Complementa com clientes cadastrados que ainda não apareceram
   if (state && state.clientesInfo) {
     Object.keys(state.clientesInfo).forEach(id => {
       const info = state.clientesInfo[id];
@@ -158,9 +160,9 @@ function buscarSugestoesNick(texto) {
       const nomeInfo = String(info.nome || "").trim();
       
       if (nickInfo && nomeInfo && !nomeInfo.startsWith('cli-') && removerAcentosBusca(nickInfo).includes(termoLimpo)) {
-        const chave = `${removerAcentosBusca(nickInfo)}|||${removerAcentosBusca(nomeInfo)}`;
-        if (!combinacoesUnicas.has(chave)) {
-          combinacoesUnicas.add(chave);
+        const chaveCliente = removerAcentosBusca(nomeInfo);
+        if (!clientesVistos.has(chaveCliente)) {
+          clientesVistos.add(chaveCliente);
           listaSugestoes.push({
             id: id,
             nome: nomeInfo,
