@@ -223,6 +223,8 @@ function preencherNovaVendaModal(nome, nick) {
 
 function renderizarListaItensHtml(itens, vObj = null) {
   if (!Array.isArray(itens) || itens.length === 0) return "🎁 —";
+
+  const contaPrincipal = typeof vObj === "string" ? vObj : (vObj && vObj.conta ? vObj.conta : "");
   
   return itens.map((itemObj, n) => {
     let itemText = "", presenteText = "", copyText = "", priceText = "", linhaSubordinada = "";
@@ -242,7 +244,7 @@ function renderizarListaItensHtml(itens, vObj = null) {
          priceText = `<span style="color:#ffb74d; font-size:11px; margin-left:6px; background: rgba(255, 183, 77, 0.15); padding: 2px 6px; border-radius: 6px; font-weight:700; white-space:nowrap;">🪙 ${formatVBucks(itemVb)} VB</span>`;
       }
 
-      if (itemObj.contaEnvio && itemObj.contaEnvio !== "") {
+      if (itemObj.contaEnvio && itemObj.contaEnvio !== "" && itemObj.contaEnvio !== contaPrincipal) {
           linhaSubordinada = `<div style="font-size: 11.5px; color: var(--muted); margin-top: 3px; margin-left: 20px; font-style: italic;">↳ Enviado por: <span style="font-weight: 700; color: var(--accent-light);">${esc(itemObj.contaEnvio)}</span></div>`;
       }
     }

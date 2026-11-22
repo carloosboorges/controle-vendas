@@ -166,7 +166,7 @@ function abrirModalDetalhesCliente(id, nome) {
         <div style="display: flex; flex-direction: column; gap: 6px; max-width: 70%;">
           <div style="font-size: 13px; font-weight: 800; color: var(--accent-light);">📦 Pedido #${numeroPedido} · Conta: <span style="color: #fff; font-weight: 600;">${esc(v.conta)}</span></div>
           <div style="font-size: 13px; color: var(--muted); font-weight: 600;">🎮 Nick: <span style="color: #fff; font-weight: 800;">${esc(v.nickCliente)}</span></div>
-          <div style="font-size: 13px; color: #fff; margin-top: 2px;">${typeof renderizarListaItensHtml === 'function' ? renderizarListaItensHtml(v.itens || [v.item]) : esc(v.item)}</div>
+          <div style="font-size: 13px; color: #fff; margin-top: 2px;">${typeof renderizarListaItensHtml === 'function' ? renderizarListaItensHtml(v.itens || [v.item], v.conta) : esc(v.item)}</div>
           <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">📅 ${esc(v.data)} às ${esc(v.hora)}</div>
         </div>
         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
